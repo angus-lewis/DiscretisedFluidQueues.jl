@@ -1,0 +1,18 @@
+About the file CMEParams.jld2
++ contains one variable "CMEParams"
+    + CMEParams is a Dict{Int,Dict{String,Any}}
+        + keys of CMEParams are Int, the order of the ME, 1,3,5,7,...,49 
+        + values are parameters of the CME
+            + "cv2" the squared coefficient of variation
+            + "mu1" the first moment
+            + "mu2" the second moment
+            + "D" the matrix to compute the expected orbit position on the redisual time
+            + "intDevals" the number of function evaluations used to compute D
+            + various extra parameters from Telek, Horvath's work on numercally finding CMEs,
+                see "Gábor Horváth, Illés Horváth & Miklós Telek (2020) High order
+                concentrated matrix-exponential distributions, Stochastic Models, 36:2, 176-192, DOI:
+                10.1080/15326349.2019.1702058
+                itlcme.json
++ created 9/Jun/2021
++ by Angus Lewis 
++ see SFFM commit c21da55a481c17b57c92b1dca8c3ae7e74dab918 for code
