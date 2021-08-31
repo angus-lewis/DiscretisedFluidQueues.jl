@@ -92,7 +92,7 @@ Simulates a SFM defined by `Model` until the `StoppingTime` has occured,
 given the `InitialCondition` on (φ(0),X(0)).
 
     SimSFM(
-        model::SFFM.Model,
+        model::Model,
         StoppingTime::Function,
         InitCondition::NamedTuple{(:φ, :X)},
     )
@@ -127,7 +127,7 @@ given the `InitialCondition` on (φ(0),X(0)).
         transitions of `φ` at the `StoppingTime`
 """
 function SimSFM(
-    model::SFFM.Model,
+    model::Model,
     StoppingTime::Function,
     InitCondition::NamedTuple{(:φ, :X)},
 )
@@ -168,7 +168,7 @@ Simulates a SFFM defined by `model` until the `StoppingTime` has occured,
 given the `InitialCondition` on (φ(0),X(0),Y(0)).
 
     SimSFFM(
-        model::SFFM.Model,
+        model::Model,
         StoppingTime::Function,
         InitCondition::NamedTuple{(:φ, :X, :Y)},
     )
@@ -206,7 +206,7 @@ given the `InitialCondition` on (φ(0),X(0),Y(0)).
         transitions of `φ` at the `StoppingTime`
 """
 function SimSFFM(
-    model::SFFM.Model,
+    model::Model,
     StoppingTime::Function,
     InitCondition::NamedTuple{(:φ, :X, :Y)},
 )
@@ -261,7 +261,7 @@ Returns ``X(t+S) = min(max(X(t) + cᵢS,0),U)`` where ``U`` is some upper bound
 on the process.
 
     UpdateXt(
-        model::SFFM.Model,
+        model::Model,
         SFM0::NamedTuple,
         S::Real,
     )
@@ -274,7 +274,7 @@ on the process.
 - `S::Real`: an elapsed amount of time to evaluate ``X`` at, i.e. ``X(t+S)``.
 """
 function UpdateXt(
-    model::SFFM.Model,
+    model::Model,
     SFM0::NamedTuple,
     S::Real,
 )
@@ -291,7 +291,7 @@ end
 Returns ``Y(t+S)`` given ``Y(t)``.
 
     UpdateYt(
-        model::SFFM.Model,
+        model::Model,
         SFFM0::NamedTuple{(:t, :φ, :X, :Y, :n)},
         S::Real,
     )
@@ -304,7 +304,7 @@ Returns ``Y(t+S)`` given ``Y(t)``.
 - `S::Real`: an elapsed amount of time to evaluate ``X`` at, i.e. ``X(t+S)``.
 """
 function UpdateYt(
-    model::SFFM.Model,
+    model::Model,
     SFFM0::NamedTuple{(:t, :φ, :X, :Y, :n)},
     S::Real,
 )
@@ -344,12 +344,12 @@ Constructs the `StoppingTime` ``1(t>T)``
 # Output
 - `FixedTimeFun`: a function with two methods
     - `FixedTimeFun(
-        model::SFFM.Model,
+        model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
     )`: a stopping time for a SFM.
     - `FixedTimeFun(
-        model::SFFM.Model,
+        model::Model,
         SFFM::NamedTuple{(:t, :φ, :X, :Y, :n)},
         SFFM0::NamedTuple{(:t, :φ, :X, :Y, :n)},
     )`: a stopping time for a SFFM
@@ -358,7 +358,7 @@ function FixedTime( T::Real)
     # Defines a simple stopping time, 1(t>T).
     # SFM method
     function FixedTimeFun(
-        model::SFFM.Model,
+        model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
     )
@@ -372,11 +372,11 @@ function FixedTime( T::Real)
     end
     # SFFM METHOD
     function FixedTimeFun(
-        model::SFFM.Model,
+        model::Model,
         SFFM::NamedTuple{(:t, :φ, :X, :Y, :n)},
         SFFM0::NamedTuple{(:t, :φ, :X, :Y, :n)},
     )
-        Ind = SFFM.t > T
+        Ind = t > T
         if Ind
             s = T - SFFM0.t
             X = UpdateXt(model, SFFM0, s)
@@ -400,12 +400,12 @@ jumps of ``φ`` by time ``t``.
 # Output
 - `NJumpsFun`: a function with two methods
     - `NJumpsFun(
-        model::SFFM.Model,
+        model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
     )`: a stopping time for a SFM.
     - `NJumpsFun(
-        model::SFFM.Model,
+        model::Model,
         SFFM::NamedTuple{(:t, :φ, :X, :Y, :n)},
         SFFM0::NamedTuple{(:t, :φ, :X, :Y, :n)},
     )`: a stopping time for a SFFM
@@ -414,7 +414,7 @@ function NJumps( N::Int)
     # Defines a simple stopping time, 1(n>N), where n is the number of jumps of φ.
     # SFM method
     function NJumpsFun(
-        model::SFFM.Model,
+        model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
     )
@@ -423,11 +423,11 @@ function NJumps( N::Int)
     end
     # SFFM method
     function NJumpsFun(
-        model::SFFM.Model,
+        model::Model,
         SFFM::NamedTuple{(:t, :φ, :X, :Y, :n)},
         SFFM0::NamedTuple{(:t, :φ, :X, :Y, :n)},
     )
-        Ind = SFFM.n >= N
+        Ind = n >= N
         return (Ind = Ind, SFFM = SFFM)
     end
     return NJumpsFun
@@ -446,12 +446,12 @@ from the interval ``[u,v]``.
 # Output
 - `FirstExitXFun`: a function with two methods
     - `FirstExitXFun(
-        model::SFFM.Model,
+        model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
     )`: a stopping time for a SFM.
     - `FirstExitXFun(
-        model::SFFM.Model,
+        model::Model,
         SFFM::NamedTuple{(:t, :φ, :X, :Y, :n)},
         SFFM0::NamedTuple{(:t, :φ, :X, :Y, :n)},
     )`: a stopping time for a SFFM
@@ -459,7 +459,7 @@ from the interval ``[u,v]``.
 function FirstExitX( u::Real, v::Real)
     # SFM Method
     function FirstExitXFun(
-        model::SFFM.Model,
+        model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
     )
@@ -482,9 +482,9 @@ function FirstExitX( u::Real, v::Real)
         SFFM::NamedTuple{(:t, :φ, :X, :Y, :n)},
         SFFM0::NamedTuple{(:t, :φ, :X, :Y, :n)},
     )
-        Ind = ((SFFM.X > v) || (SFFM.X < u))
+        Ind = ((X > v) || (X < u))
         if Ind
-            if (SFFM.X > v)
+            if (X > v)
                 X = v
             else
                 X = u
@@ -512,7 +512,7 @@ from the interval ``[u,v]``. ASSUMES ``Y(t)`` is monotonic between jumps.
 # Output
 - `FirstExitYFun`: a function with one method
     - `FirstExitYFun(
-        model::SFFM.Model,
+        model::Model,
         SFFM::NamedTuple{(:t, :φ, :X, :Y, :n)},
         SFFM0::NamedTuple{(:t, :φ, :X, :Y, :n)},
     )`: a stopping time for a SFFM
@@ -520,16 +520,16 @@ from the interval ``[u,v]``. ASSUMES ``Y(t)`` is monotonic between jumps.
 function FirstExitY( u::Real, v::Real)
     # SFFM Method
     function FirstExitYFun(
-        model::SFFM.Model,
+        model::Model,
         SFFM::NamedTuple{(:t, :φ, :X, :Y, :n)},
         SFFM0::NamedTuple{(:t, :φ, :X, :Y, :n)},
     )
-        Ind = ((SFFM.Y < u) || (SFFM.Y > v))
+        Ind = ((Y < u) || (Y > v))
         if Ind
-            idx = [SFFM.Y < u; SFFM.Y > v]
+            idx = [Y < u; Y > v]
             boundaryHit = [u;v][idx][1]
             YFun(t) = UpdateYt(model, SFFM0, t) - boundaryHit
-            S = SFFM.t - SFFM0.t
+            S = t - SFFM0.t
             tstar = fzero(YFun, 0, S)
             X = UpdateXt(model, SFFM0, tstar)
             t = SFFM0.t + tstar
@@ -575,8 +575,8 @@ end
 Convert from simulations of a SFM or SFFM to a distribution.
 
     Sims2Dist(
-        model::SFFM.Model,
-        mesh::SFFM.Mesh,
+        model::Model,
+        mesh::Mesh,
         sims::NamedTuple;
         type::String = "density",
     )
@@ -621,8 +621,8 @@ Convert from simulations of a SFM or SFFM to a distribution.
     - `type`: as input in arguments.
 """
 function Sims2Dist(
-    model::SFFM.Model,
-    mesh::SFFM.Mesh,
+    model::Model,
+    mesh::Mesh,
     sims::NamedTuple,
     type::Type{T} = SFFMProbability,
 ) where {T<:SFFMDistribution} 

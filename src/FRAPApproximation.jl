@@ -5,7 +5,7 @@ struct FRAPMesh <: Mesh
 end 
 # Convenience constructors
 function FRAPMesh(
-    model::SFFM.Model,
+    model::Model,
     Nodes::Array{<:Real,1},
     NBases::Int;
     Fil::IndexDict=IndexDict(),
@@ -22,7 +22,7 @@ function FRAPMesh(
         NBases,
         Fil,
     )
-    v && println("UPDATE: DGMesh object created with fields ", fieldnames(SFFM.DGMesh))
+    v && println("UPDATE: DGMesh object created with fields ", fieldnames(DGMesh))
     return mesh
 end
 function FRAPMesh()
@@ -59,7 +59,7 @@ Constant ""
 Basis(mesh::FRAPMesh) = ""
 
 function MakeLazyGenerator(
-    model::SFFM.Model,
+    model::Model,
     mesh::FRAPMesh,
     me::ME;
     v::Bool=false,
@@ -84,12 +84,12 @@ function MakeLazyGenerator(
         end
     end
     
-    out = SFFM.LazyGenerator(blocks,boundary_flux,T,C,delta,D,signChangeIndex,mesh.Fil)
+    out = LazyGenerator(blocks,boundary_flux,T,C,delta,D,signChangeIndex,mesh.Fil)
     v && println("UPDATE: LazyGenerator object created with keys ", keys(out))
     return out
 end
 function MakeLazyGenerator(model::Model, mesh::FRAPMesh; v::Bool=false)
-    me = SFFM.MakeME(SFFM.CMEParams[NBases(mesh)])
+    me = MakeME(CMEParams[NBases(mesh)])
     return MakeLazyGenerator(model, mesh, me; v=v)
 end
 function MakeFullGenerator(model::Model, mesh::Mesh, me::ME; v::Bool=false)
@@ -188,6 +188,6 @@ end
 # end
 
 # function MakeB(model::Model, mesh::FRAPMesh, order::Int)
-#     me = SFFM.MakeME(SFFM.CMEParams[order], mean = 1)
+#     me = MakeME(CMEParams[order], mean = 1)
 #     return MakeB(model, mesh, me)
 # end

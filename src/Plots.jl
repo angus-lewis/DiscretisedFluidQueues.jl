@@ -2,8 +2,8 @@
 Add to a figure a plot of a SFM distribution.
 
     plot!(p,
-        model::SFFM.Model,
-        mesh::SFFM.Mesh,
+        model::Model,
+        mesh::Mesh,
         Dist::SFFMDistribution;
         jitter = 0,
         kwargs...,
@@ -117,8 +117,8 @@ end # end plot!
 Initialise and plot a SFM distribution.
 
     plot(
-        model::SFFM.Model;
-        mesh::SFFM.Mesh,
+        model::Model;
+        mesh::Mesh,
         dist::NamedTuple{(:pm, :distribution, :x, :type)};
         jitter = 0,
         kwargs...,
@@ -137,14 +137,14 @@ Initialise and plot a SFM distribution.
     containing a plot of the distribution for each phase.
 """
 function plot(
-    model::SFFM.Model,
-    mesh::SFFM.Mesh,
+    model::Model,
+    mesh::Mesh,
     dist::SFFMDistribution;
     jitter = 0,
     kwargs...,
 )
     p = Plots.plot(layout = Plots.@layout(Plots.grid((NPhases(model)+1)÷2, 2)))
-    p = SFFM.plot!(
+    p = plot!(
         p,
         model,
         mesh,

@@ -1,9 +1,10 @@
-import JLD2, LinearAlgebra, JSON
+import FileIO, LinearAlgebra, JSON
 
 # erlangDParams = Dict()
-JLD2.@load pwd()*"/src/erlangParamsData/erlangDParams.jld2" erlangDParams
+src_dir = pwd()*"/StochasticFluidQueues/src/"
+FileIO.load(src_dir*"erlangParamsData/erlangDParams.jld2", "erlangDParams")
 
-JLD2.@load pwd()*"/src/CMEParamsData/CMEParams.jld2" CMEParams
+FileIO.load(src_dir*"/CMEParamsData/CMEParams.jld2", "CMEParams")
 
 """
 ME constructor method
@@ -57,35 +58,35 @@ struct ME
     end
 end
 
-pdf(me::SFFM.ME) = x->(me.a*exp(me.S*x)*me.s)[1]
-pdf(a::Array{<:Real,2}, me::SFFM.ME) = 
+pdf(me::ME) = x->(me.a*exp(me.S*x)*me.s)[1]
+pdf(a::Array{<:Real,2}, me::ME) = 
     (length(a)==size(me.S,1)) ? (x->(a*exp(me.S*x)*me.s)[1]) : throw(
         DomainError("a and me.S must have compatible size"))
 
-pdf(me::SFFM.ME, x::Real) = pdf(me)(x)
-pdf(a::Array{<:Real,2}, me::SFFM.ME, x::Real) = pdf(a,me)(x)
+pdf(me::ME, x::Real) = pdf(me)(x)
+pdf(a::Array{<:Real,2}, me::ME, x::Real) = pdf(a,me)(x)
 
-pdf(me::SFFM.ME, x::Array{<:Real}) = pdf(me).(x)
-pdf(a::Array{<:Real,2}, me::SFFM.ME, x::Array{<:Real}) = pdf(a,me).(x)
+pdf(me::ME, x::Array{<:Real}) = pdf(me).(x)
+pdf(a::Array{<:Real,2}, me::ME, x::Array{<:Real}) = pdf(a,me).(x)
 
-ccdf(me::SFFM.ME) = x->sum(me.a*exp(me.S*x))
-ccdf(a::Array{<:Real,2}, me::SFFM.ME) = (length(a)==size(me.S,1)) ? (x->sum(a*exp(me.S*x))) : throw(
+ccdf(me::ME) = x->sum(me.a*exp(me.S*x))
+ccdf(a::Array{<:Real,2}, me::ME) = (length(a)==size(me.S,1)) ? (x->sum(a*exp(me.S*x))) : throw(
     DomainError("a and me.S must have compatible size"))
 
-ccdf(me::SFFM.ME, x::Real) = ccdf(me)(x)
-ccdf(a::Array{<:Real,2}, me::SFFM.ME, x::Real) = ccdf(a,me)(x)
+ccdf(me::ME, x::Real) = ccdf(me)(x)
+ccdf(a::Array{<:Real,2}, me::ME, x::Real) = ccdf(a,me)(x)
 
-ccdf(me::SFFM.ME, x::Array{<:Real}) = ccdf(me).(x)
-ccdf(a::Array{<:Real,2}, me::SFFM.ME, x::Array{<:Real}) = ccdf(a,me).(x)
+ccdf(me::ME, x::Array{<:Real}) = ccdf(me).(x)
+ccdf(a::Array{<:Real,2}, me::ME, x::Array{<:Real}) = ccdf(a,me).(x)
 
-cdf(me::SFFM.ME) = x->1-ccdf(me,x)
-cdf(a::Array{<:Real,2}, me::SFFM.ME) = x->1-ccdf(a,me,x)
+cdf(me::ME) = x->1-ccdf(me,x)
+cdf(a::Array{<:Real,2}, me::ME) = x->1-ccdf(a,me,x)
 
-cdf(me::SFFM.ME, x::Real) = cdf(me)(x)
-cdf(a::Array{<:Real,2}, me::SFFM.ME, x::Real) = cdf(a,me)(x)
+cdf(me::ME, x::Real) = cdf(me)(x)
+cdf(a::Array{<:Real,2}, me::ME, x::Real) = cdf(a,me)(x)
 
-cdf(me::SFFM.ME, x::Array{<:Real}) = cdf(me).(x)
-cdf(a::Array{<:Real,2}, me::SFFM.ME, x::Array{<:Real}) = cdf(a,me).(x)
+cdf(me::ME, x::Array{<:Real}) = cdf(me).(x)
+cdf(a::Array{<:Real,2}, me::ME, x::Array{<:Real}) = cdf(a,me).(x)
 
 
 """
@@ -113,7 +114,7 @@ function MakeME(params; mean::Real = 1)
     end
     Q = Q.*sum(-α*Q^-1)./mean
     q = -sum(Q,dims=2)
-    return SFFM.ME(α,Q,q;D=params["D"])
+    return ME(α,Q,q;D=params["D"])
 end
 
 function MakeErlang(order; mean::Real = 1)
@@ -124,10 +125,10 @@ function MakeErlang(order; mean::Real = 1)
     Q = Q + LinearAlgebra.diagm(0=>repeat(-[λ],order), 1=>repeat([λ],order-1))
     q = -sum(Q,dims=2)
     D = Array{Float64}(LinearAlgebra.I(order))[end:-1:1,:]
-    return SFFM.ME(α,Q,q;D=D)
+    return ME(α,Q,q;D=D)
 end
 
-orbit(t,me::SFFM.ME; norm = 1) = begin
+orbit(t,me::ME; norm = 1) = begin
     orbits = zeros(length(t),length(me.a))
     for i in 1:length(t)
         num = me.a*exp(me.S*t[i])
@@ -143,31 +144,32 @@ orbit(t,me::SFFM.ME; norm = 1) = begin
     return orbits
 end
 
-function renewalProperties(me::SFFM.ME)
-    density(t) = begin
-        Q = me.S
-        q = me.s
-        α = me.a
-        e = ones(size(q))
-        (α*exp((Q+q*α)*t)*q)[1]
-    end
-    mean(t) = begin
-        Q = me.S
-        q = me.s
-        α = me.a
-        e = ones(size(q))
-        temp1 = α*-Q^-1
-        temp2 = temp1*e
-        temp3 = temp1./temp2
-        temp4 = Q + (q*α)
-        ((t./temp2) - α*(I - exp(temp4*t))*(temp4 + e*temp3)^-1*q)[1]
-    end
-    ExpectedOrbit(t) = begin
-        Q = me.S
-        q = me.s
-        α = me.a
-        e = ones(size(q))
-        (α*exp((Q + q*α)*t))[1]
-    end
-    return (density=density,mean=mean,ExpectedOrbit=ExpectedOrbit)
-end
+## not used, but kept them because they might be / are cool 
+# function renewalProperties(me::ME)
+#     density(t) = begin
+#         Q = me.S
+#         q = me.s
+#         α = me.a
+#         e = ones(size(q))
+#         (α*exp((Q+q*α)*t)*q)[1]
+#     end
+#     mean(t) = begin
+#         Q = me.S
+#         q = me.s
+#         α = me.a
+#         e = ones(size(q))
+#         temp1 = α*-Q^-1
+#         temp2 = temp1*e
+#         temp3 = temp1./temp2
+#         temp4 = Q + (q*α)
+#         ((t./temp2) - α*(I - exp(temp4*t))*(temp4 + e*temp3)^-1*q)[1]
+#     end
+#     ExpectedOrbit(t) = begin
+#         Q = me.S
+#         q = me.s
+#         α = me.a
+#         e = ones(size(q))
+#         (α*exp((Q + q*α)*t))[1]
+#     end
+#     return (density=density,mean=mean,ExpectedOrbit=ExpectedOrbit)
+# end

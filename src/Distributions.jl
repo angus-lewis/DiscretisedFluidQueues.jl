@@ -1,16 +1,16 @@
 # import Base: getindex, size, *
 
-struct SFMDistribution{T<:SFFM.Mesh} <: AbstractArray{Float64,2} 
+struct SFMDistribution{T<:Mesh} <: AbstractArray{Float64,2} 
     coeffs::Array{Float64,2}
-    model::SFFM.Model
+    model::Model
     mesh::T
-    Fil::SFFM.IndexDict
+    Fil::IndexDict
     function SFMDistribution{T}(
         coeffs::Array{Float64,2}, 
-        model::SFFM.Model,
+        model::Model,
         mesh::T,
-        Fil::SFFM.IndexDict=SFFM.MakeFil(model,mesh.Nodes),
-        ) where T<:SFFM.Mesh
+        Fil::IndexDict=MakeFil(model,mesh.Nodes),
+        ) where T<:Mesh
         return (size(coeffs,1)==1) ? new(coeffs,model,mesh,Fil) : throw(DimensionMismatch("coeffs must be a row-vector"))
     end
 end
@@ -417,8 +417,8 @@ end
 Convert from a vector of coefficients for the DG system to a distribution.
 
     Coeffs2Dist(
-        model::SFFM.Model,
-        mesh::SFFM.Mesh,
+        model::Model,
+        mesh::Mesh,
         Coeffs;
         type::String = "probability",
     )
@@ -431,7 +431,7 @@ Convert from a vector of coefficients for the DG system to a distribution.
     want to convert to. Options are `"probability"` to return the probabilities
     ``P(X(t)∈ D_k, φ(t) = i)`` where ``D_k``is the kth cell, `"cumulative"` to
     return the CDF evaluated at cell edges, or `"density"` to return an
-    approximation to the density ar at the SFFM.CellNodes(mesh).
+    approximation to the density ar at the CellNodes(mesh).
 
 # Output
 - a tuple with keys
@@ -463,19 +463,19 @@ Convert from a vector of coefficients for the DG system to a distribution.
     - `type`: as input in arguments.
 """
 function Coeffs2Dist(
-    model::SFFM.Model,
-    mesh::SFFM.DGMesh,
+    model::Model,
+    mesh::DGMesh,
     Coeffs::AbstractArray,
     type::Type{T} = SFFMProbability,
     v::Bool = false,
 ) where {T<:SFFMDistribution} 
 
-    V = SFFM.vandermonde(NBases(mesh))
+    V = vandermonde(NBases(mesh))
     N₋ = sum(model.C .<= 0)
     N₊ = sum(model.C .>= 0)
 
     if type == SFFMDensity
-        xvals = SFFM.CellNodes(mesh)
+        xvals = CellNodes(mesh)
         if Basis(mesh) == "legendre"
             yvals = reshape(Coeffs[N₋+1:end-N₊], NBases(mesh), NIntervals(mesh), NPhases(model))
             for i in 1:NPhases(model)
@@ -491,13 +491,13 @@ function Coeffs2Dist(
         end
         if NBases(mesh) == 1
             yvals = [1;1].*yvals
-            xvals = [SFFM.CellNodes(mesh)-Δ(mesh)'/2;SFFM.CellNodes(mesh)+Δ(mesh)'/2]
+            xvals = [CellNodes(mesh)-Δ(mesh)'/2;CellNodes(mesh)+Δ(mesh)'/2]
         end
     elseif type == SFFMProbability
         if NBases(mesh) > 1 
-            xvals = SFFM.CellNodes(mesh)[1, :] + (Δ(mesh) ./ 2)
+            xvals = CellNodes(mesh)[1, :] + (Δ(mesh) ./ 2)
         else
-            xvals = SFFM.CellNodes(mesh)
+            xvals = CellNodes(mesh)
         end
         if Basis(mesh) == "legendre"
             yvals = (reshape(Coeffs[N₋+1:NBases(mesh):end-N₊], 1, NIntervals(mesh), NPhases(model)).*Δ(mesh)')./sqrt(2)
@@ -511,9 +511,9 @@ function Coeffs2Dist(
         end
     elseif type == SFFMCDF
         if NBases(mesh) > 1 
-            xvals = SFFM.CellNodes(mesh)[[1;end], :]
+            xvals = CellNodes(mesh)[[1;end], :]
         else
-            xvals = [SFFM.CellNodes(mesh)-Δ(mesh)'/2;SFFM.CellNodes(mesh)+Δ(mesh)'/2]
+            xvals = [CellNodes(mesh)-Δ(mesh)'/2;CellNodes(mesh)+Δ(mesh)'/2]
         end
         if Basis(mesh) == "legendre"
             tempDist = (reshape(Coeffs[N₋+1:NBases(mesh):end-N₊], 1, NIntervals(mesh), NPhases(model)).*Δ(mesh)')./sqrt(2)
@@ -541,7 +541,7 @@ function Coeffs2Dist(
     return out
 end
 function Coeffs2Dist(
-    model::SFFM.Model,
+    model::Model,
     mesh::Union{FRAPMesh, FVMesh},
     Coeffs::AbstractArray,
     type::Type{T} = SFFMProbability,
@@ -561,7 +561,7 @@ function Coeffs2Dist(
     N₋ = sum(model.C .<= 0)
     N₊ = sum(model.C .>= 0)
     
-    xvals = SFFM.CellNodes(mesh)
+    xvals = CellNodes(mesh)
     
     yvals = sum(
         reshape(Coeffs[N₋+1:end-N₊], NBases(mesh), NIntervals(mesh), NPhases(model)),
@@ -579,8 +579,8 @@ Converts a distribution as output from `Coeffs2Dist()` to a vector of DG
 coefficients.
 
     Dist2Coeffs(
-        model::SFFM.Model,
-        mesh::SFFM.Mesh,
+        model::Model,
+        mesh::Mesh,
         Distn::SFFMDistribution,
     )
 
@@ -603,11 +603,11 @@ coefficients.
     phase. Used to premultiply operators such as B from `MakeB()`
 """
 function Dist2Coeffs(
-    model::SFFM.Model,
-    mesh::SFFM.DGMesh,
+    model::Model,
+    mesh::DGMesh,
     Distn::SFFMDensity,
 )
-    V = SFFM.vandermonde(NBases(mesh))
+    V = vandermonde(NBases(mesh))
     theDistribution =
         zeros(Float64, NBases(mesh), NIntervals(mesh), NPhases(model))
     if Basis(mesh) == "legendre"
@@ -632,11 +632,11 @@ function Dist2Coeffs(
 end
 
 function Dist2Coeffs(
-    model::SFFM.Model,
-    mesh::SFFM.DGMesh,
+    model::Model,
+    mesh::DGMesh,
     Distn::SFFMProbability,
 )
-    V = SFFM.vandermonde(NBases(mesh))
+    V = vandermonde(NBases(mesh))
     theDistribution =
         zeros(Float64, NBases(mesh), NIntervals(mesh), NPhases(model))
     if Basis(mesh) == "legendre"
@@ -660,8 +660,8 @@ function Dist2Coeffs(
     return coeffs
 end
 function Dist2Coeffs(
-    model::SFFM.Model,
-    mesh::Union{SFFM.FRAPMesh,SFFM.FVMesh},
+    model::Model,
+    mesh::Union{FRAPMesh,FVMesh},
     Distn::SFFMDistribution
 )
     

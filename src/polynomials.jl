@@ -26,6 +26,56 @@ function gauss_lobatto_quadrature(fun::Function,a::Float64,b::Float64,n_evals::I
         nodes = 0.5*(a+b)
         weights = (b-a)
     end
+    
     fun_vals = fun.(nodes)
     quad = LinearAlgebra.dot(fun_vals,weights)
+    
+    return quad
+end
+
+"""
+Construct a generalised vandermonde matrix.
+
+    vandermonde( nBases::Int)
+
+Note: requires Jacobi package Pkg.add("Jacobi")
+
+# Arguments
+- `nBases::Int`: the degree of the basis
+
+# Output
+- a tuple with keys
+    - `:V::Array{Float64,2}`: where `:V[:,i]` contains the values of the `i`th
+        legendre polynomial evaluate at the GLL nodes.
+    - `:inv`: the inverse of :V
+    - `:D::Array{Float64,2}`: where `V.D[:,i]` contains the values of the derivative
+        of the `i`th legendre polynomial evaluate at the GLL nodes.
+"""
+function vandermonde(nBases::Int)
+    if nBases > 1
+        z = Jacobi.zglj(nBases, 0, 0) # the LGL nodes
+    elseif nBases == 1
+        z = 0.0
+    end
+    V = zeros(Float64, nBases, nBases)
+    DV = zeros(Float64, nBases, nBases)
+    if nBases > 1
+        for j = 1:nBases
+            # compute the polynomials at gauss-labotto quadrature points
+            V[:, j] = Jacobi.legendre.(z, j - 1) .* sqrt((2 * (j - 1) + 1) / 2)
+            DV[:, j] = Jacobi.dlegendre.(z, j - 1) .* sqrt((2 * (j - 1) + 1) / 2)
+        end
+        # Compute the Gauss-Lobatto weights for numerical quadrature
+        w =
+            2.0 ./ (
+                nBases *
+                (nBases - 1) *
+                Jacobi.legendre.(Jacobi.zglj(nBases, 0, 0), nBases - 1) .^ 2
+            )
+    elseif nBases == 1
+        V .= [1/sqrt(2)]
+        DV .= [0]
+        w = [2]
+    end
+    return (V = V, inv = inv(V), D = DV, w = w)
 end
