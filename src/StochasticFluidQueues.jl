@@ -4,27 +4,29 @@ import Jacobi, LinearAlgebra, SparseArrays
 import Plots, StatsBase, KernelDensity
 
 # model
-include("SFM.jl")
-include("SFM_operators.jl")
+include("1_SFM.jl")
+
+include("2_abstract_mesh.jl") # things which apply to all meshs
+include("3_lazy_generators.jl")
+include("4_full_generators.jl")
+include("5_SFM_operators.jl")
 
 # auxillary functions
-include("ME_tools.jl") # used in FRAPApproximation.jl
-include("polynomials.jl") # used in discontinuous_Galerkin.jl
+include("6_ME_tools.jl") # used in FRAPApproximation.jl
+include("7_polynomials.jl") # used in discontinuous_Galerkin.jl
 
-include("abstract_mesh.jl") # things which apply to all meshs
+include("8_discontinuous_Galerkin.jl")
+include("9_finite_volume_method.jl")
+include("10_FRAP_approximation.jl")
 
-include("discontinuous_Galerkin.jl")
-include("FVM.jl")
-include("FRAPApproximation.jl")
+include("11_distributions.jl")
 
-include("Distributions.jl")
+include("12_time_integration.jl")
 
-include("time_integration.jl")
+include("13_simulate_SFFM.jl")
 
-include("SimulateSFFM.jl")
+include("14_plots.jl")
 
-include("Plots.jl")
 
-# export get_rates, n_phases, phases, N₋, N₊, Model, PhaseSet, FluidQueue, augment_model
 
 end

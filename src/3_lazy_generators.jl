@@ -1,8 +1,5 @@
 abstract type Generator <: AbstractArray{Real,2} end 
 
-checksquare(A::AbstractArray{<:Any,2}, str::String) = if !(size(A,1)==size(A,2)); throw(DomainError(str*" must be square")); end 
-checksquare(A::AbstractArray{<:Any,2}) = checksquare(A, "")
-
 struct LazyGenerator  <: Generator
     blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2},Array{Float64,2}}
     boundary_flux::NamedTuple{(:upper,:lower),Tuple{NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}},NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}}}}
@@ -24,15 +21,15 @@ struct LazyGenerator  <: Generator
     )
         s = size(blocks[1])
         for b in 1:4
-            checksquare(blocks[b],"blocks") 
+            checksquare(blocks[b]) 
             !(s == size(blocks[b])) && throw(DomainError("blocks must be the same size"))
         end
-        checksquare(T,"T")
-        checksquare(D,"D")
+        checksquare(T)
+        checksquare(D)
         !(s == size(D)) && throw(DomainError("blocks must be the same size as D"))
-        checksquare(pmidx,"pmidx") 
-        !(size(T) == size(pmidx)) && throw(DomainError("pmidx must be the same size as T"))
-        !(length(C) == size(T,1)) && throw(DomainError("C must be the same length as T"))
+        checksquare(pmidx) 
+        !(size(T) == size(pmidx)) && throw(DomainError(pmidx, "must be the same size as T"))
+        !(length(C) == size(T,1)) && throw(DomainError(C, "must be the same length as T"))
         
         return new(blocks,boundary_flux,T,C,Δ,D,pmidx)#,Fil)
     end
@@ -75,6 +72,9 @@ function LazyGenerator(
     return LazyGenerator(blocks, boundary_flux, T,
         PhaseSet(C), Δ, D, pmidx,# Fil,
     )
+end
+function MakeLazyGenerator(model::Model, mesh::Mesh; v::Bool=false)
+    throw(DomainError("Can construct LazyGenerator for DGMesh, FRAPMesh, only"))
 end
 
 function size(B::LazyGenerator)
@@ -354,19 +354,3 @@ function getindex(B::LazyGenerator,row::Int,col::Int)
     return v
 end
 
-function MakeQBDidx(model::Model,mesh::Mesh)
-    ## Make QBD index
-    # N₊ = sum(model.C .>= 0)
-    # N₋ = sum(model.C .<= 0)
-
-    c = N₋(model.C)
-    QBDidx = zeros(Int, NPhases(model) * TotalNBases(mesh) + N₊(model.C) + N₋(model.C))
-    for k = 1:NIntervals(mesh), i = 1:NPhases(model), n = 1:NBases(mesh)
-        c += 1
-        QBDidx[c] = (i - 1) * TotalNBases(mesh) + (k - 1) * NBases(mesh) + n + N₋(model.C)
-    end
-    QBDidx[1:N₋] = 1:N₋
-    QBDidx[(end-N₊(model.C)+1):end] = (NPhases(model) * TotalNBases(mesh) + N₋(model.C)) .+ (1:N₊(model.C))
-
-    return QBDidx
-end

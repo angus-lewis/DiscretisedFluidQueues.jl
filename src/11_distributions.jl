@@ -4,14 +4,14 @@ struct SFMDistribution{T<:Mesh} <: AbstractArray{Float64,2}
     coeffs::Array{Float64,2}
     model::Model
     mesh::T
-    Fil::IndexDict
+    # Fil::IndexDict
     function SFMDistribution{T}(
         coeffs::Array{Float64,2}, 
         model::Model,
         mesh::T,
-        Fil::IndexDict=MakeFil(model,mesh.Nodes),
+        # Fil::IndexDict=MakeFil(model,mesh.Nodes),
         ) where T<:Mesh
-        return (size(coeffs,1)==1) ? new(coeffs,model,mesh,Fil) : throw(DimensionMismatch("coeffs must be a row-vector"))
+        return (size(coeffs,1)==1) ? new(coeffs,model,mesh) : throw(DimensionMismatch("coeffs must be a row-vector"))
     end
 end
 

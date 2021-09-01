@@ -1,30 +1,30 @@
 struct FRAPMesh <: Mesh 
-    Nodes::Array{Float64,1}
-    NBases::Int
-    Fil::IndexDict
+    nodes::Array{Float64,1}
+    n_bases::Int
+    # Fil::IndexDict
 end 
 # Convenience constructors
-function FRAPMesh(
-    model::Model,
-    Nodes::Array{<:Real,1},
-    NBases::Int;
-    Fil::IndexDict=IndexDict(),
-    v::Bool = false,
-)
+# function FRAPMesh(
+#     model::Model,
+#     nodes::Array{<:Real,1},
+#     n_bases::Int;
+#     # Fil::IndexDict=IndexDict(),
+#     v::Bool = false,
+# )
 
-    ## Construct the sets Fᵐ = ⋃ᵢ Fᵢᵐ, global index for sets of type m
-    if isempty(Fil)
-        Fil = MakeFil(model, Nodes)
-    end
+#     # ## Construct the sets Fᵐ = ⋃ᵢ Fᵢᵐ, global index for sets of type m
+#     # if isempty(Fil)
+#     #     Fil = MakeFil(model, nodes)
+#     # end
 
-    mesh = FRAPMesh(
-        Nodes,
-        NBases,
-        Fil,
-    )
-    v && println("UPDATE: DGMesh object created with fields ", fieldnames(DGMesh))
-    return mesh
-end
+#     mesh = FRAPMesh(
+#         nodes,
+#         n_bases,
+#         Fil,
+#     )
+#     v && println("UPDATE: DGMesh object created with fields ", fieldnames(DGMesh))
+#     return mesh
+# end
 function FRAPMesh()
     FRAPMesh(
         Array{Float64,1}(undef,0),
@@ -35,20 +35,20 @@ end
 
 """
 
-    NBases(mesh::FRAPMesh)
+    n_bases(mesh::FRAPMesh)
     
 Number of bases in a cell
 """
-NBases(mesh::FRAPMesh) = mesh.NBases
+n_bases(mesh::FRAPMesh) = mesh.n_bases
 
 
 """
 
-    CellNodes(mesh::FRAPMesh)
+    cell_nodes(mesh::FRAPMesh)
 
 The cell centre
 """
-CellNodes(mesh::FRAPMesh) = Array(((mesh.Nodes[1:end-1] + mesh.Nodes[2:end]) / 2 )')
+cell_nodes(mesh::FRAPMesh) = Array(((mesh.nodes[1:end-1] + mesh.nodes[2:end]) / 2 )')
 
 """
 
@@ -89,7 +89,7 @@ function MakeLazyGenerator(
     return out
 end
 function MakeLazyGenerator(model::Model, mesh::FRAPMesh; v::Bool=false)
-    me = MakeME(CMEParams[NBases(mesh)])
+    me = MakeME(CMEParams[n_bases(mesh)])
     return MakeLazyGenerator(model, mesh, me; v=v)
 end
 function MakeFullGenerator(model::Model, mesh::Mesh, me::ME; v::Bool=false)
@@ -106,11 +106,11 @@ end
 #     UpDiagBlock = me.s*me.a
 #     LowDiagBlock = me.s*me.a
 #     for i = ["+","-"]
-#         F[i] = SparseArrays.spzeros(Float64, TotalNBases(mesh), TotalNBases(mesh))
+#         F[i] = SparseArrays.spzeros(Float64, total_n_bases(mesh), total_n_bases(mesh))
 #         for k = 1:NIntervals(mesh)
-#             idx = (1:NBases(mesh)) .+ (k - 1) * NBases(mesh)
+#             idx = (1:n_bases(mesh)) .+ (k - 1) * n_bases(mesh)
 #             if k > 1
-#                 idxup = (1:NBases(mesh)) .+ (k - 2) * NBases(mesh)
+#                 idxup = (1:n_bases(mesh)) .+ (k - 2) * n_bases(mesh)
 #                 if i=="+"
 #                     F[i][idxup, idx] = UpDiagBlock
 #                 elseif i=="-"
@@ -132,15 +132,15 @@ end
 #     end
 #     B = SparseArrays.spzeros(
 #         Float64,
-#         NPhases(model) * TotalNBases(mesh) + N₋ + N₊,
-#         NPhases(model) * TotalNBases(mesh) + N₋ + N₊,
+#         NPhases(model) * total_n_bases(mesh) + N₋ + N₊,
+#         NPhases(model) * total_n_bases(mesh) + N₋ + N₊,
 #     )
 #     B[N₋+1:end-N₊,N₋+1:end-N₊] = SparseArrays.kron(
 #             model.T.*signChangeIndex,
 #             SparseArrays.kron(SparseArrays.I(NIntervals(mesh)),me.D)
 #         ) + SparseArrays.kron(
 #             model.T.*(1 .- signChangeIndex),
-#             SparseArrays.I(TotalNBases(mesh))
+#             SparseArrays.I(total_n_bases(mesh))
 #         )
 
 #     # Boundary conditions
@@ -151,17 +151,17 @@ end
 #     # yuck
 #     inLower = [
 #         LinearAlgebra.kron(LinearAlgebra.diagm(abs.(model.C).*(model.C.<=0)),me.s)[:,model.C.<=0]; 
-#         LinearAlgebra.zeros((NIntervals(mesh)-1)*NPhases(model)*NBases(mesh),N₋)
+#         LinearAlgebra.zeros((NIntervals(mesh)-1)*NPhases(model)*n_bases(mesh),N₋)
 #     ]
 #     outLower = [
-#         LinearAlgebra.kron(T₋₊,me.a) LinearAlgebra.zeros(N₋,N₊+(NIntervals(mesh)-1)*NPhases(model)*NBases(mesh))
+#         LinearAlgebra.kron(T₋₊,me.a) LinearAlgebra.zeros(N₋,N₊+(NIntervals(mesh)-1)*NPhases(model)*n_bases(mesh))
 #     ]
 #     inUpper = [
-#         LinearAlgebra.zeros((NIntervals(mesh)-1)*NPhases(model)*NBases(mesh),N₊);
+#         LinearAlgebra.zeros((NIntervals(mesh)-1)*NPhases(model)*n_bases(mesh),N₊);
 #         LinearAlgebra.kron(LinearAlgebra.diagm(abs.(model.C).*(model.C.>=0)),me.s)[:,model.C.>=0]
 #     ]
 #     outUpper = [
-#         LinearAlgebra.zeros(N₊,N₋+(NIntervals(mesh)-1)*NPhases(model)*NBases(mesh)) LinearAlgebra.kron(T₊₋,me.a)
+#         LinearAlgebra.zeros(N₊,N₋+(NIntervals(mesh)-1)*NPhases(model)*n_bases(mesh)) LinearAlgebra.kron(T₊₋,me.a)
 #     ]
     
 #     QBDidx = MakeQBDidx(model,mesh)
@@ -170,7 +170,7 @@ end
 #     B[QBDidx[N₋+1:end-N₊],1:N₋] = inLower
 #     B[QBDidx[N₋+1:end-N₊],(end-N₊+1):end] = inUpper
 #     for i = 1:NPhases(model)
-#         idx = ((i-1)*TotalNBases(mesh)+1:i*TotalNBases(mesh)) .+ N₋
+#         idx = ((i-1)*total_n_bases(mesh)+1:i*total_n_bases(mesh)) .+ N₋
 #         if model.C[i] > 0
 #             B[idx, idx] += model.C[i] * (SparseArrays.kron(
 #                     SparseArrays.I(NIntervals(mesh)), me.S

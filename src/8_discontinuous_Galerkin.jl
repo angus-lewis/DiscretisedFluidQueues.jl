@@ -51,7 +51,7 @@ struct DGMesh <: Mesh
 end 
 # Convenience constructors
 function DGMesh(
-    model::Model,
+    # model::Model,
     nodes::Array{<:Real,1},
     n_bases::Int;
     # Fil::IndexDict=IndexDict(),
@@ -211,3 +211,4 @@ function MakeLazyGenerator(
 end
 
 
+export DGMesh
