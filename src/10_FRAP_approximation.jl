@@ -1,8 +1,11 @@
 struct FRAPMesh <: Mesh 
     nodes::Array{Float64,1}
-    n_bases::Int
+    # n_bases::Int
+    me::AbstractMatrixExponential
     # Fil::IndexDict
 end 
+FRAPMesh(nodes::Array{Float64,1},n_bases::Int) = FRAPMesh(nodes,MakeME(CMEParams[n_bases]))
+
 # Convenience constructors
 # function FRAPMesh(
 #     model::Model,
@@ -26,11 +29,7 @@ end
 #     return mesh
 # end
 function FRAPMesh()
-    FRAPMesh(
-        Array{Float64,1}(undef,0),
-        0,
-        Dict{String,BitArray{1}}(),
-    )
+    FRAPMesh(Array{Float64,1}(undef,0),0)
 end
 
 """
@@ -39,7 +38,7 @@ end
     
 Number of bases in a cell
 """
-n_bases(mesh::FRAPMesh) = mesh.n_bases
+n_bases(mesh::FRAPMesh) = _order(mesh.me)
 
 
 """
@@ -52,50 +51,50 @@ cell_nodes(mesh::FRAPMesh) = Array(((mesh.nodes[1:end-1] + mesh.nodes[2:end]) / 
 
 """
 
-    Basis(mesh::FRAPMesh)
+    basis(mesh::FRAPMesh)
 
 Constant ""
 """
-Basis(mesh::FRAPMesh) = ""
+basis(mesh::FRAPMesh) = ""
 
 function MakeLazyGenerator(
     model::Model,
-    mesh::FRAPMesh,
-    me::ME;
+    mesh::FRAPMesh;
     v::Bool=false,
 )
+    me = mesh.me::AbstractMatrixExponential
     blocks = (me.s*me.a, me.S, me.s*me.a)
 
     boundary_flux = (in = me.s[:], out = me.a[:])
 
-    T = model.T
-    C = model.C
-    delta = Δ(mesh)
+    # T = model.T
+    # C = model.C
+    # delta = Δ(mesh)
     D = me.D
 
-    signChangeIndex = zeros(Bool,NPhases(model),NPhases(model))
-    for i in 1:NPhases(model), j in 1:NPhases(model)
-        if ((sign(model.C[i])!=0) && (sign(model.C[j])!=0))
-            signChangeIndex[i,j] = (sign(model.C[i])!=sign(model.C[j]))
-        elseif (sign(model.C[i])==0)
-            signChangeIndex[i,j] = sign(model.C[j])>0
-        elseif (sign(model.C[j])==0)
-            signChangeIndex[i,j] = sign(model.C[i])>0            
-        end
-    end
+    # signChangeIndex = zeros(Bool,NPhases(model),NPhases(model))
+    # for i in 1:NPhases(model), j in 1:NPhases(model)
+    #     if ((sign(model.C[i])!=0) && (sign(model.C[j])!=0))
+    #         signChangeIndex[i,j] = (sign(model.C[i])!=sign(model.C[j]))
+    #     elseif (sign(model.C[i])==0)
+    #         signChangeIndex[i,j] = sign(model.C[j])>0
+    #     elseif (sign(model.C[j])==0)
+    #         signChangeIndex[i,j] = sign(model.C[i])>0            
+    #     end
+    # end
     
-    out = LazyGenerator(blocks,boundary_flux,T,C,delta,D,signChangeIndex,mesh.Fil)
+    out = LazyGenerator(model,mesh,blocks,boundary_flux,D)
     v && println("UPDATE: LazyGenerator object created with keys ", keys(out))
     return out
 end
-function MakeLazyGenerator(model::Model, mesh::FRAPMesh; v::Bool=false)
-    me = MakeME(CMEParams[n_bases(mesh)])
-    return MakeLazyGenerator(model, mesh, me; v=v)
-end
-function MakeFullGenerator(model::Model, mesh::Mesh, me::ME; v::Bool=false)
-    lazy = MakeLazyGenerator(model,mesh,me; v=v)
-    return materialise(lazy)
-end
+# function MakeLazyGenerator(model::Model, mesh::FRAPMesh; v::Bool=false)
+#     me = MakeME(CMEParams[n_bases(mesh)])
+#     return MakeLazyGenerator(model, mesh, me; v=v)
+# end
+# function MakeFullGenerator(model::Model, mesh::Mesh, me::AbstractMatrixExponential; v::Bool=false)
+#     lazy = MakeLazyGenerator(model,mesh,me; v=v)
+#     return materialise(lazy)
+# end
 
 
 # function MakeB(model::Model, mesh::FRAPMesh, me::ME)

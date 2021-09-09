@@ -47,16 +47,14 @@ PhaseSet(c::Array{Float64,1},m::Array{Int,1}) =
     (length(m)==length(c))&&[Phase(c[i],m[i]) for i in 1:length(c)]
 # getindex(ph::PhaseSet,i::Int) = ph.S[i]
 n_phases(S::PhaseSet) = length(S)
-get_rates(S::PhaseSet,i::Int) = S[i].c
-get_rates(S::PhaseSet) = [S[i].c for i in 1:n_phases(S)]
-get_membership(S::PhaseSet,i::Int) = S[i].m
-get_membership(S::PhaseSet) = [S[i].m for i in 1:n_phases(S)]
+rates(S::PhaseSet,i::Int) = S[i].c
+rates(S::PhaseSet) = [S[i].c for i in 1:n_phases(S)]
+membership(S::PhaseSet,i::Int) = S[i].m
+membership(S::PhaseSet) = [S[i].m for i in 1:n_phases(S)]
 
 phases(S::PhaseSet) = 1:n_phases(S)
-N₋(C::Array{<:Real,1}) = sum(C.<=0)
-N₊(C::Array{<:Real,1}) = sum(C.>=0)
-N₋(S::PhaseSet) = sum(get_rates(S).<=0)
-N₊(S::PhaseSet) = sum(get_rates(S).>=0)
+N₋(S::PhaseSet) = sum(membership(S).<=0)
+N₊(S::PhaseSet) = sum(membership(S).>=0)
 
 checksquare(A::AbstractArray{<:Any,2}) = !(size(A,1)==size(A,2)) ? throw(DomainError(A," must be square")) : nothing
 
@@ -73,8 +71,8 @@ struct FluidQueue <: Model
         return new(T,S,bounds)
     end
 end 
-get_rates(m::FluidQueue) = get_rates(m.S)
-get_rates(m::FluidQueue,i::Int) = get_rates(m.S,i)
+rates(m::FluidQueue) = rates(m.S)
+rates(m::FluidQueue,i::Int) = rates(m.S,i)
 n_phases(m::FluidQueue) = n_phases(m.S)
 phases(m::FluidQueue) = 1:n_phases(m.S)
 
@@ -118,8 +116,8 @@ function _duplicate_zero_states(T::Array{<:Real,2},C::Array{<:Real,1})
 end
 
 function augment_model(model::FluidQueue)
-    if (any(get_rates(model).==0))
-        T_aug, C_aug, m_aug = _duplicate_zero_states(model.T,get_rates(model))
+    if (any(rates(model).==0))
+        T_aug, C_aug, m_aug = _duplicate_zero_states(model.T,rates(model))
         S_aug = PhaseSet(C_aug,m_aug)
         return FluidQueue(T_aug,S_aug,model.bounds)
     else # no zero states, no augmentation needed
@@ -127,5 +125,7 @@ function augment_model(model::FluidQueue)
     end
 end
 
-export Model, Phase, PhaseSet, n_phases, get_rates, get_membership, phases, 
-    checksquare, N₋, N₊, FluidQueue, augment_model
+pmidx(S::PhaseSet) = (membership(S).>0)*(membership(S).<0)' + 
+    (membership(S).<0)*(membership(S).>0)'
+export Model, Phase, PhaseSet, n_phases, rates, membership, phases, 
+    checksquare, N₋, N₊, FluidQueue, augment_model, pmidx

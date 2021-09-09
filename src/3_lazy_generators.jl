@@ -1,22 +1,23 @@
 abstract type Generator <: AbstractArray{Real,2} end 
-
+const BoundaryFluxTupleType = NamedTuple{(:upper,:lower),Tuple{NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}},NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}}}}
 struct LazyGenerator  <: Generator
+    model::FluidQueue
+    mesh::Mesh
     blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2},Array{Float64,2}}
-    boundary_flux::NamedTuple{(:upper,:lower),Tuple{NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}},NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}}}}
-    T::Array{<:Real,2}
-    C::PhaseSet
-    Δ::Array{<:Real,1}
+    boundary_flux::BoundaryFluxTupleType
     D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}}
-    pmidx::Union{Array{Bool,2},BitArray{2}}
+    # pmidx::Union{Array{Bool,2},BitArray{2}}
     # Fil::IndexDict
     function LazyGenerator(
+        model::FluidQueue,
+        mesh::Mesh,
         blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2},Array{Float64,2}},
         boundary_flux::NamedTuple{(:upper,:lower),Tuple{NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}},NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}}}},
-        T::Array{<:Real,2},
-        C::PhaseSet,
-        Δ::Array{<:Real,1},
+        # T::Array{<:Real,2},
+        # C::PhaseSet,
+        # Δ::Array{<:Real,1},
         D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
-        pmidx::Union{Array{Bool,2},BitArray{2}},
+        # pmidx::Union{Array{Bool,2},BitArray{2}},
         # Fil::IndexDict,
     )
         s = size(blocks[1])
@@ -24,53 +25,45 @@ struct LazyGenerator  <: Generator
             checksquare(blocks[b]) 
             !(s == size(blocks[b])) && throw(DomainError("blocks must be the same size"))
         end
-        checksquare(T)
+        # checksquare(T)
         checksquare(D)
         !(s == size(D)) && throw(DomainError("blocks must be the same size as D"))
-        checksquare(pmidx) 
-        !(size(T) == size(pmidx)) && throw(DomainError(pmidx, "must be the same size as T"))
-        !(length(C) == size(T,1)) && throw(DomainError(C, "must be the same length as T"))
+        # checksquare(pmidx) 
+        # !(size(T) == size(pmidx)) && throw(DomainError(pmidx, "must be the same size as T"))
+        # !(length(C) == size(T,1)) && throw(DomainError(C, "must be the same length as T"))
         
-        return new(blocks,boundary_flux,T,C,Δ,D,pmidx)#,Fil)
+        return new(model,mesh,blocks,boundary_flux,D)#,Fil)
     end
 end
 function LazyGenerator(
+    model::Model,
+    mesh::Mesh,
     blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2}},
     boundary_flux::NamedTuple{(:in, :out),Tuple{Array{Float64,1},Array{Float64,1}}},
-    T::Array{<:Real,2},
-    C::PhaseSet,
-    Δ::Array{<:Real,1},
+    # T::Array{<:Real,2},
+    # C::PhaseSet,
+    # Δ::Array{<:Real,1},
     D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
-    pmidx::Union{Array{Bool,2},BitArray{2}},
+    # pmidx::Union{Array{Bool,2},BitArray{2}},
     # Fil::IndexDict,
 )
     blocks = (blocks[1],blocks[2],blocks[2],blocks[3])
     boundary_flux = (upper = boundary_flux, lower = boundary_flux)
-    return LazyGenerator(
-        blocks,
-        boundary_flux,
-        T,
-        C,
-        Δ,
-        D,
-        pmidx,
-        # Fil,
-    )
+    return LazyGenerator(model,mesh,blocks,boundary_flux,D)
 end
 function LazyGenerator(
     blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2}},
     boundary_flux::NamedTuple{(:in, :out),Tuple{Array{Float64,1},Array{Float64,1}}},
-    T::Array{<:Real,2},
-    C::Array{<:Real,1},
-    Δ::Array{<:Real,1},
+    # T::Array{<:Real,2},
+    # C::Array{<:Real,1},
+    # Δ::Array{<:Real,1},
     D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
-    pmidx::Union{Array{Bool,2},BitArray{2}},
+    # pmidx::Union{Array{Bool,2},BitArray{2}},
     # Fil::IndexDict,
 )
     blocks = (blocks[1],blocks[2],blocks[2],blocks[3])
     boundary_flux = (upper = boundary_flux, lower = boundary_flux)
-    return LazyGenerator(blocks, boundary_flux, T,
-        PhaseSet(C), Δ, D, pmidx,# Fil,
+    return LazyGenerator(blocks, boundary_flux, D,# Fil,
     )
 end
 function MakeLazyGenerator(model::Model, mesh::Mesh; v::Bool=false)
@@ -78,90 +71,95 @@ function MakeLazyGenerator(model::Model, mesh::Mesh; v::Bool=false)
 end
 
 function size(B::LazyGenerator)
-    sz = size(B.T,1)*size(B.blocks[1],1)*length(B.Δ) + sum(B.C.<=0) + sum(B.C.>=0)
+    sz = n_phases(B.model)*total_n_bases(B.mesh) + N₋(B.model.S) + N₊(B.model.S)
     return (sz,sz)
 end
 size(B::LazyGenerator, n::Int) = size(B)[n]
 
 function *(u::AbstractArray{<:Real,2}, B::LazyGenerator)
     output_type = typeof(u)
-
+    
     sz_u_1 = size(u,1)
     sz_u_2 = size(u,2)
     sz_B_1 = size(B,1)
     sz_B_2 = size(B,2)
     !(sz_u_2 == sz_B_1) && throw(DomainError("Dimension mismatch, u*B, length(u) must be size(B,1)"))
-    # N₋ = sum(B.C.<=0)
-    # N₊ = sum(B.C.>=0)
+
     if output_type <: SparseArrays.SparseMatrixCSC
         v = SparseArrays.spzeros(sz_u_1,sz_B_2)
     else 
         v = zeros(sz_u_1,sz_B_2)
     end
-    size_delta = length(B.Δ)
-    size_blocks = size(B.blocks[1],1)
-    size_T = size(B.T,1)
+    
+    model = B.model
+    mesh = B.mesh
+
+    Kp = total_n_bases(mesh) # K = n_intervals(mesh), p = n_bases(mesh)
+    m = membership(model.S)
+    C = rates(model)
+    n₋ = N₋(model.S)
+    n₊ = N₊(model.S)
 
     # boundaries
     # at lower
-    v[:,1:N₋(B.C)] += u[:,1:N₋(B.C)]*B.T[B.C.<=0,B.C.<=0]
+    v[:,1:n₋] += u[:,1:n₋]*model.T[m.<=0,m.<=0]
     # in to lower 
-    idxdown = N₋(B.C) .+ ((1:size_blocks).+size_blocks*size_delta*(findall(B.C .<= 0) .- 1)')[:]
-    v[:,1:N₋(B.C)] += u[:,idxdown]*LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => abs.(B.C[B.C.<=0])),
-        B.boundary_flux.lower.in/B.Δ[1],
+    idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(m .<= 0) .- 1)')[:]
+    v[:,1:n₋] += u[:,idxdown]*LinearAlgebra.kron(
+        LinearAlgebra.diagm(0 => abs.(C[m.<=0])),
+        B.boundary_flux.lower.in/Δ(mesh,1),
     )
     # out of lower 
-    idxup = N₋(B.C) .+ (size_blocks*size_delta*(findall(B.C .> 0).-1)' .+ (1:size_blocks))[:]
-    v[:,idxup] += u[:,1:N₋(B.C)]*kron(B.T[B.C.<=0,B.C.>0],B.boundary_flux.lower.out')
+    idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases(mesh)))[:]
+    v[:,idxup] += u[:,1:n₋]*kron(model.T[m.<=0,C.>0],B.boundary_flux.lower.out')
 
     # at upper
-    v[:,end-N₊(B.C)+1:end] += u[:,end-N₊(B.C)+1:end]*B.T[B.C.>=0,B.C.>=0]
+    v[:,end-n₊+1:end] += u[:,end-n₊+1:end]*model.T[m.>=0,m.>=0]
     # in to upper
-    idxup = N₋(B.C) .+ ((1:size_blocks).+size_blocks*size_delta*(findall(B.C .> 0) .- 1)')[:] .+
-        (size_blocks*size_delta - size_blocks)
-    v[:,end-N₊(B.C)+1:end] += u[:,idxup]*LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => B.C[B.C.>0]),
-        B.boundary_flux.upper.in/B.Δ[end],
+    idxup = n₋ .+ ((1:n_bases(mesh)) .+ Kp*(findall(m .>= 0) .- 1)')[:] .+
+        (Kp - n_bases(mesh))
+    v[:,end-n₊+1:end] += u[:,idxup]*LinearAlgebra.kron(
+        LinearAlgebra.diagm(0 => C[m.>=0]),
+        B.boundary_flux.upper.in/Δ(mesh,n_intervals(mesh)),
     )
     # out of upper 
-    idxdown = N₋(B.C) .+ (size_blocks*size_delta*(findall(B.C .< 0).-1)' .+ (1:size_blocks))[:] .+
-        (size_blocks*size_delta - size_blocks)
-    v[:,idxdown] += u[:,end-N₊(B.C)+1:end]*kron(B.T[B.C.>=0,B.C.<0],B.boundary_flux.upper.out')
+    idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases(mesh)))[:] .+
+        (Kp - n_bases(mesh))
+    v[:,idxdown] += u[:,end-n₊+1:end]*kron(model.T[m.>=0,C.<0],B.boundary_flux.upper.out')
 
     # innards
-    for i in 1:size_T, j in 1:size_T
+    for i in phases(model), j in phases(model)
         if i == j 
             # mult on diagonal
-            for k in 1:size_delta
-                k_idx = (i-1)*size_blocks*size_delta .+ (k-1)*size_blocks .+ (1:size_blocks) .+ N₋(B.C)
-                for ℓ in 1:size_delta
-                    if (k == ℓ+1) && (B.C[i] > 0)
-                        ℓ_idx = k_idx .- size_blocks 
-                        v[:,k_idx] += B.C[i]*(u[:,ℓ_idx]*B.blocks[4])/B.Δ[ℓ]
+            for k in 1:n_intervals(mesh)
+                k_idx = (i-1)*Kp .+ (k-1)*n_bases(mesh) .+ (1:n_bases(mesh)) .+ n₋
+                for ℓ in 1:n_intervals(mesh)
+                    if (k == ℓ+1) && (C[i] > 0)
+                        ℓ_idx = k_idx .- n_bases(mesh) 
+                        v[:,k_idx] += C[i]*(u[:,ℓ_idx]*B.blocks[4])/Δ(mesh,ℓ)
                     elseif k == ℓ
-                        v[:,k_idx] += (u[:,k_idx]*(abs(B.C[i])*B.blocks[2 + (B.C[i].<0)]/B.Δ[ℓ] + B.T[i,j]*LinearAlgebra.I))
-                    elseif (k == ℓ-1) && (B.C[i] < 0)
-                        ℓ_idx = k_idx .+ size_blocks 
-                        v[:,k_idx] += abs(B.C[i])*(u[:,ℓ_idx]*B.blocks[1])/B.Δ[ℓ]
+                        v[:,k_idx] += (u[:,k_idx]*(abs(C[i])*B.blocks[2 + (C[i].<0)]/Δ(mesh,ℓ) + model.T[i,j]*LinearAlgebra.I))
+                    elseif (k == ℓ-1) && (C[i] < 0)
+                        ℓ_idx = k_idx .+ n_bases(mesh) 
+                        v[:,k_idx] += abs(C[i])*(u[:,ℓ_idx]*B.blocks[1])/Δ(mesh,ℓ)
                     end
                 end
             end
-        elseif B.pmidx[i,j]
+        elseif m[i]!=m[j]# B.pmidx[i,j]
             # changes from S₊ to S₋ etc.
-            for k in 1:size_delta
-                for ℓ in 1:size_delta
+            for k in 1:n_intervals(mesh)
+                for ℓ in 1:n_intervals(mesh)
                     if k == ℓ
-                        i_idx = (i-1)*size_blocks*size_delta .+ (k-1)*size_blocks .+ (1:size_blocks) .+ N₋(B.C)
-                        j_idx = (j-1)*size_blocks*size_delta .+ (k-1)*size_blocks .+ (1:size_blocks) .+ N₋(B.C)
-                        v[:,j_idx] += (u[:,i_idx]*(B.T[i,j]*B.D))
+                        i_idx = (i-1)*Kp .+ (k-1)*n_bases(mesh) .+ (1:n_bases(mesh)) .+ n₋
+                        j_idx = (j-1)*Kp .+ (k-1)*n_bases(mesh) .+ (1:n_bases(mesh)) .+ n₋
+                        v[:,j_idx] += (u[:,i_idx]*(model.T[i,j]*B.D))
                     end
                 end
             end
         else
-            i_idx = (i-1)*size_blocks*size_delta .+ (1:size_blocks*size_delta) .+ N₋(B.C)
-            j_idx = (j-1)*size_blocks*size_delta .+ (1:size_blocks*size_delta) .+ N₋(B.C)
-            v[:,j_idx] += (u[:,i_idx]*B.T[i,j])
+            i_idx = (i-1)*Kp .+ (1:Kp) .+ n₋
+            j_idx = (j-1)*Kp .+ (1:Kp) .+ n₋
+            v[:,j_idx] += (u[:,i_idx]*model.T[i,j])
         end
     end
     return v
@@ -169,88 +167,92 @@ end
 
 function *(B::LazyGenerator, u::AbstractArray{<:Real,2})
     output_type = typeof(u)
+
     sz_u_1 = size(u,1)
     sz_u_2 = size(u,2)
     sz_B_1 = size(B,1)
     sz_B_2 = size(B,2)
     !(sz_u_2 == sz_B_1) && throw(DomainError("Dimension mismatch, u*B, length(u) must be size(B,1)"))
-    # N₋ = sum(B.C.<=0)
-    # N₊ = sum(B.C.>=0)
+
     if output_type <: SparseArrays.SparseMatrixCSC
         v = SparseArrays.spzeros(sz_u_1,sz_B_2)
     else 
         v = zeros(sz_u_1,sz_B_2)
     end
-    size_delta = length(B.Δ)
-    size_blocks = size(B.blocks[1],1)
-    size_T = size(B.T,1)
 
+    model = B.model
+    mesh = B.mesh
+    Kp = total_n_bases(mesh) # K = n_intervals, p = n_bases
+    m = membership(model.S)
+    C = rates(model)
+    n₋ = N₋(model.S)
+    n₊ = N₊(model.S)
     # boundaries
     # at lower
-    v[1:N₋(B.C),:] += B.T[B.C.<=0,B.C.<=0]*u[1:N₋,:]
+    v[1:n₋,:] += model.T[m.<=0,m.<=0]*u[1:n₋,:]
     # in to lower 
-    idxdown = N₋ .+ ((1:size_blocks).+size_blocks*size_delta*(findall(B.C .<= 0) .- 1)')[:]
+    idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(m .<= 0) .- 1)')[:]
     v[idxdown,:] += LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => abs.(B.C[B.C.<=0])),
-        B.boundary_flux.lower.in/B.Δ[1],
-    )*u[1:N₋,:]
+        LinearAlgebra.diagm(0 => abs.(C[m.<=0])),
+        B.boundary_flux.lower.in/Δ(mesh,1),
+    )*u[1:n₋,:]
     # out of lower 
-    idxup = N₋ .+ (size_blocks*size_delta*(findall(B.C .> 0).-1)' .+ (1:size_blocks))[:]
-    v[1:N₋,:] += kron(B.T[B.C.<=0,B.C.>0],B.boundary_flux.lower.out')*u[idxup,:]
+    idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases(mesh)))[:]
+    v[1:n₋,:] += kron(model.T[m.<=0,C.>0],B.boundary_flux.lower.out')*u[idxup,:]
 
     # at upper
-    v[end-N₊+1:end,:] += B.T[B.C.>=0,B.C.>=0]*u[end-N₊+1:end,:]
+    v[end-n₊+1:end,:] += model.T[m.>=0,m.>=0]*u[end-n₊+1:end,:]
     # in to upper
-    idxup = N₋ .+ ((1:size_blocks).+size_blocks*size_delta*(findall(B.C .> 0) .- 1)')[:] .+
-        (size_blocks*size_delta - size_blocks)
+    idxup = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(m .>= 0) .- 1)')[:] .+
+        (Kp - n_bases(mesh))
     v[idxup,:] += LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => B.C[B.C.>0]),
-        B.boundary_flux.upper.in/B.Δ[end],
-    )*u[end-N₊+1:end,:]
+        LinearAlgebra.diagm(0 => C[m.>=0]),
+        B.boundary_flux.upper.in/Δ(mesh,n_intervals(mesh)),
+    )*u[end-n₊+1:end,:]
     # out of upper 
-    idxdown = N₋ .+ (size_blocks*size_delta*(findall(B.C .< 0).-1)' .+ (1:size_blocks))[:] .+
-        (size_blocks*size_delta - size_blocks)
-    v[end-N₊+1:end,:] += kron(B.T[B.C.>=0,B.C.<0],B.boundary_flux.upper.out')*u[idxdown,:]
+    idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases(mesh)))[:] .+
+        (Kp - n_bases(mesh))
+    v[end-n₊+1:end,:] += kron(model.T[m.>=0,C.<0],B.boundary_flux.upper.out')*u[idxdown,:]
 
     # innards
-    for i in 1:size_T, j in 1:size_T
+    for i in phases(model), j in phases(model)
         if i == j 
             # mult on diagonal
-            for k in 1:size_delta
-                k_idx = (i-1)*size_blocks*size_delta .+ (k-1)*size_blocks .+ (1:size_blocks) .+ N₋
-                for ℓ in 1:size_delta
-                    if (k == ℓ+1) && (B.C[i] > 0)
-                        ℓ_idx = k_idx .- size_blocks 
-                        v[ℓ_idx,:] += B.C[i]*(B.blocks[4]*u[k_idx,:])/B.Δ[ℓ]
-                    elseif k == ℓ
-                        v[k_idx,:] += ((abs(B.C[i])*B.blocks[2 + (B.C[i].<0)]/B.Δ[ℓ] + B.T[i,j]*LinearAlgebra.I)*u[k_idx,:])
-                    elseif (k == ℓ-1) && (B.C[i] < 0)
-                        ℓ_idx = k_idx .+ size_blocks 
-                        v[ℓ_idx,:] += abs(B.C[i])*(B.blocks[1]*u[k_idx,:])/B.Δ[ℓ]
+            for k in 1:n_intervals(mesh)
+                k_idx = (i-1)*Kp .+ (k-1)*n_bases(mesh) .+ (1:n_bases(mesh)) .+ n₋
+                for ℓ in 1:n_intervals(mesh)
+                    if (k == ℓ+1) && (C[i] > 0) # upper diagonal block
+                        ℓ_idx = k_idx .- n_bases(mesh) 
+                        v[ℓ_idx,:] += C[i]*(B.blocks[4]*u[k_idx,:])/Δ(mesh,ℓ)
+                    elseif k == ℓ # diagonal 
+                        v[k_idx,:] += ((abs(C[i])*B.blocks[2 + (C[i].<0)]/Δ(mesh,ℓ) + model.T[i,j]*LinearAlgebra.I)*u[k_idx,:])
+                    elseif (k == ℓ-1) && (C[i] < 0) # lower diagonal
+                        ℓ_idx = k_idx .+ n_bases(mesh) 
+                        v[ℓ_idx,:] += abs(C[i])*(B.blocks[1]*u[k_idx,:])/Δ(mesh,ℓ)
                     end
                 end
             end
-        elseif B.pmidx[i,j]
+        elseif m[i]!=m[j] # B.pmidx[i,j]
             # changes from S₊ to S₋ etc.
-            for k in 1:size_delta
-                for ℓ in 1:size_delta
+            for k in 1:n_intervals(mesh)
+                for ℓ in 1:n_intervals(mesh)
                     if k == ℓ
-                        i_idx = (i-1)*size_blocks*size_delta .+ (k-1)*size_blocks .+ (1:size_blocks) .+ N₋
-                        j_idx = (j-1)*size_blocks*size_delta .+ (k-1)*size_blocks .+ (1:size_blocks) .+ N₋
-                        v[i_idx,:] += (B.T[i,j]*B.D)*u[j_idx,:]
+                        i_idx = (i-1)*Kp .+ (k-1)*n_bases(mesh) .+ (1:n_bases(mesh)) .+ n₋
+                        j_idx = (j-1)*Kp .+ (k-1)*n_bases(mesh) .+ (1:n_bases(mesh)) .+ n₋
+                        v[i_idx,:] += (model.T[i,j]*B.D)*u[j_idx,:]
                     end
                 end
             end
         else
-            i_idx = (i-1)*size_blocks*size_delta .+ (1:size_blocks*size_delta) .+ N₋
-            j_idx = (j-1)*size_blocks*size_delta .+ (1:size_blocks*size_delta) .+ N₋
-            v[i_idx,:] += B.T[i,j]*u[j_idx,:]
+            i_idx = (i-1)*Kp .+ (1:Kp) .+ n₋
+            j_idx = (j-1)*Kp .+ (1:Kp) .+ n₋
+            v[i_idx,:] += model.T[i,j]*u[j_idx,:]
         end
     end
     return v
 end
 
-*(B::LazyGenerator, u::LazyGenerator) = SparseArrays.SparseMatrixCSC(B)*u
+*(B::LazyGenerator, u::LazyGenerator) = SparseArrays.SparseMatrixCSC{Float64,Int}(B)*u
 
 function show(io::IO, mime::MIME"text/plain", B::LazyGenerator)
     if VERSION >= v"1.6"
@@ -266,91 +268,106 @@ function getindex(B::LazyGenerator,row::Int,col::Int)
 
     sz_B_1 = size(B,1)
 
-    N₋ = sum(B.C.<=0)
-    N₊ = sum(B.C.>=0)
+    model = B.model
+    mesh = B.mesh
+
+    Kp = total_n_bases(mesh) # K = n_intervals(mesh), p = n_bases(mesh)
+    m = membership(model.S)
+    C = rates(model)
+    n₋ = N₋(model.S)
+    n₊ = N₊(model.S)
 
     v = 0.0
 
-    size_delta = length(B.Δ)
-    size_blocks = size(B.blocks[1],1)
-
-    if (row ∈ 1:N₋) && (col ∈ 1:N₋)
-        v += B.T[B.C.<=0,B.C.<=0][row,col]
-    elseif (row ∉ 1:N₋) && (row ∉ (sz_B_1 .+ 1) .- (1:N₊)) && (col ∈ 1:N₋) # in to lower 
-        idxdown = N₋ .+ ((1:size_blocks).+size_blocks*size_delta*(findall(B.C .<= 0) .- 1)')[:]
+    if (row ∈ 1:n₋) && (col ∈ 1:n₋)
+        v = model.T[m.<=0,m.<=0][row,col]
+    elseif (row ∉ 1:n₋) && (row ∉ (sz_B_1 .+ 1) .- (1:n₊)) && (col ∈ 1:n₋) # in to lower 
+        idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(m .<= 0) .- 1)')[:]
         idx = findfirst(x -> x==row, idxdown)
         if (nothing!=idx) 
-            v += LinearAlgebra.kron(
-                LinearAlgebra.diagm(0 => abs.(B.C[B.C.<=0])),
-                B.boundary_flux.lower.in/B.Δ[1],
+            v = LinearAlgebra.kron(
+                LinearAlgebra.diagm(0 => abs.(C[m.<=0])),
+                B.boundary_flux.lower.in/Δ(mesh,1),
             )[idx,col]
         end
-    elseif (row ∈ 1:N₋) && (col ∉ 1:N₋) && (col ∉ sz_B_1 .+ 1 .- (1:N₊)) # out of lower 
-        idxup = N₋ .+ (size_blocks*size_delta*(findall(B.C .> 0).-1)' .+ (1:size_blocks))[:]
+    elseif (row ∈ 1:n₋) && (col ∉ 1:n₋) && (col ∉ sz_B_1 .+ 1 .- (1:n₊)) # out of lower 
+        idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases(mesh)))[:]
         idx = findfirst(x -> x==col,idxup)
-        (nothing!=idx) && (v += kron(B.T[B.C.<=0,B.C.>0],B.boundary_flux.lower.out')[row,idx])
-    elseif (row ∈ (sz_B_1 .+ 1) .- (1:N₊)) && (col ∈ (sz_B_1 .+ 1) .- (1:N₊)) # at upper
-        v += B.T[B.C.>=0,B.C.>=0][row-sz_B_1+N₊, col-sz_B_1+N₊]
-    elseif (row ∉ (sz_B_1 .+ 1) .- (1:N₊)) && (col ∈ (sz_B_1 .+ 1) .- (1:N₊)) # in to upper
-        idxup = N₋ .+ ((1:size_blocks).+size_blocks*size_delta*(findall(B.C .> 0) .- 1)')[:] .+
-            (size_blocks*size_delta - size_blocks)
+        (nothing!=idx) && (v = kron(model.T[m.<=0,C.>0],B.boundary_flux.lower.out')[row,idx])
+    elseif (row ∈ (sz_B_1 .+ 1) .- (1:n₊)) && (col ∈ (sz_B_1 .+ 1) .- (1:n₊)) # at upper
+        v = model.T[m.>=0,m.>=0][row-sz_B_1+n₊, col-sz_B_1+n₊]
+    elseif (row ∉ (sz_B_1 .+ 1) .- (1:n₊)) && (col ∈ (sz_B_1 .+ 1) .- (1:n₊)) # in to upper
+        idxup = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(m .>= 0) .- 1)')[:] .+
+            (Kp - n_bases(mesh))
         idx = findfirst(x -> x==row, idxup)
         if (nothing!=idx)
-            v += LinearAlgebra.kron(
-                LinearAlgebra.diagm(0 => B.C[B.C.>0]),
-                B.boundary_flux.upper.in/B.Δ[end],
-            )[idx, col-sz_B_1+N₊]
+            v = LinearAlgebra.kron(
+                LinearAlgebra.diagm(0 => C[m.>=0]),
+                B.boundary_flux.upper.in/Δ(mesh,n_intervals(mesh)),
+            )[idx, col-sz_B_1+n₊]
         end
-    elseif (row ∈ sz_B_1 .+ 1 .- (1:N₊)) && (col ∉ sz_B_1 .+ 1 .- (1:N₊)) # out of upper 
-        idxdown = N₋ .+ (size_blocks*size_delta*(findall(B.C .< 0).-1)' .+ (1:size_blocks))[:] .+
-            (size_blocks*size_delta - size_blocks)
+    elseif (row ∈ sz_B_1 .+ 1 .- (1:n₊)) && (col ∉ sz_B_1 .+ 1 .- (1:n₊)) # out of upper 
+        idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases(mesh)))[:] .+
+            (Kp - n_bases(mesh))
         idx = findfirst(x -> x==col, idxdown)
-        (nothing!=idx) && (v += kron(B.T[B.C.>=0,B.C.<0],B.boundary_flux.upper.out')[row-sz_B_1+N₊, idx])
+        (nothing!=idx) && (v = kron(model.T[m.>=0,C.<0],B.boundary_flux.upper.out')[row-sz_B_1+n₊, idx])
     else
         # innards
         # find if (T⊗I)[row,col] != 0
-        row_shift = row-N₋
-        col_shift = col-N₋
-        if mod(row_shift,size_delta*size_blocks) == mod(col_shift,size_delta*size_blocks) 
-            i = (row_shift-1)÷(size_delta*size_blocks) + 1 
-            j = (col_shift-1)÷(size_delta*size_blocks) + 1
-            !(B.pmidx[i,j]) && (v += B.T[i,j])
-        end
+        row_shift = row-n₋
+        col_shift = col-n₋
+        # if mod(row_shift,Kp) == mod(col_shift,Kp) 
+        #     display(7)
+        #     i = (row_shift-1)÷(Kp) + 1 
+        #     j = (col_shift-1)÷(Kp) + 1
+        #     (m[i]==m[j]) && (v = model.T[i,j])
+        # end
         # for i in 1:size_T, j in 1:size_T
         # phase block
-        i = (row_shift-1)÷(size_delta*size_blocks) + 1
-        j = (col_shift-1)÷(size_delta*size_blocks) + 1
+        i = (row_shift-1)÷(Kp) + 1
+        j = (col_shift-1)÷(Kp) + 1
         if i == j 
             # on diagonal
             # find block position [b_r,b_c] in the remaining tridiagonal matrix
-            b_r = (row_shift-1 - (i-1)*(size_delta*size_blocks))÷size_blocks + 1
-            b_c = (col_shift-1 - (j-1)*(size_delta*size_blocks))÷size_blocks + 1
-            if (b_c == b_r+1) && (B.C[i] > 0) && (b_r+1 <= size_delta)
+            b_r = (row_shift-1 - (i-1)*(Kp))÷n_bases(mesh) + 1
+            b_c = (col_shift-1 - (j-1)*(Kp))÷n_bases(mesh) + 1
+            if (b_c == b_r+1) && (C[i] > 0) && (b_r+1 <= n_intervals(mesh))
                 # find position [r,c] in remaining block 
-                r = row_shift - (i-1)*(size_delta*size_blocks) - (b_r-1)*size_blocks
-                c = col_shift - (j-1)*(size_delta*size_blocks) - (b_c-1)*size_blocks
-                v += B.C[i]*B.blocks[4][r,c]/B.Δ[r]
-            elseif b_c == b_r
-                r = row_shift - (i-1)*(size_delta*size_blocks) - (b_r-1)*size_blocks
-                c = col_shift - (j-1)*(size_delta*size_blocks) - (b_c-1)*size_blocks
-                v += abs(B.C[i])*B.blocks[2 + (B.C[i].<0)][r,c]/B.Δ[r] 
-            elseif (b_c == b_r-1) && (B.C[i] < 0) && (b_r-1 > 0)
-                r = row_shift - (i-1)*(size_delta*size_blocks) - (b_r-1)*size_blocks
-                c = col_shift - (j-1)*(size_delta*size_blocks) - (b_c-1)*size_blocks
-                v += abs(B.C[i])*B.blocks[1][r,c]/B.Δ[r]
+                r = row_shift - (i-1)*(Kp) - (b_r-1)*n_bases(mesh)
+                c = col_shift - (j-1)*(Kp) - (b_c-1)*n_bases(mesh)
+                v = C[i]*B.blocks[4][r,c]/Δ(mesh,b_r)
+            elseif (b_c == b_r) 
+                r = row_shift - (i-1)*(Kp) - (b_r-1)*n_bases(mesh)
+                c = col_shift - (j-1)*(Kp) - (b_c-1)*n_bases(mesh)
+                (C[i]!=0) && (v = abs(C[i])*B.blocks[2 + (C[i].<0)][r,c]/Δ(mesh,b_r))
+                (r==c) && (v += model.T[i,j])
+            elseif (b_c == b_r-1) && (C[i] < 0) && (b_r-1 > 0)
+                r = row_shift - (i-1)*(Kp) - (b_r-1)*n_bases(mesh)
+                c = col_shift - (j-1)*(Kp) - (b_c-1)*n_bases(mesh)
+                v = abs(C[i])*B.blocks[1][r,c]/Δ(mesh,b_r)
             end
-        elseif B.pmidx[i,j]
+        elseif m[i]!=m[j]# B.pmidx[i,j]
             # changes from S₊ to S₋ etc.
-            # find block position [b_r,b_c] in the remaining tridiagonal matrix
-            b_r = (row_shift-1 - (i-1)*(size_delta*size_blocks))÷size_blocks + 1
-            b_c = (col_shift-1 - (j-1)*(size_delta*size_blocks))÷size_blocks + 1
+            b_r = (row_shift-1 - (i-1)*(Kp))÷n_bases(mesh) + 1
+            b_c = (col_shift-1 - (j-1)*(Kp))÷n_bases(mesh) + 1
             if b_r == b_c
-                r = row_shift - (i-1)*(size_delta*size_blocks) - (b_r-1)*size_blocks
-                c = col_shift - (j-1)*(size_delta*size_blocks) - (b_c-1)*size_blocks
-                v += B.T[i,j]*B.D[r,c]
+                r = row_shift - (i-1)*(Kp) - (b_r-1)*n_bases(mesh)
+                c = col_shift - (j-1)*(Kp) - (b_c-1)*n_bases(mesh)
+                v = model.T[i,j]*B.D[r,c]
+            end
+        elseif m[i]==m[j]# B.pmidx[i,j]
+            # changes from S₊ to S₋ etc.
+            b_r = (row_shift-1 - (i-1)*(Kp))÷n_bases(mesh) + 1
+            b_c = (col_shift-1 - (j-1)*(Kp))÷n_bases(mesh) + 1
+            if b_r == b_c
+                r = row_shift - (i-1)*(Kp) - (b_r-1)*n_bases(mesh)
+                c = col_shift - (j-1)*(Kp) - (b_c-1)*n_bases(mesh)
+                (r==c) && (v = model.T[i,j])
             end
         end
     end
     return v
 end
+
+export getindex, *
 

@@ -26,7 +26,7 @@ end
 Constant 1
 """
 n_bases(mesh::FVMesh) = 1
-order(mesh::FVMesh) = mesh.order
+_order(mesh::FVMesh) = mesh.order
 
 """
 
@@ -46,43 +46,49 @@ basis(mesh::FVMesh) = ""
 
 total_n_bases(mesh::FVMesh) = n_intervals(mesh)
 
-function MakeFVFlux(mesh::Mesh, order::Int)
+function MakeFVFlux(mesh::Mesh)
+    order = _order(mesh)
     nNodes = total_n_bases(mesh)
     F = zeros(Float64,nNodes,nNodes)
     ptsLHS = Int(ceil(order/2))
-    interiorCoeffs = lagrange_poly_basis(cell_nodes(mesh)[1:order],mesh.Nodes[ptsLHS+1])
+    interiorCoeffs = lagrange_polynomials(cell_nodes(mesh)[1:order],mesh.nodes[ptsLHS+1])
     for n in 2:nNodes
-        evalPt = mesh.Nodes[n]
+        evalPt = mesh.nodes[n]
         if n-ptsLHS-1 < 0
             nodesIdx = 1:order
             nodes = cell_nodes(mesh)[nodesIdx]
-            coeffs = lagrange_poly_basis(nodes,evalPt)
+            coeffs = lagrange_polynomials(nodes,evalPt)
         elseif n-ptsLHS-1+order > nNodes
             nodesIdx = (nNodes-order+1):nNodes
             nodes = cell_nodes(mesh)[nodesIdx]
-            coeffs = lagrange_poly_basis(nodes,evalPt)
+            coeffs = lagrange_polynomials(nodes,evalPt)
         else
             nodesIdx =  (n-ptsLHS-1) .+ (1:order)
             coeffs = interiorCoeffs
         end
         F[nodesIdx,n-1:n] += [-coeffs coeffs]./Δ(mesh)[n-1]
     end
-    F[end-order+1:end,end] += -lagrange_poly_basis(cell_nodes(mesh)[end-order+1:end],mesh.nodes[end])./Δ(mesh)[end]
+    F[end-order+1:end,end] += -lagrange_polynomials(cell_nodes(mesh)[end-order+1:end],mesh.nodes[end])./Δ(mesh)[end]
     return F
 end
 
 function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
     # N₊ = sum(model.C .>= 0)
     # N₋ = sum(model.C .<= 0)
-    order = order(mesh)
-    F = MakeFVFlux(mesh, order)
+    order = _order(mesh)
+    F = MakeFVFlux(mesh)
+
+    m = membership(model.S)
+    C = rates(model.S)
+    n₋ = N₋(model.S)
+    n₊ = N₊(model.S)
 
     B = SparseArrays.spzeros(
         Float64,
-        n_phases(model) * n_intervals(mesh) + N₋(model.C) + N₊(model.C),
-        n_phases(model) * n_intervals(mesh) + N₋(model.C) + N₊(model.C),
+        n_phases(model) * n_intervals(mesh) + n₋ + n₊,
+        n_phases(model) * n_intervals(mesh) + n₋ + n₊,
     )
-    B[N₋(model.C)+1:end-N₊(model.C),N₋(model.C)+1:end-N₊(model.C)] = SparseArrays.kron(
+    B[n₋+1:end-n₊,n₋+1:end-n₊] = SparseArrays.kron(
             model.T,
             SparseArrays.I(n_intervals(mesh))
         )
@@ -91,17 +97,17 @@ function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
     QBDidx = MakeQBDidx(model,mesh)
     
     # Boundary conditions
-    T₋₋ = model.T[model.C.<=0,model.C.<=0]
-    T₊₋ = model.T[model.C.>=0,:].*((model.C.<0)')
-    T₋₊ = model.T[model.C.<=0,:].*((model.C.>0)')
-    T₊₊ = model.T[model.C.>=0,model.C.>=0]
+    T₋₋ = model.T[m.<=0,m.<=0]
+    T₊₋ = model.T[m.>=0,:].*((C.<0)')
+    T₋₊ = model.T[m.<=0,:].*((C.>0)')
+    T₊₊ = model.T[m.>=0,m.>=0]
     # yuck
     begin 
         nodes = cell_nodes(mesh)[1:order]
-        coeffs = lagrange_poly_basis(nodes,mesh.nodes[1])
-        idxdown = ((1:order).+total_n_bases(mesh)*(findall(model.C .<= 0) .- 1)')[:] .+ N₋(model.C)
-        B[idxdown, 1:N₋(model.C)] = LinearAlgebra.kron(
-            LinearAlgebra.diagm(0 => model.C[model.C.<=0]),
+        coeffs = lagrange_polynomials(nodes,mesh.nodes[1])
+        idxdown = ((1:order).+total_n_bases(mesh)*(findall(m .<= 0) .- 1)')[:] .+ n₋
+        B[idxdown, 1:n₋] = LinearAlgebra.kron(
+            LinearAlgebra.diagm(0 => C[m.<=0]),
             -coeffs,
         )
     end
@@ -110,16 +116,16 @@ function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
     #     SparseArrays.zeros((n_intervals(mesh)-1)*n_phases(model),N₋)
     # ]
     outLower = [
-        T₋₊./Δ(mesh)[1] SparseArrays.zeros(N₋(model.C),N₊(model.C)+(n_intervals(mesh)-1)*n_phases(model))
+        T₋₊./Δ(mesh,1) SparseArrays.zeros(n₋,n₊+(n_intervals(mesh)-1)*n_phases(model))
     ]
     begin
         nodes = cell_nodes(mesh)[end-order+1:end]
-        coeffs = lagrange_poly_basis(nodes,mesh.nodes[end])
+        coeffs = lagrange_polynomials(nodes,mesh.nodes[end])
         idxup =
-            ((1:order).+total_n_bases(mesh)*(findall(model.C .>= 0) .- 1)')[:] .+
-            (N₋(model.C) + total_n_bases(mesh) - order)
-        B[idxup, (end-N₊(model.C)+1):end] = LinearAlgebra.kron(
-            LinearAlgebra.diagm(0 => model.C[model.C.>=0]),
+            ((1:order).+total_n_bases(mesh)*(findall(m .>= 0) .- 1)')[:] .+
+            (n₋ + total_n_bases(mesh) - order)
+        B[idxup, (end-n₊+1):end] = LinearAlgebra.kron(
+            LinearAlgebra.diagm(0 => C[m.>=0]),
             coeffs,
         )
     end
@@ -128,24 +134,24 @@ function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
     #     (SparseArrays.diagm(abs.(model.C).*(model.C.>=0)))[:,model.C.>=0]
     # ]
     outUpper = [
-        SparseArrays.zeros(N₊(model.C),N₋(model.C)+(n_intervals(mesh)-1)*n_phases(model)) T₊₋./Δ(mesh)[end]
+        SparseArrays.zeros(n₊,n₋+(n_intervals(mesh)-1)*n_phases(model)) T₊₋./Δ(mesh,n_intervals(mesh))
     ]
     
-    B[1:N₋(model.C),QBDidx] = [T₋₋ outLower]
-    B[end-N₊(model.C)+1:end,QBDidx] = [outUpper T₊₊]
+    B[1:n₋,QBDidx] = [T₋₋ outLower]
+    B[end-n₊+1:end,QBDidx] = [outUpper T₊₊]
     # B[QBDidx[N₋+1:end-N₊],1:N₋] = inLower
     # B[QBDidx[N₋+1:end-N₊],(end-N₊+1):end] = inUpper
     for i = 1:n_phases(model)
-        idx = ((i-1)*n_intervals(mesh)+1:i*n_intervals(mesh)) .+ N₋(model.C)
-        if model.C[i] > 0
-            B[idx, idx] += model.C[i] * F
-        elseif model.C[i] < 0
-            B[idx, idx] += abs(model.C[i]) * F[end:-1:1,end:-1:1]
+        idx = ((i-1)*n_intervals(mesh)+1:i*n_intervals(mesh)) .+ n₋
+        if C[i] > 0
+            B[idx, idx] += C[i] * F
+        elseif C[i] < 0
+            B[idx, idx] += abs(C[i]) * F[end:-1:1,end:-1:1]
         end
     end
 
     # BDict = MakeDict(B,model,mesh)
-    out = FullGenerator(B, mesh.Fil)
+    out = FullGenerator(B)#, mesh.Fil)
     v && println("FullGenerator created with keys ", keys(out))
     return out
 end

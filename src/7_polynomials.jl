@@ -1,4 +1,4 @@
-function lagrange_poly_basis(nodes, evalPt)
+function lagrange_polynomials(nodes::Array{Float64,1}, evalPt::Float64)
     order = length(nodes)
     poly_coefs = zeros(order)
     for n in 1:order
@@ -8,25 +8,43 @@ function lagrange_poly_basis(nodes, evalPt)
     return poly_coefs
 end
 
-function lagrange_interpolant()
-
-end
-function gauss_lobatto_quadrature(fun::Function,a::Float64,b::Float64,n_evals::Int)
-    (b<=a)&&throw(DomainError("must have a<b"))
+function gauss_lobatto_points(a::Float64,b::Float64,n_evals::Int)
+    (b<a)&&throw(DomainError("must have a<b"))
     (n_evals<1)&&throw(DomainError("n_evals must be > 0"))
     if n_evals > 1
         # the GL nodes
         # nodes in [-1,1]
         nodes = Jacobi.zglj(n_evals, 0, 0)
-        weights = Jacobi.wglj(nodes,0,0)*(b-a)/2
         # shift nodes to [a,b]
         nodes *= 0.5*(b-a)
         nodes .+= 0.5*(a+b)
     else
-        nodes = 0.5*(a+b)
-        weights = (b-a)
+        nodes = [0.5*(a+b)]
     end
+    return nodes
+end
+function gauss_lobatto_weights(a::Float64,b::Float64,n_evals::Int)
+    (b<a)&&throw(DomainError("must have a<b"))
+    (n_evals<1)&&throw(DomainError("n_evals must be > 0"))
+    if n_evals > 1
+        nodes = Jacobi.zglj(n_evals, 0, 0)
+        weights = Jacobi.wglj(nodes,0,0)*(b-a)/2
+    else
+        weights = [(b-a)]
+    end
+    return weights
+end
+
+function lagrange_interpolation(fun::Function,a::Float64,b::Float64,n_evals::Int)
+    nodes = gauss_lobatto_points(a,b,n_evals)
     
+    fun_vals = fun.(nodes)
+    interpolant(x) = LinearAlgebra.dot(fun_vals,lagrange_polynomials(nodes,x))
+    return interpolant
+end
+function gauss_lobatto_quadrature(fun::Function,a::Float64,b::Float64,n_evals::Int)
+    nodes = gauss_lobatto_points(a,b,n_evals)
+    weights = gauss_lobatto_weights(a,b,n_evals)
     fun_vals = fun.(nodes)
     quad = LinearAlgebra.dot(fun_vals,weights)
     

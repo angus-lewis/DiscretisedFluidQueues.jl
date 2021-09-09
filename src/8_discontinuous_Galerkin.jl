@@ -199,16 +199,12 @@ function MakeLazyGenerator(
                 out = (m.Phi[1, :]' * m.Dw.Dw * m.MInv)[:])
     )
 
-    T = model.T
-    C = model.C
-    delta = Δ(mesh)
     D = LinearAlgebra.I(n_bases(mesh))
-    pmidx = falses(size(T))
 
-    out = LazyGenerator(blocks,boundary_flux,T,C,delta,D,pmidx,mesh.Fil)
+    out = LazyGenerator(model,mesh,blocks,boundary_flux,D)
     v && println("UPDATE: LazyGenerator object created with keys ", keys(out))
     return out
 end
 
 
-export DGMesh
+export DGMesh, n_bases, cell_nodes, basis, local_dg_operators, MakeLazyGenerator

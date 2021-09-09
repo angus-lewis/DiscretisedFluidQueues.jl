@@ -32,7 +32,7 @@ The width of cell k
 
 """
 
-    TotalNBases(mesh::Mesh)
+    total_n_bases(mesh::Mesh)
 
 Total number of bases in the stencil
 """
@@ -40,17 +40,17 @@ total_n_bases(mesh::Mesh) = n_bases(mesh) * n_intervals(mesh)
 
 function MakeQBDidx(model::Model, mesh::Mesh)
     ## Make QBD index
-    # N₊ = sum(model.C .>= 0)
-    # N₋ = sum(model.C .<= 0)
 
-    c = N₋(model.C)
-    QBDidx = zeros(Int, NPhases(model) * TotalNBases(mesh) + N₊(model.C) + N₋(model.C))
-    for k = 1:NIntervals(mesh), i = 1:NPhases(model), n = 1:NBases(mesh)
+    c = N₋(model.S)
+    n₊ = N₊(model.S)
+    n₋ = N₋(model.S)
+    QBDidx = zeros(Int, n_phases(model) * total_n_bases(mesh) + n₊ + n₋)
+    for k = 1:n_intervals(mesh), i = 1:n_phases(model), n = 1:n_bases(mesh)
         c += 1
-        QBDidx[c] = (i - 1) * TotalNBases(mesh) + (k - 1) * NBases(mesh) + n + N₋(model.C)
+        QBDidx[c] = (i - 1) * total_n_bases(mesh) + (k - 1) * n_bases(mesh) + n + n₋
     end
-    QBDidx[1:N₋] = 1:N₋
-    QBDidx[(end-N₊(model.C)+1):end] = (NPhases(model) * TotalNBases(mesh) + N₋(model.C)) .+ (1:N₊(model.C))
+    QBDidx[1:n₋] = 1:n₋
+    QBDidx[(end-n₊+1):end] = (n_phases(model) * total_n_bases(mesh) + n₋) .+ (1:n₊)
 
     return QBDidx
 end
