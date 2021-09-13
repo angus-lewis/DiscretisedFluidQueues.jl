@@ -53,19 +53,19 @@ end
 function DGMesh(
     # model::Model,
     nodes::Array{<:Real,1},
-    n_bases::Int;
+    n_bases::Int,
     # Fil::IndexDict=IndexDict(),
-    basis::String = "lagrange",
-    v::Bool = false,
+    # basis::String = "lagrange",
+    # v::Bool = false,
 )
     # if isempty(Fil)
     #     Fil = MakeFil(model, nodes)
     # end
-
+    basis = "lagrange"
     mesh = DGMesh(nodes, n_bases, #Fil, 
         basis)
 
-    v && println("UPDATE: DGMesh object created with fields ", fieldnames(DGMesh))
+    # v && println("UPDATE: DGMesh object created with fields ", fieldnames(DGMesh))
     return mesh
 end
 DGMesh() = DGMesh([0.0],0,

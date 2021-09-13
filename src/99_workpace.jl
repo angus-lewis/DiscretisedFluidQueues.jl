@@ -327,7 +327,8 @@ end
     for mtype in (:dgmesh,:frapmesh,:fvmesh)
         # pdfs
         f(x,i) = (i-1)/12.0./sum(1:3)
-        d = @eval StochasticFluidQueues.SFMDistribution(f,am,$mtype)#StochasticFluidQueues.point_mass(11.990,2,am,$i)#
+        msh = @eval $mtype
+        d = StochasticFluidQueues.SFMDistribution(f,am,msh)#StochasticFluidQueues.point_mass(11.990,2,am,$i)#
         if mtype!=:fvmesh
             @test sum(d)≈1.0
         end
@@ -340,8 +341,8 @@ end
         # cdfs
         cdf_rec = StochasticFluidQueues.cdf(d,am)
         f_cdf(x,i) = f(x,i)*x
-        @eval @test sum(cdf_rec.($mtype.nodes[end],1:4))≈1.0
-        @eval @test sum(cdf_rec.($mtype.nodes[end]+1.0,1:4))≈sum(f_cdf.($mtype.nodes[end],1:4))
+        @test sum(cdf_rec.(msh.nodes[end],1:4))≈1.0
+        @test sum(cdf_rec.(msh.nodes[end]+1.0,1:4))≈sum(f_cdf.(msh.nodes[end],1:4))
         x = (-1:0.4:12.99)'
         @test all(isapprox.( f_cdf.(x,1:4), cdf_rec.(x,1:4), atol=5e-2 ))
 
@@ -349,11 +350,25 @@ end
         d = StochasticFluidQueues.:*(d,0.5)
         d[1] = 0.25
         d[end] = 0.25
-        @eval f_cdf_2(x,i) = 0.25*(i∈(2))*(x>=$mtype.nodes[1])+0.5*f_cdf(x,i)*(x>=$mtype.nodes[1])+0.25*(x>=$mtype.nodes[end])*(i∈(3))
+        f_cdf_2(x,i) = 0.25*(i∈(2))*(x>=msh.nodes[1])+0.5*f_cdf(x,i)*(x>=msh.nodes[1])+0.25*(x>=msh.nodes[end])*(i∈(3))
         cdf_rec_2 = StochasticFluidQueues.cdf(d,am)
-        @eval @test sum(cdf_rec_2.($mtype.nodes[end],1:4))≈1.0
-        @eval @test sum(cdf_rec_2.($mtype.nodes[end]+1.0,1:4))≈sum(f_cdf.($mtype.nodes[end],1:4))
+        @test sum(cdf_rec_2.(msh.nodes[end],1:4))≈1.0
+        @test sum(cdf_rec_2.(msh.nodes[end]+1.0,1:4))≈sum(f_cdf.(msh.nodes[end],1:4))
         @test all(isapprox.( f_cdf_2.(x,1:4), cdf_rec_2.(x,1:4), atol=5e-2 ))
+
+        @test_throws DomainError StochasticFluidQueues.left_point_mass(1,am,msh)
+        tst = zeros(1,
+            StochasticFluidQueues.n_phases(am)*StochasticFluidQueues.total_n_bases(msh) 
+            + StochasticFluidQueues.N₋(am.S) + StochasticFluidQueues.N₊(am.S))
+        tst[1] = 1.0
+        @test StochasticFluidQueues.left_point_mass(2,am,msh)==tst
+        
+        @test_throws DomainError StochasticFluidQueues.right_point_mass(2,am,msh)
+        tst2 = zeros(1,
+            StochasticFluidQueues.n_phases(am)*StochasticFluidQueues.total_n_bases(msh) 
+            + StochasticFluidQueues.N₋(am.S) + StochasticFluidQueues.N₊(am.S))
+        tst2[end] = 1.0
+        @test StochasticFluidQueues.right_point_mass(3,am,msh)==tst2
 
         # test point masses not at boundaries...
     end
@@ -361,6 +376,50 @@ end
 
 # test time 12_time_integration
 # check 12_time_integration
+@testset "time integration" begin
+    
+end
+
+@testset "numerical checks" begin
+    T = [-2.5 2 0.5; 1 -2 1; 1 2 -3]
+
+    C = [0.0; 2.0; -4.5]
+    m = [1;1;-1]
+    S = StochasticFluidQueues.PhaseSet(C,m)
+
+    bounds = [0.0,12]
+    model = StochasticFluidQueues.FluidQueue(T,S,bounds)
+
+    am = StochasticFluidQueues.augment_model(model)
+
+    mtypes = (StochasticFluidQueues.DGMesh,
+        StochasticFluidQueues.FVMesh,
+        StochasticFluidQueues.FRAPMesh)
+    for mtype in mtypes
+        nodes = collect(0:0.25:12)
+        order = 5
+        msh = mtype(nodes,order)
+        generator = StochasticFluidQueues.MakeFullGenerator(am,msh)
+
+        b = zeros(1,size(generator,1))
+        b[1] = 1.0
+        generator[:,1] .= 1.0
+
+        stationary_coeffs = b/generator.B
+
+        d = StochasticFluidQueues.SFMDistribution(stationary_coeffs,am,msh)
+
+        stationary_cdf_estimate = StochasticFluidQueues.pdf(d,am)
+
+        analytical_cdf = StochasticFluidQueues.StationaryDistributionX(am)[3]
+
+        x_vec = 0:0.23:12
+        for x in x_vec
+            analytical_cdf(x)[:] == stationary_cdf_estimate(x,1:4)
+        end
+    end
+end
+
 # etc...
 end
 

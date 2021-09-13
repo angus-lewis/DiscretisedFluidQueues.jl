@@ -47,17 +47,21 @@ end
 
 function left_point_mass(i::Int,model::Model,mesh::Mesh)
     (membership(model.S,i)>0)&&throw(DomainError("only phases with membership = -1 have left point masses"))
-    n₋ = N₋(model.S[1:i])
+    n₊ = N₊(model.S)
+    n₋ = N₊(model.S)
     coeffs = zeros(1,n₊+n₋+total_n_bases(mesh)*n_phases(model))
-    coeffs[n₋] = 1.0
+    nᵢ = N₋(model.S[1:i])
+    coeffs[nᵢ] = 1.0
     return SFMDistribution(coeffs,model,mesh)
 end
 
 function right_point_mass(i::Int,model::Model,mesh::Mesh)
     (membership(model.S,i)<0)&&throw(DomainError("only phases with membership = 1 have left point masses"))
-    n₊ = N₊(model.S[1:i])
+    n₊ = N₊(model.S)
+    n₋ = N₊(model.S)
     coeffs = zeros(1,n₊+n₋+total_n_bases(mesh)*n_phases(model))
-    coeffs[end-n₊+1] = 1.0
+    nᵢ = N₊(model.S[1:i])
+    coeffs[end-n₊+nᵢ] = 1.0
     return SFMDistribution(coeffs,model,mesh)
 end
 

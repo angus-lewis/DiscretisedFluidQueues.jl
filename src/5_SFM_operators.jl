@@ -12,12 +12,12 @@ outputs:
     `model.T[S[ℓ],S[m]]`.
 """
 function _model_dicts(model::Model) 
-    nPhases = NPhases(model)
+    nPhases = n_phases(model)
     SDict = Dict{String,Array}("S" => 1:nPhases)
-    SDict["+"] = findall(model.C .> 0)
-    SDict["-"] = findall(model.C .< 0)
-    SDict["0"] = findall(model.C .== 0)
-    SDict["bullet"] = findall(model.C .!= 0)
+    SDict["+"] = findall(rates(model) .> 0)
+    SDict["-"] = findall(rates(model) .< 0)
+    SDict["0"] = findall(rates(model) .== 0)
+    SDict["bullet"] = findall(rates(model) .!= 0)
 
     TDict = Dict{String,Array}("T" => model.T)
     for ℓ in ["+" "-" "0" "bullet"], m in ["+" "-" "0" "bullet"]
@@ -51,15 +51,19 @@ function PsiFunX( model::Model; s = 0, MaxIters = 1000, err = 1e-8)
     T00inv = inv(TDict["00"] - s * LinearAlgebra.I)
     # construct the generator Q(s)
     Q =
-        (1 ./ abs.(model.C[SDict["bullet"]])) .* (
+        (1 ./ abs.(rates(model)[SDict["bullet"]])) .* (
             TDict["bulletbullet"] - s * LinearAlgebra.I -
             TDict["bullet0"] * T00inv * TDict["0bullet"]
         )
 
-    QDict = Dict{String,Array}("Q" => Q)
-    for ℓ in ["+" "-"], m in ["+" "-"]
-        QDict[ℓ*m] = Q[SDict[ℓ], SDict[m]]
-    end
+    model_without_zero_phases = FluidQueue(Q,model.S[SDict["bullet"]],model.bounds)
+
+    ~, QDict = _model_dicts(model_without_zero_phases)
+
+    # QDict = Dict{String,Array}("Q" => Q)
+    # for ℓ in ["+" "-"], m in ["+" "-"]
+    #     QDict[ℓ*m] = Q[SDict[ℓ], SDict[m]]
+    # end
 
     Ψ = zeros(Float64, length(SDict["+"]), length(SDict["-"]))
     A = QDict["++"]
@@ -146,15 +150,19 @@ function StationaryDistributionX( model::Model, Ψ::Array, ξ::Array)
     invT₋₀ = -invT₋₋ * TDict["-0"] * T00inv
 
     Q =
-        (1 ./ abs.(model.C[SDict["bullet"]])) .* (
+        (1 ./ abs.(rates(model)[SDict["bullet"]])) .* (
             TDict["bulletbullet"] -
             TDict["bullet0"] * T00inv * TDict["0bullet"]
         )
 
-    QDict = Dict{String,Array}("Q" => Q)
-    for ℓ in ["+" "-"], m in ["+" "-"]
-        QDict[ℓ*m] = Q[SDict[ℓ], SDict[m]]
-    end
+    model_without_zero_phases = FluidQueue(Q,model.S[SDict["bullet"]],model.bounds)
+
+    ~, QDict = _model_dicts(model_without_zero_phases)
+    
+    # QDict = Dict{String,Array}("Q" => Q)
+    # for ℓ in ["+" "-"], m in ["+" "-"]
+    #     QDict[ℓ*m] = Q[SDict[ℓ], SDict[m]]
+    # end
 
     K = QDict["++"] + Ψ * QDict["-+"]
 
@@ -167,7 +175,7 @@ function StationaryDistributionX( model::Model, Ψ::Array, ξ::Array)
         [TDict["-+"]; TDict["0+"]] *
         -inv(K) *
         [LinearAlgebra.I(length(SDict["+"])) Ψ] *
-        LinearAlgebra.diagm(1 ./ abs.(model.C[SDict["bullet"]]))
+        LinearAlgebra.diagm(1 ./ abs.(rates(model)[SDict["bullet"]]))
 
     απₓ0 = -απₓ * [TDict["+0"];TDict["-0"]] * T00inv
 
@@ -183,8 +191,8 @@ function StationaryDistributionX( model::Model, Ψ::Array, ξ::Array)
         [TDict["-+"]; TDict["0+"]] *
         exp(K*x) *
         [LinearAlgebra.I(length(SDict["+"])) Ψ] *
-        LinearAlgebra.diagm(1 ./ abs.(model.C[SDict["bullet"]])) *
-        [LinearAlgebra.I(sum(model.C .!= 0)) [TDict["+0"];TDict["-0"]] * T00inv]
+        LinearAlgebra.diagm(1 ./ abs.(rates(model)[SDict["bullet"]])) *
+        [LinearAlgebra.I(sum(rates(model) .!= 0)) [TDict["+0"];TDict["-0"]] * T00inv]
     end
     # density method for arrays so that πₓ returns an array with the same shape
     # as is output by Coeff2Dist
@@ -201,19 +209,19 @@ function StationaryDistributionX( model::Model, Ψ::Array, ξ::Array)
 
     # CDF method for scalar x-values
     function Πₓ(x::Real)
-        [pₓ zeros(1,sum(model.C.>0))] .+
+        [pₓ zeros(1,sum(rates(model).>0))] .+
         pₓ *
         [TDict["-+"]; TDict["0+"]] *
         (exp(K*x) - LinearAlgebra.I) / K *
         [LinearAlgebra.I(length(SDict["+"])) Ψ] *
-        LinearAlgebra.diagm(1 ./ abs.(model.C[SDict["bullet"]])) *
-        [LinearAlgebra.I(sum(model.C .!= 0)) [TDict["+0"];TDict["-0"]] * T00inv]
+        LinearAlgebra.diagm(1 ./ abs.(rates(model)[SDict["bullet"]])) *
+        [LinearAlgebra.I(sum(rates(model) .!= 0)) [TDict["+0"];TDict["-0"]] * T00inv]
     end
     # CDF method for arrays so that Πₓ returns an array with the same shape
     # as is output by Coeff2Dist
     function Πₓ(x::Array)
         temp = Πₓ.(x)
-        Evalπₓ = zeros(Float64, size(x,1), size(x,2), NPhases(model))
+        Evalπₓ = zeros(Float64, size(x,1), size(x,2), n_phases(model))
         for cell in 1:size(x,2)
             for basis in 1:size(x,1)
                 Evalπₓ[basis,cell,:] = temp[basis,cell]
@@ -222,5 +230,12 @@ function StationaryDistributionX( model::Model, Ψ::Array, ξ::Array)
         return Evalπₓ
     end
 
+    return pₓ, πₓ, Πₓ, K
+end
+
+function StationaryDistributionX( model::Model)
+    Ψ = PsiFunX( model)
+    ξ = MakeXiX( model, Ψ)
+    pₓ, πₓ, Πₓ, K = StationaryDistributionX(model,Ψ,ξ)
     return pₓ, πₓ, Πₓ, K
 end
