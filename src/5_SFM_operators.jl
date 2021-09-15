@@ -186,19 +186,24 @@ function StationaryDistributionX( model::Model, Ψ::Array, ξ::Array)
     # point masses
     pₓ = αpₓ/α
     # density method for scalar x-values
+    idx = [findall(StochasticFluidQueues.rates(model).>0);
+        findall(StochasticFluidQueues.rates(model).<0);
+        findall(StochasticFluidQueues.rates(model).==0)]
     function πₓ(x::Real)
-        pₓ *
+        out = zeros(n_phases(model))
+        out[idx] = (pₓ *
         [TDict["-+"]; TDict["0+"]] *
         exp(K*x) *
         [LinearAlgebra.I(length(SDict["+"])) Ψ] *
         LinearAlgebra.diagm(1 ./ abs.(rates(model)[SDict["bullet"]])) *
-        [LinearAlgebra.I(sum(rates(model) .!= 0)) [TDict["+0"];TDict["-0"]] * T00inv]
+        [LinearAlgebra.I(sum(rates(model) .!= 0)) [TDict["+0"];TDict["-0"]] * -T00inv])
+        return out 
     end
     # density method for arrays so that πₓ returns an array with the same shape
     # as is output by Coeff2Dist
     function πₓ(x::Array)
         temp = πₓ.(x)
-        Evalπₓ = zeros(Float64, size(x,1), size(x,2), NPhases(model))
+        Evalπₓ = zeros(Float64, size(x,1), size(x,2), n_phases(model))
         for cell in 1:size(x,2)
             for basis in 1:size(x,1)
                 Evalπₓ[basis,cell,:] = temp[basis,cell]
@@ -209,13 +214,15 @@ function StationaryDistributionX( model::Model, Ψ::Array, ξ::Array)
 
     # CDF method for scalar x-values
     function Πₓ(x::Real)
-        [pₓ zeros(1,sum(rates(model).>0))] .+
+        out = zeros(n_phases(model))
+        out[idx] = [zeros(1,sum(rates(model).>0)) pₓ] .+
         pₓ *
         [TDict["-+"]; TDict["0+"]] *
         (exp(K*x) - LinearAlgebra.I) / K *
         [LinearAlgebra.I(length(SDict["+"])) Ψ] *
         LinearAlgebra.diagm(1 ./ abs.(rates(model)[SDict["bullet"]])) *
-        [LinearAlgebra.I(sum(rates(model) .!= 0)) [TDict["+0"];TDict["-0"]] * T00inv]
+        [LinearAlgebra.I(sum(rates(model) .!= 0)) [TDict["+0"];TDict["-0"]] * -T00inv]
+        return out 
     end
     # CDF method for arrays so that Πₓ returns an array with the same shape
     # as is output by Coeff2Dist

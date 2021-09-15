@@ -399,7 +399,7 @@ function cdf(d::SFMDistribution{DGMesh},model::Model)
             end
             # add the RH point mass if  required
             if (x>=mesh.nodes[end])&&(membership(model.S,i)>=0)
-                ~, ~, right_pm_idx = _get_coeffs_index(mesh.nodes[end],i,model,mesh)
+                ~, right_pm_idx = _get_point_mass_data_pos(i,mesh,model)
                 right_pm = d.coeffs[right_pm_idx]
                 Fxi += right_pm
             end
@@ -426,7 +426,7 @@ function cdf(d::SFMDistribution{FRAPMesh},model::Model)
             # Fxi = 0.0
             # left pm
             if membership(model.S,i)<=0
-                ~, ~, left_pm_idx = _get_coeffs_index(mesh.nodes[1],i,model,mesh)
+                ~, left_pm_idx = _get_point_mass_data_neg(i,mesh,model)
                 left_pm = d.coeffs[left_pm_idx]
                 Fxi += left_pm
             end
@@ -462,7 +462,7 @@ function cdf(d::SFMDistribution{FRAPMesh},model::Model)
                 end
             end
             if (x>=mesh.nodes[end])&&(membership(model.S,i)>0)
-                ~, ~, right_pm_idx = _get_coeffs_index(mesh.nodes[end],i,model,mesh)
+                ~, right_pm_idx = _get_point_mass_data_pos(i,mesh,model)
                 right_pm = d.coeffs[right_pm_idx]
                 Fxi += right_pm
             end
@@ -495,7 +495,7 @@ function cdf(d::SFMDistribution{FVMesh},model::Model)
             # Fxi = 0.0
             # left pm
             if (x>=mesh.nodes[1])&&(membership(model.S,i)<=0)
-                ~, ~, left_pm_idx = _get_coeffs_index(mesh.nodes[1],i,model,mesh)
+                ~, left_pm_idx = _get_point_mass_data_neg(i,mesh,model)
                 left_pm = d.coeffs[left_pm_idx]
                 Fxi += left_pm
             end
@@ -513,7 +513,7 @@ function cdf(d::SFMDistribution{FVMesh},model::Model)
                 Fxi += quad 
             end
             if (x>=mesh.nodes[end])&&(membership(model.S,i)>=0)
-                ~, ~, right_pm_idx = _get_coeffs_index(mesh.nodes[end],i,model,mesh)
+                ~, right_pm_idx = _get_point_mass_data_pos(i,mesh,model)
                 right_pm = d.coeffs[right_pm_idx]
                 Fxi += right_pm
             end

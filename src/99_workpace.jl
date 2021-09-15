@@ -381,9 +381,9 @@ end
 end
 
 @testset "numerical checks" begin
-    T = [-2.5 2 0.5; 1 -2 1; 1 2 -3]
+    T = [-2.5 2 0.5; 1 -3 2; 1 2 -3]
 
-    C = [0.0; 2.0; -4.5]
+    C = [0.0; 2.0; -6]
     m = [1;1;-1]
     S = StochasticFluidQueues.PhaseSet(C,m)
 
@@ -396,26 +396,36 @@ end
         StochasticFluidQueues.FVMesh,
         StochasticFluidQueues.FRAPMesh)
     for mtype in mtypes
-        nodes = collect(0:0.25:12)
+        nodes = collect(0:0.1:12)
         order = 5
         msh = mtype(nodes,order)
         generator = StochasticFluidQueues.MakeFullGenerator(am,msh)
 
         b = zeros(1,size(generator,1))
         b[1] = 1.0
-        generator[:,1] .= 1.0
+        if mtype==StochasticFluidQueues.FVMesh
+            generator[:,1] = [
+                ones(StochasticFluidQueues.N₋(am.S));
+                repeat(StochasticFluidQueues.Δ(msh),StochasticFluidQueues.n_phases(am));
+                ones(StochasticFluidQueues.N₊(am.S))]
+        else
+            generator[:,1] .= 1.0
+        end
 
         stationary_coeffs = b/generator.B
 
         d = StochasticFluidQueues.SFMDistribution(stationary_coeffs,am,msh)
 
-        stationary_cdf_estimate = StochasticFluidQueues.pdf(d,am)
+        stationary_cdf_estimate = StochasticFluidQueues.cdf(d,am)
 
         analytical_cdf = StochasticFluidQueues.StationaryDistributionX(am)[3]
 
-        x_vec = 0:0.23:12
-        for x in x_vec
-            analytical_cdf(x)[:] == stationary_cdf_estimate(x,1:4)
+        x_vec = bounds[1]:0.23:bounds[end]
+        @testset "cdf points" begin
+            for x in x_vec
+                # display(x)
+                @test analytical_cdf(x)≈stationary_cdf_estimate.(x,1:4) atol=1e-2
+            end
         end
     end
 end
