@@ -35,16 +35,17 @@ Construct a SFFM model object.
 """
 struct Phase
     c::Float64
-    m::Int # membership to + or -
-    function Phase(c::Float64,m::Int)
-        !((m==1)||(m==-1))&&throw(DomainError("m is +1 or -1 only"))
-        !((sign(c)==m)||(sign(c)==0))&&throw(DomainError("sign(c) must be 0 or m"))
+    m::Float64 # membership to + or - or, 0.0 or -0.0 for c=0.0 phases
+    function Phase(c::Float64,m::Float64)
+        !((m===1.0)||(m===-1.0)||(m===0.0)||(m===-0.0))&&throw(DomainError("m is +1 or -1 only"))
+        !(sign(c)==m)&&throw(DomainError("sign(c) must be m"))
         return new(c,m)
     end
 end
+Phase(c::Float64) = Phase(c,sign(c))
 const PhaseSet = Array{Phase,1}
-PhaseSet(c::Array{Float64,1},m::Array{Int,1}) = 
-    (length(m)==length(c))&&[Phase(c[i],m[i]) for i in 1:length(c)]
+PhaseSet(c::Array{Float64,1},m::Array{Float64,1}) = (length(m)==length(c))&&[Phase(c[i],m[i]) for i in 1:length(c)]
+PhaseSet(c::Array{Float64,1}) = [Phase(c[i],sign(c[i])) for i in 1:length(c)]
 # getindex(ph::PhaseSet,i::Int) = ph.S[i]
 n_phases(S::PhaseSet) = length(S)
 rates(S::PhaseSet,i::Int) = S[i].c
@@ -53,8 +54,16 @@ membership(S::PhaseSet,i::Int) = S[i].m
 membership(S::PhaseSet) = [S[i].m for i in 1:n_phases(S)]
 
 phases(S::PhaseSet) = 1:n_phases(S)
-N₋(S::PhaseSet) = sum(membership(S).<=0)
-N₊(S::PhaseSet) = sum(membership(S).>=0)
+_is_strictly_neg(x::Float64) = (x<0.0) || (x.===-0.0)
+_is_strictly_pos(x::Float64) = (x>0.0) || (x.===+0.0)
+_is_strictly_neg(i::Phase) = _is_strictly_neg.(i.m)
+_is_strictly_pos(i::Phase) = _is_strictly_pos.(i.m)
+_is_strictly_neg(S::PhaseSet,i::Int) = _is_strictly_neg(membership(S,i))
+_is_strictly_pos(S::PhaseSet,i::Int) = _is_strictly_pos(membership(S,i))
+_is_strictly_neg(S::PhaseSet) = _is_strictly_neg.(membership(S))
+_is_strictly_pos(S::PhaseSet) = _is_strictly_pos.(membership(S))
+N₋(S::PhaseSet) = sum(_is_strictly_neg(S))
+N₊(S::PhaseSet) = sum(_is_strictly_pos(S))
 
 checksquare(A::AbstractArray{<:Any,2}) = !(size(A,1)==size(A,2)) ? throw(DomainError(A," must be square")) : nothing
 
@@ -95,7 +104,9 @@ function _duplicate_zero_states(T::Array{<:Real,2},C::Array{<:Real,1})
         end
     end
     
-    m_aug = Int.(sign.(C_aug)) .+ plus_idx .- neg_idx
+    m_aug = sign.(C_aug)
+    m_aug[plus_idx] .= 0.0
+    m_aug[neg_idx] .= -0.0
 
     # assign augmented generator
     c_zero = 0
@@ -125,7 +136,7 @@ function augment_model(model::FluidQueue)
     end
 end
 
-pmidx(S::PhaseSet) = (membership(S).>0)*(membership(S).<0)' + 
-    (membership(S).<0)*(membership(S).>0)'
+# pmidx(S::PhaseSet) = (membership(S).>0)*(membership(S).<0)' + 
+#     (membership(S).<0)*(membership(S).>0)'
 export Model, Phase, PhaseSet, n_phases, rates, membership, phases, 
     checksquare, N₋, N₊, FluidQueue, augment_model, pmidx

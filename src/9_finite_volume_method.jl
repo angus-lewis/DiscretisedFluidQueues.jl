@@ -97,17 +97,17 @@ function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
     QBDidx = MakeQBDidx(model,mesh)
     
     # Boundary conditions
-    T₋₋ = model.T[m.<=0,m.<=0]
-    T₊₋ = model.T[m.>=0,:].*((C.<0)')
-    T₋₊ = model.T[m.<=0,:].*((C.>0)')
-    T₊₊ = model.T[m.>=0,m.>=0]
+    T₋₋ = model.T[_is_strictly_neg.(m),_is_strictly_neg.(m)]
+    T₊₋ = model.T[_is_strictly_pos.(m),:].*((C.<0)')
+    T₋₊ = model.T[_is_strictly_neg.(m),:].*((C.>0)')
+    T₊₊ = model.T[_is_strictly_pos.(m),_is_strictly_pos.(m)]
     # yuck
     begin 
         nodes = cell_nodes(mesh)[1:order]
         coeffs = lagrange_polynomials(nodes,mesh.nodes[1])
-        idxdown = ((1:order).+total_n_bases(mesh)*(findall(m .<= 0) .- 1)')[:] .+ n₋
+        idxdown = ((1:order).+total_n_bases(mesh)*(findall(_is_strictly_neg.(m)) .- 1)')[:] .+ n₋
         B[idxdown, 1:n₋] = LinearAlgebra.kron(
-            LinearAlgebra.diagm(0 => C[m.<=0]),
+            LinearAlgebra.diagm(0 => C[_is_strictly_neg.(m)]),
             -coeffs,
         )
     end
@@ -122,10 +122,10 @@ function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
         nodes = cell_nodes(mesh)[end-order+1:end]
         coeffs = lagrange_polynomials(nodes,mesh.nodes[end])
         idxup =
-            ((1:order).+total_n_bases(mesh)*(findall(m .>= 0) .- 1)')[:] .+
+            ((1:order).+total_n_bases(mesh)*(findall(_is_strictly_pos.(m)) .- 1)')[:] .+
             (n₋ + total_n_bases(mesh) - order)
         B[idxup, (end-n₊+1):end] = LinearAlgebra.kron(
-            LinearAlgebra.diagm(0 => C[m.>=0]),
+            LinearAlgebra.diagm(0 => C[_is_strictly_pos.(m)]),
             coeffs,
         )
     end

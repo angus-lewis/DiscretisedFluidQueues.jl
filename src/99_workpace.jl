@@ -8,16 +8,16 @@ T_nz = T - [0.01 0 0;0 0 0;0 0 0]
 T_warn = T - [0.000001 0 0;0 0 0;0 0 0]
 
 C = [0.0; 2.0; -3.0]
-m = [1;1;-1]
-S = StochasticFluidQueues.PhaseSet(C,m)
+m = sign.(C)
+S = StochasticFluidQueues.PhaseSet(C)
 
 bounds = [0.0,12]
 model = StochasticFluidQueues.FluidQueue(T,S,bounds)
 
 T_aug = [-2.5 0 2 0.5; 0 -2.5 2 0.5; 1 0 -2 1; 0 1 2 -3]
-C_aug = [0;C]
-m_aug = [1;-1;1;-1]
-S_aug = StochasticFluidQueues.PhaseSet(C_aug,m_aug)
+C_aug = [0.0;-0.0;C[2:3]]
+m_aug = sign.(C_aug)
+S_aug = StochasticFluidQueues.PhaseSet(C_aug)
 am = StochasticFluidQueues.FluidQueue(T_aug,S_aug,model.bounds)
 
 nodes = [0.0;3.0;4.0;12.0]
@@ -35,18 +35,18 @@ frapmesh = StochasticFluidQueues.FRAPMesh(nodes,order)
 @testset begin
 @testset "Phase and FluidQueue" begin 
     @testset "PhaseSet struct" begin
-        @test S[1]==StochasticFluidQueues.Phase(0.0,1)
-        @test_throws DomainError StochasticFluidQueues.PhaseSet([-1.0],[1]) 
-        @test_throws DomainError StochasticFluidQueues.PhaseSet([-1.0],[2]) 
-        @test S == [StochasticFluidQueues.Phase(C[i],m[i]) for i in 1:length(C)]
+        @test S[1]==StochasticFluidQueues.Phase(0.0,0.0)
+        @test_throws DomainError StochasticFluidQueues.PhaseSet([-1.0],[1.0]) 
+        @test_throws DomainError StochasticFluidQueues.PhaseSet([-1.0],[2.0]) 
+        @test S == [StochasticFluidQueues.Phase(C[i]) for i in 1:length(C)]
         @test StochasticFluidQueues.n_phases(S)==3
         @test all([StochasticFluidQueues.rates(S,i) for i in 1:length(C)].==C)
         @test StochasticFluidQueues.rates(S)==C
         @test all([StochasticFluidQueues.membership(S,i) for i in 1:length(m)].==m)
         @test StochasticFluidQueues.membership(S)==m
         @test StochasticFluidQueues.phases(S)==1:length(C)
-        @test StochasticFluidQueues.N₊(S)==sum(m.>=0)
-        @test StochasticFluidQueues.N₋(S)==sum(m.<=0)
+        @test StochasticFluidQueues.N₊(S)==sum(m.>0.0)+sum(m.===0.0)
+        @test StochasticFluidQueues.N₋(S)==sum(m.<0.0)+sum(m.===-0.0)
         @test StochasticFluidQueues.checksquare(T)===nothing
         @test_throws DomainError StochasticFluidQueues.checksquare(T[1:2,:])
     end
@@ -383,9 +383,8 @@ end
 @testset "numerical checks" begin
     T = [-2.5 2 0.5; 1 -3 2; 1 2 -3]
 
-    C = [0.0; 2.0; -6]
-    m = [1;1;-1]
-    S = StochasticFluidQueues.PhaseSet(C,m)
+    C = [0.0; 2.0; -6.0]
+    S = StochasticFluidQueues.PhaseSet(C)
 
     bounds = [0.0,12]
     model = StochasticFluidQueues.FluidQueue(T,S,bounds)
@@ -422,10 +421,11 @@ end
 
         x_vec = bounds[1]:0.23:bounds[end]
         @testset "cdf points" begin
+            pass = true
             for x in x_vec
-                # display(x)
-                @test analytical_cdf(x)≈stationary_cdf_estimate.(x,1:4) atol=1e-2
+                (!isapprox(analytical_cdf(x),stationary_cdf_estimate.(x,1:4), rtol=1e-2)) && (pass = false)
             end
+            @test pass
         end
     end
 end

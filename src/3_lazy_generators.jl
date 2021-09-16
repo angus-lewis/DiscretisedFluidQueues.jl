@@ -102,30 +102,30 @@ function *(u::AbstractArray{<:Real,2}, B::LazyGenerator)
 
     # boundaries
     # at lower
-    v[:,1:n₋] += u[:,1:n₋]*model.T[m.<=0,m.<=0]
+    v[:,1:n₋] += u[:,1:n₋]*model.T[_is_strictly_neg.(m),_is_strictly_neg.(m)]
     # in to lower 
-    idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(m .<= 0) .- 1)')[:]
+    idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_is_strictly_neg.(m)) .- 1)')[:]
     v[:,1:n₋] += u[:,idxdown]*LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => abs.(C[m.<=0])),
+        LinearAlgebra.diagm(0 => abs.(C[_is_strictly_neg.(m)])),
         B.boundary_flux.lower.in/Δ(mesh,1),
     )
     # out of lower 
     idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases(mesh)))[:]
-    v[:,idxup] += u[:,1:n₋]*kron(model.T[m.<=0,C.>0],B.boundary_flux.lower.out')
+    v[:,idxup] += u[:,1:n₋]*kron(model.T[_is_strictly_neg.(m),C.>0],B.boundary_flux.lower.out')
 
     # at upper
-    v[:,end-n₊+1:end] += u[:,end-n₊+1:end]*model.T[m.>=0,m.>=0]
+    v[:,end-n₊+1:end] += u[:,end-n₊+1:end]*model.T[_is_strictly_pos.(m),_is_strictly_pos.(m)]
     # in to upper
-    idxup = n₋ .+ ((1:n_bases(mesh)) .+ Kp*(findall(m .>= 0) .- 1)')[:] .+
+    idxup = n₋ .+ ((1:n_bases(mesh)) .+ Kp*(findall(_is_strictly_pos.(m)) .- 1)')[:] .+
         (Kp - n_bases(mesh))
     v[:,end-n₊+1:end] += u[:,idxup]*LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => C[m.>=0]),
+        LinearAlgebra.diagm(0 => C[_is_strictly_pos.(m)]),
         B.boundary_flux.upper.in/Δ(mesh,n_intervals(mesh)),
     )
     # out of upper 
     idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases(mesh)))[:] .+
         (Kp - n_bases(mesh))
-    v[:,idxdown] += u[:,end-n₊+1:end]*kron(model.T[m.>=0,C.<0],B.boundary_flux.upper.out')
+    v[:,idxdown] += u[:,end-n₊+1:end]*kron(model.T[_is_strictly_pos.(m),C.<0],B.boundary_flux.upper.out')
 
     # innards
     for i in phases(model), j in phases(model)
@@ -145,7 +145,7 @@ function *(u::AbstractArray{<:Real,2}, B::LazyGenerator)
                     end
                 end
             end
-        elseif m[i]!=m[j]# B.pmidx[i,j]
+        elseif _is_strictly_neg(m[i])!==_is_strictly_neg(m[j])# B.pmidx[i,j]
             # changes from S₊ to S₋ etc.
             for k in 1:n_intervals(mesh)
                 for ℓ in 1:n_intervals(mesh)
@@ -189,30 +189,30 @@ function *(B::LazyGenerator, u::AbstractArray{<:Real,2})
     n₊ = N₊(model.S)
     # boundaries
     # at lower
-    v[1:n₋,:] += model.T[m.<=0,m.<=0]*u[1:n₋,:]
+    v[1:n₋,:] += model.T[_is_strictly_neg.(m),_is_strictly_neg.(m)]*u[1:n₋,:]
     # in to lower 
-    idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(m .<= 0) .- 1)')[:]
+    idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_is_strictly_neg.(m)) .- 1)')[:]
     v[idxdown,:] += LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => abs.(C[m.<=0])),
+        LinearAlgebra.diagm(0 => abs.(C[_is_strictly_neg.(m)])),
         B.boundary_flux.lower.in/Δ(mesh,1),
     )*u[1:n₋,:]
     # out of lower 
     idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases(mesh)))[:]
-    v[1:n₋,:] += kron(model.T[m.<=0,C.>0],B.boundary_flux.lower.out')*u[idxup,:]
+    v[1:n₋,:] += kron(model.T[_is_strictly_neg.(m),C.>0],B.boundary_flux.lower.out')*u[idxup,:]
 
     # at upper
-    v[end-n₊+1:end,:] += model.T[m.>=0,m.>=0]*u[end-n₊+1:end,:]
+    v[end-n₊+1:end,:] += model.T[_is_strictly_pos.(m),_is_strictly_pos.(m)]*u[end-n₊+1:end,:]
     # in to upper
-    idxup = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(m .>= 0) .- 1)')[:] .+
+    idxup = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_is_strictly_pos.(m)) .- 1)')[:] .+
         (Kp - n_bases(mesh))
     v[idxup,:] += LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => C[m.>=0]),
+        LinearAlgebra.diagm(0 => C[_is_strictly_pos.(m)]),
         B.boundary_flux.upper.in/Δ(mesh,n_intervals(mesh)),
     )*u[end-n₊+1:end,:]
     # out of upper 
     idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases(mesh)))[:] .+
         (Kp - n_bases(mesh))
-    v[end-n₊+1:end,:] += kron(model.T[m.>=0,C.<0],B.boundary_flux.upper.out')*u[idxdown,:]
+    v[end-n₊+1:end,:] += kron(model.T[_is_strictly_pos.(m),C.<0],B.boundary_flux.upper.out')*u[idxdown,:]
 
     # innards
     for i in phases(model), j in phases(model)
@@ -232,7 +232,7 @@ function *(B::LazyGenerator, u::AbstractArray{<:Real,2})
                     end
                 end
             end
-        elseif m[i]!=m[j] # B.pmidx[i,j]
+        elseif _is_strictly_neg(m[i])!==_is_strictly_neg(m[j]) # B.pmidx[i,j]
             # changes from S₊ to S₋ etc.
             for k in 1:n_intervals(mesh)
                 for ℓ in 1:n_intervals(mesh)
@@ -280,29 +280,29 @@ function getindex(B::LazyGenerator,row::Int,col::Int)
     v = 0.0
 
     if (row ∈ 1:n₋) && (col ∈ 1:n₋)
-        v = model.T[m.<=0,m.<=0][row,col]
+        v = model.T[_is_strictly_neg.(m),_is_strictly_neg.(m)][row,col]
     elseif (row ∉ 1:n₋) && (row ∉ (sz_B_1 .+ 1) .- (1:n₊)) && (col ∈ 1:n₋) # in to lower 
-        idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(m .<= 0) .- 1)')[:]
+        idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_is_strictly_neg.(m)) .- 1)')[:]
         idx = findfirst(x -> x==row, idxdown)
         if (nothing!=idx) 
             v = LinearAlgebra.kron(
-                LinearAlgebra.diagm(0 => abs.(C[m.<=0])),
+                LinearAlgebra.diagm(0 => abs.(C[_is_strictly_neg.(m)])),
                 B.boundary_flux.lower.in/Δ(mesh,1),
             )[idx,col]
         end
     elseif (row ∈ 1:n₋) && (col ∉ 1:n₋) && (col ∉ sz_B_1 .+ 1 .- (1:n₊)) # out of lower 
         idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases(mesh)))[:]
         idx = findfirst(x -> x==col,idxup)
-        (nothing!=idx) && (v = kron(model.T[m.<=0,C.>0],B.boundary_flux.lower.out')[row,idx])
+        (nothing!=idx) && (v = kron(model.T[_is_strictly_neg.(m),C.>0],B.boundary_flux.lower.out')[row,idx])
     elseif (row ∈ (sz_B_1 .+ 1) .- (1:n₊)) && (col ∈ (sz_B_1 .+ 1) .- (1:n₊)) # at upper
-        v = model.T[m.>=0,m.>=0][row-sz_B_1+n₊, col-sz_B_1+n₊]
+        v = model.T[_is_strictly_pos.(m),_is_strictly_pos.(m)][row-sz_B_1+n₊, col-sz_B_1+n₊]
     elseif (row ∉ (sz_B_1 .+ 1) .- (1:n₊)) && (col ∈ (sz_B_1 .+ 1) .- (1:n₊)) # in to upper
-        idxup = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(m .>= 0) .- 1)')[:] .+
+        idxup = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_is_strictly_pos.(m)) .- 1)')[:] .+
             (Kp - n_bases(mesh))
         idx = findfirst(x -> x==row, idxup)
         if (nothing!=idx)
             v = LinearAlgebra.kron(
-                LinearAlgebra.diagm(0 => C[m.>=0]),
+                LinearAlgebra.diagm(0 => C[_is_strictly_pos.(m)]),
                 B.boundary_flux.upper.in/Δ(mesh,n_intervals(mesh)),
             )[idx, col-sz_B_1+n₊]
         end
@@ -310,7 +310,7 @@ function getindex(B::LazyGenerator,row::Int,col::Int)
         idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases(mesh)))[:] .+
             (Kp - n_bases(mesh))
         idx = findfirst(x -> x==col, idxdown)
-        (nothing!=idx) && (v = kron(model.T[m.>=0,C.<0],B.boundary_flux.upper.out')[row-sz_B_1+n₊, idx])
+        (nothing!=idx) && (v = kron(model.T[_is_strictly_pos.(m),C.<0],B.boundary_flux.upper.out')[row-sz_B_1+n₊, idx])
     else
         # innards
         # find if (T⊗I)[row,col] != 0
@@ -346,7 +346,7 @@ function getindex(B::LazyGenerator,row::Int,col::Int)
                 c = col_shift - (j-1)*(Kp) - (b_c-1)*n_bases(mesh)
                 v = abs(C[i])*B.blocks[1][r,c]/Δ(mesh,b_r)
             end
-        elseif m[i]!=m[j]# B.pmidx[i,j]
+        elseif _is_strictly_neg(m[i])!==_is_strictly_neg(m[j])# B.pmidx[i,j]
             # changes from S₊ to S₋ etc.
             b_r = (row_shift-1 - (i-1)*(Kp))÷n_bases(mesh) + 1
             b_c = (col_shift-1 - (j-1)*(Kp))÷n_bases(mesh) + 1
@@ -355,7 +355,7 @@ function getindex(B::LazyGenerator,row::Int,col::Int)
                 c = col_shift - (j-1)*(Kp) - (b_c-1)*n_bases(mesh)
                 v = model.T[i,j]*B.D[r,c]
             end
-        elseif m[i]==m[j]# B.pmidx[i,j]
+        elseif _is_strictly_neg(m[i])===_is_strictly_neg(m[j])# B.pmidx[i,j]
             # changes from S₊ to S₋ etc.
             b_r = (row_shift-1 - (i-1)*(Kp))÷n_bases(mesh) + 1
             b_c = (col_shift-1 - (j-1)*(Kp))÷n_bases(mesh) + 1
