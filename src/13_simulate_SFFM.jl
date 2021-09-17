@@ -571,147 +571,147 @@ function fzero( f::Function, a::Real, b::Real; err::Float64 = 1e-6)
     return c
 end
 
-"""
-Convert from simulations of a SFM or SFFM to a distribution.
+# """
+# Convert from simulations of a SFM or SFFM to a distribution.
 
-    Sims2Dist(
-        model::Model,
-        mesh::Mesh,
-        sims::NamedTuple;
-        type::String = "density",
-    )
+#     Sims2Dist(
+#         model::Model,
+#         mesh::Mesh,
+#         sims::NamedTuple;
+#         type::String = "density",
+#     )
 
-# Arguments
-- `Model`: a Model object
-- `mesh`: a Mesh object as output from `MakeMesh`
-- `sims::Array`: a named tuple as output of `SFFMSim` or `SFMSim`
-- `type::String`: an (optional) declaration of what type of distribution you
-    want to convert to. Options are `"probability"` to return the probabilities
-    ``P(X(t)∈ D_k, φ(t) = i)`` where ``D_k``is the kth cell, `"cumulative"` to
-    return the CDF evaluated at cell edges, or `"density"` to return an
-    approximation to the density ar at the CellNodes(mesh).
+# # Arguments
+# - `Model`: a Model object
+# - `mesh`: a Mesh object as output from `MakeMesh`
+# - `sims::Array`: a named tuple as output of `SFFMSim` or `SFMSim`
+# - `type::String`: an (optional) declaration of what type of distribution you
+#     want to convert to. Options are `"probability"` to return the probabilities
+#     ``P(X(t)∈ D_k, φ(t) = i)`` where ``D_k``is the kth cell, `"cumulative"` to
+#     return the CDF evaluated at cell edges, or `"density"` to return an
+#     approximation to the density ar at the CellNodes(mesh).
 
-# Output
-- a tuple with keys
-(pm=pm, distribution=yvals, x=xvals, type=type)
-    - `pm::Array{Float64}`: a vector containing the point masses, the first
-        `sum(model.C.<=0)` entries are the left hand point masses and the last
-        `sum(model.C.>=0)` are the right-hand point masses.
-    - `distribution::Array{Float64,3}`:
-        - if `type="cumulative"` returns a `2×NIntervals×NPhases` array
-            containing the CDF evaluated at the cell edges as contained in
-            `x` below. i.e. `distribution[1,:,i]` returns the cdf at the
-            left-hand edges of the cells in phase `i` and `distribution[2,:,i]`
-            at the right hand edges.
-        - if `type="probability"` returns a `1×NIntervals×NPhases` array
-            containing the probabilities ``P(X(t)∈ D_k, φ(t) = i)`` where ``D_k``
-            is the kth cell.
-        - if `type="density"` returns a `NBases×NIntervals×NPhases` array
-            containing the kde estimate of the density function evaluated at the
-            cell nodes as contained in `x` below.
-    - `x::Array{Float64,2}`:
-        - if `type="cumulative"` returns a `2×NIntervals×NPhases` array
-            containing the cell edges as contained. i.e. `x[1,:]`
-            returns the left-hand edges of the cells and `x[2,:]` at the
-            right-hand edges.
-        - if `type="probability"` returns a `1×NIntervals×NPhases` array
-            containing the cell centers.
-        - if `type="density"` returns a `NBases×NIntervals×NPhases` array
-            containing the cell nodes.
-    - `type`: as input in arguments.
-"""
-function Sims2Dist(
-    model::Model,
-    mesh::Mesh,
-    sims::NamedTuple,
-    type::Type{T} = SFFMProbability,
-) where {T<:SFFMDistribution} 
+# # Output
+# - a tuple with keys
+# (pm=pm, distribution=yvals, x=xvals, type=type)
+#     - `pm::Array{Float64}`: a vector containing the point masses, the first
+#         `sum(model.C.<=0)` entries are the left hand point masses and the last
+#         `sum(model.C.>=0)` are the right-hand point masses.
+#     - `distribution::Array{Float64,3}`:
+#         - if `type="cumulative"` returns a `2×NIntervals×NPhases` array
+#             containing the CDF evaluated at the cell edges as contained in
+#             `x` below. i.e. `distribution[1,:,i]` returns the cdf at the
+#             left-hand edges of the cells in phase `i` and `distribution[2,:,i]`
+#             at the right hand edges.
+#         - if `type="probability"` returns a `1×NIntervals×NPhases` array
+#             containing the probabilities ``P(X(t)∈ D_k, φ(t) = i)`` where ``D_k``
+#             is the kth cell.
+#         - if `type="density"` returns a `NBases×NIntervals×NPhases` array
+#             containing the kde estimate of the density function evaluated at the
+#             cell nodes as contained in `x` below.
+#     - `x::Array{Float64,2}`:
+#         - if `type="cumulative"` returns a `2×NIntervals×NPhases` array
+#             containing the cell edges as contained. i.e. `x[1,:]`
+#             returns the left-hand edges of the cells and `x[2,:]` at the
+#             right-hand edges.
+#         - if `type="probability"` returns a `1×NIntervals×NPhases` array
+#             containing the cell centers.
+#         - if `type="density"` returns a `NBases×NIntervals×NPhases` array
+#             containing the cell nodes.
+#     - `type`: as input in arguments.
+# """
+# function Sims2Dist(
+#     model::Model,
+#     mesh::Mesh,
+#     sims::NamedTuple,
+#     type::Type{T} = SFFMProbability,
+# ) where {T<:SFFMDistribution} 
 
-    if type == SFFMDensity
-        distribution = zeros(Float64, NBases(mesh), NIntervals(mesh), NPhases(model))
-    elseif type == SFFMProbability
-        distribution = zeros(Float64, 1, NIntervals(mesh), NPhases(model))
-    elseif type == SFFMCDF
-        distribution = zeros(Float64, 2, NIntervals(mesh), NPhases(model))
-    end
-    pm = zeros(Float64, sum(model.C .<= 0) + sum(model.C .>= 0))
-    pc = 0
-    qc = 0
-    xvals = CellNodes(mesh)
-    for i = 1:NPhases(model)
-        # find the simluated value of imterest for this iteration
-        whichsims =
-            (sims.φ .== i) .&
-            (sims.X .!= model.Bounds[1, 1]) .&
-            (sims.X .!= model.Bounds[1, end])
-        data = sims.X[whichsims]
-        totalprob = sum(whichsims) / length(sims.φ)
-        if type == SFFMProbability
-            if length(data)!=0
-                h = StatsBase.fit(StatsBase.Histogram, data, mesh.Nodes)
-                h = h.weights ./ sum(h.weights) * totalprob
-                distribution[:, :, i] = h
-            end
-            if NBases(mesh) == 1
-                xvals = CellNodes(mesh)
-            else
-                xvals = CellNodes(mesh)[1, :] + Δ(mesh) / 2
-            end
-        elseif type == SFFMDensity
-            if length(data)!=0
-                if model.Bounds[1, end] == Inf
-                    U = KernelDensity.kde(data)
-                else
-                    U = KernelDensity.kde(
-                        data,
-                        boundary = (model.Bounds[1, 1], model.Bounds[1, end]),
-                    )
-                end
-                distribution[:, :, i] =
-                    reshape(
-                        KernelDensity.pdf(U, CellNodes(mesh)[:])',
-                        NBases(mesh),
-                        NIntervals(mesh),
-                    ) * totalprob
-            end
-        elseif type == SFFMCDF
-            if length(data)!=0
-                h = StatsBase.fit(StatsBase.Histogram, data, mesh.Nodes)
-                tempDist = h.weights ./ sum(h.weights) * totalprob
-                tempDist = cumsum(tempDist)
-                distribution[1, 2:end, i] = tempDist[1:end-1]
-                distribution[2, :, i] = tempDist
-                if NBases(mesh) == 1
-                    xvals = [mesh.Nodes[1:end-1]';mesh.Nodes[2:end]']
-                else
-                    xvals = CellNodes(mesh)[[1;end], :]
-                end
-            end
-        end
+#     if type == SFFMDensity
+#         distribution = zeros(Float64, NBases(mesh), NIntervals(mesh), NPhases(model))
+#     elseif type == SFFMProbability
+#         distribution = zeros(Float64, 1, NIntervals(mesh), NPhases(model))
+#     elseif type == SFFMCDF
+#         distribution = zeros(Float64, 2, NIntervals(mesh), NPhases(model))
+#     end
+#     pm = zeros(Float64, sum(model.C .<= 0) + sum(model.C .>= 0))
+#     pc = 0
+#     qc = 0
+#     xvals = CellNodes(mesh)
+#     for i = 1:NPhases(model)
+#         # find the simluated value of imterest for this iteration
+#         whichsims =
+#             (sims.φ .== i) .&
+#             (sims.X .!= model.Bounds[1, 1]) .&
+#             (sims.X .!= model.Bounds[1, end])
+#         data = sims.X[whichsims]
+#         totalprob = sum(whichsims) / length(sims.φ)
+#         if type == SFFMProbability
+#             if length(data)!=0
+#                 h = StatsBase.fit(StatsBase.Histogram, data, mesh.Nodes)
+#                 h = h.weights ./ sum(h.weights) * totalprob
+#                 distribution[:, :, i] = h
+#             end
+#             if NBases(mesh) == 1
+#                 xvals = CellNodes(mesh)
+#             else
+#                 xvals = CellNodes(mesh)[1, :] + Δ(mesh) / 2
+#             end
+#         elseif type == SFFMDensity
+#             if length(data)!=0
+#                 if model.Bounds[1, end] == Inf
+#                     U = KernelDensity.kde(data)
+#                 else
+#                     U = KernelDensity.kde(
+#                         data,
+#                         boundary = (model.Bounds[1, 1], model.Bounds[1, end]),
+#                     )
+#                 end
+#                 distribution[:, :, i] =
+#                     reshape(
+#                         KernelDensity.pdf(U, CellNodes(mesh)[:])',
+#                         NBases(mesh),
+#                         NIntervals(mesh),
+#                     ) * totalprob
+#             end
+#         elseif type == SFFMCDF
+#             if length(data)!=0
+#                 h = StatsBase.fit(StatsBase.Histogram, data, mesh.Nodes)
+#                 tempDist = h.weights ./ sum(h.weights) * totalprob
+#                 tempDist = cumsum(tempDist)
+#                 distribution[1, 2:end, i] = tempDist[1:end-1]
+#                 distribution[2, :, i] = tempDist
+#                 if NBases(mesh) == 1
+#                     xvals = [mesh.Nodes[1:end-1]';mesh.Nodes[2:end]']
+#                 else
+#                     xvals = CellNodes(mesh)[[1;end], :]
+#                 end
+#             end
+#         end
 
-        if model.C[i] <= 0
-            pc = pc + 1
-            whichsims = (sims.φ .== i) .& (sims.X .== model.Bounds[1, 1])
-            p = sum(whichsims) / length(sims.φ)
-            pm[pc] = p
-            if type == SFFMCDF
-                distribution[:,:,i] = distribution[:,:,i] .+ pm[pc]
-            end
-        end
-        if model.C[i] >= 0
-            qc = qc + 1
-            whichsims = (sims.φ .== i) .& (sims.X .== model.Bounds[1, end])
-            p = sum(whichsims) / length(sims.φ)
-            if type == SFFMCDF
-                pm[sum(model.C .<= 0)+qc] = p + distribution[end,end,i]
-            else
-                pm[sum(model.C .<= 0)+qc] = p
-            end
-        end
-    end
-    if type == SFFMDensity && NBases(mesh) == 1
-        distribution = [1; 1] .* distribution
-        xvals = [mesh.Nodes[1:end-1]';mesh.Nodes[2:end]']
-    end
-    return type(pm, distribution, xvals)
-end
+#         if model.C[i] <= 0
+#             pc = pc + 1
+#             whichsims = (sims.φ .== i) .& (sims.X .== model.Bounds[1, 1])
+#             p = sum(whichsims) / length(sims.φ)
+#             pm[pc] = p
+#             if type == SFFMCDF
+#                 distribution[:,:,i] = distribution[:,:,i] .+ pm[pc]
+#             end
+#         end
+#         if model.C[i] >= 0
+#             qc = qc + 1
+#             whichsims = (sims.φ .== i) .& (sims.X .== model.Bounds[1, end])
+#             p = sum(whichsims) / length(sims.φ)
+#             if type == SFFMCDF
+#                 pm[sum(model.C .<= 0)+qc] = p + distribution[end,end,i]
+#             else
+#                 pm[sum(model.C .<= 0)+qc] = p
+#             end
+#         end
+#     end
+#     if type == SFFMDensity && NBases(mesh) == 1
+#         distribution = [1; 1] .* distribution
+#         xvals = [mesh.Nodes[1:end-1]';mesh.Nodes[2:end]']
+#     end
+#     return type(pm, distribution, xvals)
+# end

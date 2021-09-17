@@ -33,21 +33,27 @@ Construct a SFFM model object.
     - `Bounds`: as input
 )
 """
-const Membership = Union{Float64,Int}
-const MembershipSet = Union{Array{Float64,1},Array{Int,1},Array{Membership,1}}
 struct Phase
     c::Float64
-    m::Membership # membership to + or - or, 0.0 or -0.0 for c=0.0 phases
-    function Phase(c::Membership,m::Membership)
-        !((m===1.0)||(m===-1.0)||(m===0.0)||(m===-0.0)||(m===0))&&throw(DomainError("m is +1.0, -1.0, 0.0, -0.0, 0 only"))
-        !(sign(c)==m)&&throw(DomainError("sign(c) must be m"))
-        return new(c,m)
+    m::Int64 # membership to +1 or -1
+    lpm::Bool # left point mass
+    rpm::Bool # right point mass
+    function Phase(c::Float64,m::Int,lpm::Bool,rpm::Bool)
+        !((m===1)||(m===-1))&&throw(DomainError("m is +1.0, -1.0 only"))
+        !((sign(c)==m)||(sign(c)==0.0))&&throw(DomainError("sign(c) must be m or 0"))
+        !((c<0.0)==lpm||(c==0.0))&&throw(DomainError("negative phases must have lpm=true"))
+        !((c>0.0)==rpm||(c==0.0))&&throw(DomainError("positive phases must have rpm=true"))
+        return new(c,m,lpm,rpm)
     end
 end
-Phase(c::Membership) = Phase(c,sign(c))
+Phase(c::Float64) = Phase(c,-1+2*Int(_strictly_pos(c)),c<=0,c>=0)
+# Phase(c::Int) = Phase(Float64(c),-1+2*Int(_strictly_pos(c)),c<=0,c>=0)
+Phase(c::Float64,m::Int) = Phase(c,m,c<=0,c>=0)
 const PhaseSet = Array{Phase,1}
-PhaseSet(c::MembershipSet,m::MembershipSet) = (length(m)==length(c))&&[Phase(convert(Float64,c[i]),m[i]) for i in 1:length(c)]
-PhaseSet(c::MembershipSet) = [Phase(convert(Float64,c[i]),sign(c[i])) for i in 1:length(c)]
+PhaseSet(c::Array{Float64,1}) = [Phase(c[i]) for i in 1:length(c)]
+PhaseSet(c::Array{Float64,1},m::Array{Int,1}) = (length(m)==length(c))&&[Phase(c[i],m[i]) for i in 1:length(c)]
+PhaseSet(c::Array{Float64,1},m::Array{Int,1},lpm::BitArray,rpm::BitArray) = 
+    (length(m)==length(c)==length(lpm)==length(rpm))&&[Phase(c[i],m[i],lpm[i],rpm[i]) for i in 1:length(c)]
 # getindex(ph::PhaseSet,i::Int) = ph.S[i]
 n_phases(S::PhaseSet) = length(S)
 rates(S::PhaseSet,i::Int) = S[i].c
@@ -56,16 +62,17 @@ membership(S::PhaseSet,i::Int) = S[i].m
 membership(S::PhaseSet) = [S[i].m for i in 1:n_phases(S)]
 phases(S::PhaseSet) = 1:n_phases(S)
 
-_has_left_boundary(x::Float64) = (x<0.0) || (x.===-0.0)
-_has_right_boundary(x::Float64) = (x>0.0) || (x.===+0.0)
-_has_left_boundary(x::Int) = x===0 ? true : throw(DomainError("invalid membership detected"))
-_has_right_boundary(x::Int) = x===0 ? true : throw(DomainError("invalid membership detected"))
-_has_left_boundary(i::Phase) = _has_left_boundary.(i.m)
-_has_right_boundary(i::Phase) = _has_right_boundary.(i.m)
-_has_left_boundary(S::PhaseSet,i::Int) = _has_left_boundary(membership(S,i))
-_has_right_boundary(S::PhaseSet,i::Int) = _has_right_boundary(membership(S,i))
-_has_left_boundary(S::PhaseSet) = _has_left_boundary.(membership(S))
-_has_right_boundary(S::PhaseSet) = _has_right_boundary.(membership(S))
+_strictly_neg(x::Float64) = (x<0.0) || (x.===-0.0)
+_strictly_pos(x::Float64) = !_strictly_neg(x)
+_strictly_neg(x::Int) = (x===0) ? true : throw(DomainError("invalid membership detected"))
+_strictly_pos(x::Int) = (x===0) ? true : throw(DomainError("invalid membership detected"))
+
+_has_left_boundary(i::Phase) = i.lpm
+_has_right_boundary(i::Phase) = i.rpm
+_has_left_boundary(S::PhaseSet,i::Int) = S[i].lpm
+_has_right_boundary(S::PhaseSet,i::Int) = S[i].rpm
+_has_left_boundary(S::PhaseSet) = _has_left_boundary.(S)
+_has_right_boundary(S::PhaseSet) = _has_right_boundary.(S)
 N₋(S::PhaseSet) = sum(_has_left_boundary(S))
 N₊(S::PhaseSet) = sum(_has_right_boundary(S))
 
@@ -108,9 +115,11 @@ function _duplicate_zero_states(T::Array{<:Real,2},C::Array{<:Real,1})
         end
     end
     
-    m_aug = sign.(C_aug)
-    m_aug[plus_idx] .= 0.0
-    m_aug[neg_idx] .= -0.0
+    m_aug = Int.(sign.(C_aug))
+    m_aug[plus_idx] .= +1
+    m_aug[neg_idx] .= -1
+    lpm_aug = (C_aug.<0.0) .| neg_idx
+    rpm_aug = (C_aug.>0.0) .| plus_idx
 
     # assign augmented generator
     c_zero = 0
@@ -127,20 +136,18 @@ function _duplicate_zero_states(T::Array{<:Real,2},C::Array{<:Real,1})
             T_aug[i+c_zero,(C_aug.!=0).|(plus_idx)] = T[i,:]
         end
     end
-    return T_aug, C_aug, m_aug
+    return T_aug, C_aug, m_aug, lpm_aug, rpm_aug
 end
 
 function augment_model(model::FluidQueue)
     if (any(rates(model).==0))
-        T_aug, C_aug, m_aug = _duplicate_zero_states(model.T,rates(model))
-        S_aug = PhaseSet(C_aug,m_aug)
+        T_aug, C_aug, m_aug, lpm_aug, rpm_aug = _duplicate_zero_states(model.T,rates(model))
+        S_aug = PhaseSet(C_aug,m_aug,lpm_aug,rpm_aug)
         return FluidQueue(T_aug,S_aug,model.bounds)
     else # no zero states, no augmentation needed
        return model 
     end
 end
 
-# pmidx(S::PhaseSet) = (membership(S).>0)*(membership(S).<0)' + 
-#     (membership(S).<0)*(membership(S).>0)'
 export Model, Phase, PhaseSet, n_phases, rates, membership, phases, 
     checksquare, N₋, N₊, FluidQueue, augment_model, pmidx

@@ -46,31 +46,15 @@ Used for initialising a blank plot only. There is no reason to call this, ever.
 struct DGMesh <: Mesh 
     nodes::Array{<:Real,1}
     n_bases::Int
-    # Fil::IndexDict
     basis::String
 end 
 # Convenience constructors
-function DGMesh(
-    # model::Model,
-    nodes::Array{<:Real,1},
-    n_bases::Int,
-    # Fil::IndexDict=IndexDict(),
-    # basis::String = "lagrange",
-    # v::Bool = false,
-)
-    # if isempty(Fil)
-    #     Fil = MakeFil(model, nodes)
-    # end
+function DGMesh(nodes::Array{<:Real,1},n_bases::Int)
     basis = "lagrange"
-    mesh = DGMesh(nodes, n_bases, #Fil, 
-        basis)
-
-    # v && println("UPDATE: DGMesh object created with fields ", fieldnames(DGMesh))
+    mesh = DGMesh(nodes, n_bases,basis)
     return mesh
 end
-DGMesh() = DGMesh([0.0],0,
-        # IndexDict(),
-        "")
+DGMesh() = DGMesh([0.0],0,"")
 
 """
 

@@ -73,8 +73,6 @@ function MakeFVFlux(mesh::Mesh)
 end
 
 function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
-    # N₊ = sum(model.C .>= 0)
-    # N₋ = sum(model.C .<= 0)
     order = _order(mesh)
     F = MakeFVFlux(mesh)
 
@@ -97,22 +95,18 @@ function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
     QBDidx = MakeQBDidx(model,mesh)
     
     # Boundary conditions
-    T₋₋ = model.T[_has_left_boundary.(m),_has_left_boundary.(m)]
-    T₊₋ = model.T[_has_right_boundary.(m),:].*((C.<0)')
-    T₋₊ = model.T[_has_left_boundary.(m),:].*((C.>0)')
-    T₊₊ = model.T[_has_right_boundary.(m),_has_right_boundary.(m)]
+    T₋₋ = model.T[_has_left_boundary.(model.S),_has_left_boundary.(model.S)]
+    T₊₋ = model.T[_has_right_boundary.(model.S),:].*((C.<0)')
+    T₋₊ = model.T[_has_left_boundary.(model.S),:].*((C.>0)')
+    T₊₊ = model.T[_has_right_boundary.(model.S),_has_right_boundary.(model.S)]
     # yuck
     begin 
         nodes = cell_nodes(mesh)[1:order]
         coeffs = lagrange_polynomials(nodes,mesh.nodes[1])
-        idxdown = ((1:order).+total_n_bases(mesh)*(findall(_has_left_boundary.(m)) .- 1)')[:] .+ n₋
-        down_rates = LinearAlgebra.diagm(0 => C[_has_left_boundary.(m)])
+        idxdown = ((1:order).+total_n_bases(mesh)*(findall(_has_left_boundary.(model.S)) .- 1)')[:] .+ n₋
+        down_rates = LinearAlgebra.diagm(0 => C[_has_left_boundary.(model.S)])
         B[idxdown, 1:n₋] = LinearAlgebra.kron(down_rates,-coeffs)
     end
-    # inLower = [
-    #     SparseArrays.diagm(abs.(model.C).*(model.C.<=0))[:,model.C.<=0]; 
-    #     SparseArrays.zeros((n_intervals(mesh)-1)*n_phases(model),N₋)
-    # ]
     outLower = [
         T₋₊./Δ(mesh,1) SparseArrays.zeros(n₋,n₊+(n_intervals(mesh)-1)*n_phases(model))
     ]
@@ -120,25 +114,19 @@ function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
         nodes = cell_nodes(mesh)[end-order+1:end]
         coeffs = lagrange_polynomials(nodes,mesh.nodes[end])
         idxup =
-            ((1:order).+total_n_bases(mesh)*(findall(_has_right_boundary.(m)) .- 1)')[:] .+
+            ((1:order).+total_n_bases(mesh)*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
             (n₋ + total_n_bases(mesh) - order)
         B[idxup, (end-n₊+1):end] = LinearAlgebra.kron(
-            LinearAlgebra.diagm(0 => C[_has_right_boundary.(m)]),
+            LinearAlgebra.diagm(0 => C[_has_right_boundary.(model.S)]),
             coeffs,
         )
     end
-    # inUpper = [
-    #     SparseArrays.zeros((n_intervals(mesh)-1)*n_phases(model),N₊);
-    #     (SparseArrays.diagm(abs.(model.C).*(model.C.>=0)))[:,model.C.>=0]
-    # ]
     outUpper = [
         SparseArrays.zeros(n₊,n₋+(n_intervals(mesh)-1)*n_phases(model)) T₊₋./Δ(mesh,n_intervals(mesh))
     ]
     
     B[1:n₋,QBDidx] = [T₋₋ outLower]
     B[end-n₊+1:end,QBDidx] = [outUpper T₊₊]
-    # B[QBDidx[N₋+1:end-N₊],1:N₋] = inLower
-    # B[QBDidx[N₋+1:end-N₊],(end-N₊+1):end] = inUpper
     for i = 1:n_phases(model)
         idx = ((i-1)*n_intervals(mesh)+1:i*n_intervals(mesh)) .+ n₋
         if C[i] > 0
@@ -148,7 +136,6 @@ function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
         end
     end
 
-    # BDict = MakeDict(B,model,mesh)
     out = FullGenerator(B)#, mesh.Fil)
     v && println("FullGenerator created with keys ", keys(out))
     return out

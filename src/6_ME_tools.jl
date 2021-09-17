@@ -1,10 +1,8 @@
 import FileIO, LinearAlgebra, JSON
+dir = @__DIR__
+erlangDParams = FileIO.load(dir*"/erlangParamsData/erlangDParams.jld2", "erlangDParams")
 
-# erlangDParams = Dict()
-src_dir = pwd()*"/StochasticFluidQueues/src/"
-erlangDParams = FileIO.load(src_dir*"erlangParamsData/erlangDParams.jld2", "erlangDParams")
-
-CMEParams = FileIO.load(src_dir*"/CMEParamsData/CMEParams.jld2", "CMEParams")
+CMEParams = FileIO.load(dir*"/CMEParamsData/CMEParams.jld2", "CMEParams")
 
 abstract type AbstractMatrixExponential end
 

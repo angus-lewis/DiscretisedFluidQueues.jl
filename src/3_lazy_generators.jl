@@ -8,33 +8,22 @@ struct LazyGenerator  <: Generator
     blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2},Array{Float64,2}}
     boundary_flux::BoundaryFluxTupleType
     D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}}
-    # pmidx::Union{Array{Bool,2},BitArray{2}}
-    # Fil::IndexDict
     function LazyGenerator(
         model::FluidQueue,
         mesh::Mesh,
         blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2},Array{Float64,2}},
         boundary_flux::NamedTuple{(:upper,:lower),Tuple{NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}},NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}}}},
-        # T::Array{<:Real,2},
-        # C::PhaseSet,
-        # Δ::Array{<:Real,1},
         D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
-        # pmidx::Union{Array{Bool,2},BitArray{2}},
-        # Fil::IndexDict,
     )
         s = size(blocks[1])
         for b in 1:4
             checksquare(blocks[b]) 
             !(s == size(blocks[b])) && throw(DomainError("blocks must be the same size"))
         end
-        # checksquare(T)
         checksquare(D)
         !(s == size(D)) && throw(DomainError("blocks must be the same size as D"))
-        # checksquare(pmidx) 
-        # !(size(T) == size(pmidx)) && throw(DomainError(pmidx, "must be the same size as T"))
-        # !(length(C) == size(T,1)) && throw(DomainError(C, "must be the same length as T"))
         
-        return new(model,mesh,blocks,boundary_flux,D)#,Fil)
+        return new(model,mesh,blocks,boundary_flux,D)
     end
 end
 function LazyGenerator(
@@ -42,12 +31,7 @@ function LazyGenerator(
     mesh::Mesh,
     blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2}},
     boundary_flux::NamedTuple{(:in, :out),Tuple{Array{Float64,1},Array{Float64,1}}},
-    # T::Array{<:Real,2},
-    # C::PhaseSet,
-    # Δ::Array{<:Real,1},
     D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
-    # pmidx::Union{Array{Bool,2},BitArray{2}},
-    # Fil::IndexDict,
 )
     blocks = (blocks[1],blocks[2],blocks[2],blocks[3])
     boundary_flux = (upper = boundary_flux, lower = boundary_flux)
@@ -56,17 +40,11 @@ end
 function LazyGenerator(
     blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2}},
     boundary_flux::NamedTuple{(:in, :out),Tuple{Array{Float64,1},Array{Float64,1}}},
-    # T::Array{<:Real,2},
-    # C::Array{<:Real,1},
-    # Δ::Array{<:Real,1},
     D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
-    # pmidx::Union{Array{Bool,2},BitArray{2}},
-    # Fil::IndexDict,
 )
     blocks = (blocks[1],blocks[2],blocks[2],blocks[3])
     boundary_flux = (upper = boundary_flux, lower = boundary_flux)
-    return LazyGenerator(blocks, boundary_flux, D,# Fil,
-    )
+    return LazyGenerator(blocks, boundary_flux, D)
 end
 function MakeLazyGenerator(model::Model, mesh::Mesh; v::Bool=false)
     throw(DomainError("Can construct LazyGenerator for DGMesh, FRAPMesh, only"))
@@ -167,37 +145,36 @@ function *(u::AbstractArray{Float64,2}, B::LazyGenerator)
     mesh = B.mesh
 
     Kp = total_n_bases(mesh) # K = n_intervals(mesh), p = n_bases(mesh)
-    m = membership(model.S)
     C = rates(model)
     n₋ = N₋(model.S)
     n₊ = N₊(model.S)
 
     # boundaries
     # at lower
-    v[:,1:n₋] += u[:,1:n₋]*model.T[_has_left_boundary.(m),_has_left_boundary.(m)]
+    v[:,1:n₋] += u[:,1:n₋]*model.T[_has_left_boundary.(model.S),_has_left_boundary.(model.S)]
     # in to lower 
-    idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_has_left_boundary.(m)) .- 1)')[:]
+    idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_has_left_boundary.(model.S)) .- 1)')[:]
     v[:,1:n₋] += u[:,idxdown]*LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(m)])),
+        LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(model.S)])),
         B.boundary_flux.lower.in/Δ(mesh,1),
     )
     # out of lower 
     idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases(mesh)))[:]
-    v[:,idxup] += u[:,1:n₋]*kron(model.T[_has_left_boundary.(m),C.>0],B.boundary_flux.lower.out')
+    v[:,idxup] += u[:,1:n₋]*kron(model.T[_has_left_boundary.(model.S),C.>0],B.boundary_flux.lower.out')
 
     # at upper
-    v[:,end-n₊+1:end] += u[:,end-n₊+1:end]*model.T[_has_right_boundary.(m),_has_right_boundary.(m)]
+    v[:,end-n₊+1:end] += u[:,end-n₊+1:end]*model.T[_has_right_boundary.(model.S),_has_right_boundary.(model.S)]
     # in to upper
-    idxup = n₋ .+ ((1:n_bases(mesh)) .+ Kp*(findall(_has_right_boundary.(m)) .- 1)')[:] .+
+    idxup = n₋ .+ ((1:n_bases(mesh)) .+ Kp*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
         (Kp - n_bases(mesh))
     v[:,end-n₊+1:end] += u[:,idxup]*LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => C[_has_right_boundary.(m)]),
+        LinearAlgebra.diagm(0 => C[_has_right_boundary.(model.S)]),
         B.boundary_flux.upper.in/Δ(mesh,n_intervals(mesh)),
     )
     # out of upper 
     idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases(mesh)))[:] .+
         (Kp - n_bases(mesh))
-    v[:,idxdown] += u[:,end-n₊+1:end]*kron(model.T[_has_right_boundary.(m),C.<0],B.boundary_flux.upper.out')
+    v[:,idxdown] += u[:,end-n₊+1:end]*kron(model.T[_has_right_boundary.(model.S),C.<0],B.boundary_flux.upper.out')
 
     # innards
     for i in phases(model), j in phases(model)
@@ -217,7 +194,7 @@ function *(u::AbstractArray{Float64,2}, B::LazyGenerator)
                     end
                 end
             end
-        elseif _has_left_boundary(m[i])!==_has_left_boundary(m[j])# B.pmidx[i,j]
+        elseif membership(model.S,i)!=membership(model.S,j)# B.pmidx[i,j]
             # changes from S₊ to S₋ etc.
             for k in 1:n_intervals(mesh)
                 for ℓ in 1:n_intervals(mesh)
@@ -241,9 +218,8 @@ function *(B::LazyGenerator, u::AbstractArray{Float64,2})
     output_type = typeof(u)
 
     sz_u_1 = size(u,1)
-    sz_u_2 = size(u,2)
-    sz_B_1 = size(B,1)
     sz_B_2 = size(B,2)
+
     !(sz_u_1 == sz_B_2) && throw(DomainError("Dimension mismatch, u*B, length(u) must be size(B,2)"))
 
     if output_type <: SparseArrays.SparseMatrixCSC
@@ -255,36 +231,36 @@ function *(B::LazyGenerator, u::AbstractArray{Float64,2})
     model = B.model
     mesh = B.mesh
     Kp = total_n_bases(mesh) # K = n_intervals, p = n_bases
-    m = membership(model.S)
+
     C = rates(model)
     n₋ = N₋(model.S)
     n₊ = N₊(model.S)
     # boundaries
     # at lower
-    v[1:n₋,:] += model.T[_has_left_boundary.(m),_has_left_boundary.(m)]*u[1:n₋,:]
+    v[1:n₋,:] += model.T[_has_left_boundary.(model.S),_has_left_boundary.(model.S)]*u[1:n₋,:]
     # in to lower 
-    idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_has_left_boundary.(m)) .- 1)')[:]
+    idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_has_left_boundary.(model.S)) .- 1)')[:]
     v[idxdown,:] += LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(m)])),
+        LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(model.S)])),
         B.boundary_flux.lower.in/Δ(mesh,1),
     )*u[1:n₋,:]
     # out of lower 
     idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases(mesh)))[:]
-    v[1:n₋,:] += kron(model.T[_has_left_boundary.(m),C.>0],B.boundary_flux.lower.out')*u[idxup,:]
+    v[1:n₋,:] += kron(model.T[_has_left_boundary.(model.S),C.>0],B.boundary_flux.lower.out')*u[idxup,:]
 
     # at upper
-    v[end-n₊+1:end,:] += model.T[_has_right_boundary.(m),_has_right_boundary.(m)]*u[end-n₊+1:end,:]
+    v[end-n₊+1:end,:] += model.T[_has_right_boundary.(model.S),_has_right_boundary.(model.S)]*u[end-n₊+1:end,:]
     # in to upper
-    idxup = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_has_right_boundary.(m)) .- 1)')[:] .+
+    idxup = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
         (Kp - n_bases(mesh))
     v[idxup,:] += LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => C[_has_right_boundary.(m)]),
+        LinearAlgebra.diagm(0 => C[_has_right_boundary.(model.S)]),
         B.boundary_flux.upper.in/Δ(mesh,n_intervals(mesh)),
     )*u[end-n₊+1:end,:]
     # out of upper 
     idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases(mesh)))[:] .+
         (Kp - n_bases(mesh))
-    v[end-n₊+1:end,:] += kron(model.T[_has_right_boundary.(m),C.<0],B.boundary_flux.upper.out')*u[idxdown,:]
+    v[end-n₊+1:end,:] += kron(model.T[_has_right_boundary.(model.S),C.<0],B.boundary_flux.upper.out')*u[idxdown,:]
 
     # innards
     for i in phases(model), j in phases(model)
@@ -304,7 +280,7 @@ function *(B::LazyGenerator, u::AbstractArray{Float64,2})
                     end
                 end
             end
-        elseif _has_left_boundary(m[i])!==_has_left_boundary(m[j]) # B.pmidx[i,j]
+        elseif membership(model.S,i)!=membership(model.S,j) # B.pmidx[i,j]
             # changes from S₊ to S₋ etc.
             for k in 1:n_intervals(mesh)
                 for ℓ in 1:n_intervals(mesh)
@@ -341,7 +317,6 @@ function getindex_interior(B::LazyGenerator,row::Int,col::Int)
     
     model = B.model
     mesh = B.mesh
-    m = membership(model.S)
     C = rates(model)
 
     v=0.0
@@ -353,7 +328,7 @@ function getindex_interior(B::LazyGenerator,row::Int,col::Int)
         elseif k-1==l
             (C[i]<0) && (v=abs(C[i])*B.blocks[1][p,q]/Δ(mesh,k))
         end
-    elseif _has_left_boundary(m[i])!=_has_left_boundary(m[j])
+    elseif membership(model.S,i)!=membership(model.S,j)
         (k==l) && (v=model.T[i,j]*B.D[p,q])
     else
         ((p==q)&&(k==l)) && (v=model.T[i,j])

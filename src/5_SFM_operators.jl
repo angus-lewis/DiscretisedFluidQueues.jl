@@ -60,11 +60,6 @@ function PsiFunX( model::Model; s = 0, MaxIters = 1000, err = 1e-8)
 
     ~, QDict = _model_dicts(model_without_zero_phases)
 
-    # QDict = Dict{String,Array}("Q" => Q)
-    # for ℓ in ["+" "-"], m in ["+" "-"]
-    #     QDict[ℓ*m] = Q[SDict[ℓ], SDict[m]]
-    # end
-
     Ψ = zeros(Float64, length(SDict["+"]), length(SDict["-"]))
     A = QDict["++"]
     B = QDict["--"]
@@ -159,11 +154,6 @@ function StationaryDistributionX( model::Model, Ψ::Array, ξ::Array)
 
     ~, QDict = _model_dicts(model_without_zero_phases)
     
-    # QDict = Dict{String,Array}("Q" => Q)
-    # for ℓ in ["+" "-"], m in ["+" "-"]
-    #     QDict[ℓ*m] = Q[SDict[ℓ], SDict[m]]
-    # end
-
     K = QDict["++"] + Ψ * QDict["-+"]
 
     A = -[invT₋₋ invT₋₀]
