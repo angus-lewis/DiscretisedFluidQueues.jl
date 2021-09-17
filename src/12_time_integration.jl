@@ -1,3 +1,9 @@
+abstract type TimeIntegrationScheme end
+
+struct Euler <: TimeIntegrationScheme
+    step_size::Float64
+end
+
 """
 Uses Eulers method to integrate the matrix DE ``f'(x) = f(x)D`` to
 approxiamte ``f(y)``.
@@ -19,11 +25,11 @@ approxiamte ``f(y)``.
 # Output
 - `f(y)::Array`: a row-vector approximation to ``f(y)``
 """
-function EulerDG(
-    D::AbstractArray{<:Real,2},
+function integrate_time(
+    x0::AbstractArray{<:Real,2},
+    D::Generator,
     y::Real,
-    x0::AbstractArray{<:Real,2};
-    h::Float64 = 0.0001,
+    h::TimeIntegrationScheme = Euler(y./1000),
 )
     x = x0
     for t = h:h:y

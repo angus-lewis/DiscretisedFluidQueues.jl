@@ -1,5 +1,7 @@
 abstract type Generator <: AbstractArray{Real,2} end 
+
 const BoundaryFluxTupleType = NamedTuple{(:upper,:lower),Tuple{NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}},NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}}}}
+
 struct LazyGenerator  <: Generator
     model::FluidQueue
     mesh::Mesh

@@ -106,10 +106,8 @@ function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
         nodes = cell_nodes(mesh)[1:order]
         coeffs = lagrange_polynomials(nodes,mesh.nodes[1])
         idxdown = ((1:order).+total_n_bases(mesh)*(findall(_is_strictly_neg.(m)) .- 1)')[:] .+ n₋
-        B[idxdown, 1:n₋] = LinearAlgebra.kron(
-            LinearAlgebra.diagm(0 => C[_is_strictly_neg.(m)]),
-            -coeffs,
-        )
+        down_rates = LinearAlgebra.diagm(0 => C[_is_strictly_neg.(m)])
+        B[idxdown, 1:n₋] = LinearAlgebra.kron(down_rates,-coeffs)
     end
     # inLower = [
     #     SparseArrays.diagm(abs.(model.C).*(model.C.<=0))[:,model.C.<=0]; 

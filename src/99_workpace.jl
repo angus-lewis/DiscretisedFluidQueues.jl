@@ -383,12 +383,12 @@ end
 @testset "numerical checks" begin
     T = [-2.5 2 0.5; 1 -3 2; 1 2 -3]
 
-    C = [0.0; 2.0; -6.0]
+    C = Array{StochasticFluidQueues.Membership,1}(undef,3)
+    C .= (0, 2.0, -6.0)
     S = StochasticFluidQueues.PhaseSet(C)
 
-    bounds = [0.0,12]
+    bounds = [0.0,12.0]
     model = StochasticFluidQueues.FluidQueue(T,S,bounds)
-
     am = StochasticFluidQueues.augment_model(model)
 
     mtypes = (StochasticFluidQueues.DGMesh,
@@ -398,32 +398,80 @@ end
         nodes = collect(0:0.1:12)
         order = 5
         msh = mtype(nodes,order)
-        generator = StochasticFluidQueues.MakeFullGenerator(am,msh)
+
+        ####
+        # non-augmented model
+        ####
+
+        generator = StochasticFluidQueues.MakeFullGenerator(model,msh)
 
         b = zeros(1,size(generator,1))
         b[1] = 1.0
         if mtype==StochasticFluidQueues.FVMesh
             generator[:,1] = [
-                ones(StochasticFluidQueues.N₋(am.S));
-                repeat(StochasticFluidQueues.Δ(msh),StochasticFluidQueues.n_phases(am));
-                ones(StochasticFluidQueues.N₊(am.S))]
+                ones(StochasticFluidQueues.N₋(model.S));
+                repeat(StochasticFluidQueues.Δ(msh),StochasticFluidQueues.n_phases(model));
+                ones(StochasticFluidQueues.N₊(model.S))]
         else
             generator[:,1] .= 1.0
         end
 
         stationary_coeffs = b/generator.B
 
-        d = StochasticFluidQueues.SFMDistribution(stationary_coeffs,am,msh)
+        d = StochasticFluidQueues.SFMDistribution(stationary_coeffs,model,msh)
 
-        stationary_cdf_estimate = StochasticFluidQueues.cdf(d,am)
+        stationary_cdf_estimate = StochasticFluidQueues.cdf(d,model)
 
-        analytical_cdf = StochasticFluidQueues.StationaryDistributionX(am)[3]
+        analytical_cdf = StochasticFluidQueues.StationaryDistributionX(model)[3]
 
         x_vec = bounds[1]:0.23:bounds[end]
-        @testset "cdf points" begin
+        @testset "cdf points -- model" begin
             pass = true
             for x in x_vec
-                (!isapprox(analytical_cdf(x),stationary_cdf_estimate.(x,1:4), rtol=1e-2)) && (pass = false)
+                (!isapprox(analytical_cdf(x),stationary_cdf_estimate.(x,1:3), rtol=1e-2)) && (pass = false)
+            end
+            @test pass
+        end
+
+        ####
+        # augmented model
+        ####
+
+        generator_am = StochasticFluidQueues.MakeFullGenerator(am,msh)
+
+        b_am = zeros(1,size(generator_am,1))
+        b_am[1] = 1.0
+        if mtype==StochasticFluidQueues.FVMesh
+            generator_am[:,1] = [
+                ones(StochasticFluidQueues.N₋(am.S));
+                repeat(StochasticFluidQueues.Δ(msh),StochasticFluidQueues.n_phases(am));
+                ones(StochasticFluidQueues.N₊(am.S))]
+        else
+            generator_am[:,1] .= 1.0
+        end
+
+        stationary_coeffs_am = b_am/generator_am.B
+
+        d_am = StochasticFluidQueues.SFMDistribution(stationary_coeffs_am,am,msh)
+
+        stationary_cdf_estimate_am = StochasticFluidQueues.cdf(d_am,am)
+
+        analytical_cdf_am = StochasticFluidQueues.StationaryDistributionX(am)[3]
+
+        x_vec = bounds[1]:0.23:bounds[end]
+        @testset "cdf points -- augmented model" begin
+            pass = true
+            for x in x_vec
+                (!isapprox(analytical_cdf_am(x),stationary_cdf_estimate_am.(x,1:4), rtol=1e-2)) && (pass = false)
+            end
+            @test pass
+        end
+
+        @testset "cdf points -- c.f. model vs. augmented model" begin
+            pass = true
+            for x in x_vec
+                (!isapprox(stationary_cdf_estimate.(x,2:3),stationary_cdf_estimate_am.(x,3:4), rtol=1e-2 )) && (pass=false)
+                (!isapprox(stationary_cdf_estimate.(x,1),sum(stationary_cdf_estimate_am.(x,1:2)), rtol=1e-2 )) && (pass=false)
             end
             @test pass
         end
