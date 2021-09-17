@@ -56,18 +56,18 @@ membership(S::PhaseSet,i::Int) = S[i].m
 membership(S::PhaseSet) = [S[i].m for i in 1:n_phases(S)]
 phases(S::PhaseSet) = 1:n_phases(S)
 
-_is_strictly_neg(x::Float64) = (x<0.0) || (x.===-0.0)
-_is_strictly_pos(x::Float64) = (x>0.0) || (x.===+0.0)
-_is_strictly_neg(x::Int) = x===0 ? true : throw(DomainError("invalid membership detected"))
-_is_strictly_pos(x::Int) = x===0 ? true : throw(DomainError("invalid membership detected"))
-_is_strictly_neg(i::Phase) = _is_strictly_neg.(i.m)
-_is_strictly_pos(i::Phase) = _is_strictly_pos.(i.m)
-_is_strictly_neg(S::PhaseSet,i::Int) = _is_strictly_neg(membership(S,i))
-_is_strictly_pos(S::PhaseSet,i::Int) = _is_strictly_pos(membership(S,i))
-_is_strictly_neg(S::PhaseSet) = _is_strictly_neg.(membership(S))
-_is_strictly_pos(S::PhaseSet) = _is_strictly_pos.(membership(S))
-N₋(S::PhaseSet) = sum(_is_strictly_neg(S))
-N₊(S::PhaseSet) = sum(_is_strictly_pos(S))
+_has_left_boundary(x::Float64) = (x<0.0) || (x.===-0.0)
+_has_right_boundary(x::Float64) = (x>0.0) || (x.===+0.0)
+_has_left_boundary(x::Int) = x===0 ? true : throw(DomainError("invalid membership detected"))
+_has_right_boundary(x::Int) = x===0 ? true : throw(DomainError("invalid membership detected"))
+_has_left_boundary(i::Phase) = _has_left_boundary.(i.m)
+_has_right_boundary(i::Phase) = _has_right_boundary.(i.m)
+_has_left_boundary(S::PhaseSet,i::Int) = _has_left_boundary(membership(S,i))
+_has_right_boundary(S::PhaseSet,i::Int) = _has_right_boundary(membership(S,i))
+_has_left_boundary(S::PhaseSet) = _has_left_boundary.(membership(S))
+_has_right_boundary(S::PhaseSet) = _has_right_boundary.(membership(S))
+N₋(S::PhaseSet) = sum(_has_left_boundary(S))
+N₊(S::PhaseSet) = sum(_has_right_boundary(S))
 
 checksquare(A::AbstractArray{<:Any,2}) = !(size(A,1)==size(A,2)) ? throw(DomainError(A," must be square")) : nothing
 

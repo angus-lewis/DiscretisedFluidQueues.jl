@@ -32,9 +32,9 @@ end
 function interior_point_mass(x::Float64,i::Int,model::Model,mesh::DGMesh)
     (x<=mesh.nodes[1])&&throw(DomainError("x is not in interior"))
     (x>=mesh.nodes[end])&&throw(DomainError("x is not in interior"))
-    if _is_strictly_pos(model.S,i) 
+    if _has_right_boundary(model.S,i) 
         cell_idx, cellnodes, coeff_idx = _get_coeff_index_pos(x,i,mesh,model) 
-    elseif _is_strictly_neg(model.S,i)
+    elseif _has_left_boundary(model.S,i)
         cell_idx, cellnodes, coeff_idx = _get_coeff_index_neg(x,i,mesh,model) 
     end
     n₊ = N₊(model.S)
@@ -46,7 +46,7 @@ function interior_point_mass(x::Float64,i::Int,model::Model,mesh::DGMesh)
 end
 
 function left_point_mass(i::Int,model::Model,mesh::Mesh)
-    _is_strictly_pos(model.S,i)&&throw(DomainError("only phases with membership = -1.0 or -0.0 have left point masses"))
+    _has_right_boundary(model.S,i)&&throw(DomainError("only phases with membership = -1.0 or -0.0 have left point masses"))
     n₊ = N₊(model.S)
     n₋ = N₊(model.S)
     coeffs = zeros(1,n₊+n₋+total_n_bases(mesh)*n_phases(model))
@@ -56,7 +56,7 @@ function left_point_mass(i::Int,model::Model,mesh::Mesh)
 end
 
 function right_point_mass(i::Int,model::Model,mesh::Mesh)
-    _is_strictly_neg(model.S,i)&&throw(DomainError("only phases with membership = 1.0 or 0.0 have left point masses"))
+    _has_left_boundary(model.S,i)&&throw(DomainError("only phases with membership = 1.0 or 0.0 have left point masses"))
     n₊ = N₊(model.S)
     n₋ = N₊(model.S)
     coeffs = zeros(1,n₊+n₋+total_n_bases(mesh)*n_phases(model))
@@ -80,9 +80,9 @@ function SFMDistribution(pdf::Function,model::Model,mesh::FVMesh, fun_evals::Int
 end
 
 function interior_point_mass(x::Float64,i::Int,model::Model,mesh::FVMesh)
-    if _is_strictly_pos(model.S,i)
+    if _has_right_boundary(model.S,i)
         cell_idx, ~, ~ = _get_coeff_index_pos(x,i,mesh,model) 
-    elseif _is_strictly_neg(model.S,i)
+    elseif _has_left_boundary(model.S,i)
         cell_idx, ~, ~ = _get_coeff_index_neg(x,i,mesh,model) 
     end
     n₊ = N₊(model.S)
@@ -99,9 +99,9 @@ function SFMDistribution_from_cdf(cdf::Function,model::Model,mesh::FRAPMesh; fun
     for i in phases(model)
         for cell in 1:n_intervals(mesh)
             a,b = mesh.nodes[cell:cell+1]
-            if _is_strictly_pos(model.S,i)
+            if _has_right_boundary(model.S,i)
                 o = expected_orbit_from_cdf(x->cdf(Δ(mesh,cell)-x,i),a,b,fun_evals) 
-            elseif _is_strictly_neg(model.S,i)
+            elseif _has_left_boundary(model.S,i)
                 o = expected_orbit_from_cdf(x->cdf(x,i),a,b,fun_evals) 
             end
             coeffs[:,cell,i] = o
@@ -117,7 +117,7 @@ function SFMDistribution(pdf::Function,model::Model,mesh::FRAPMesh; fun_evals=10
     for i in phases(model)
         for cell in 1:n_intervals(mesh)
             a,b = mesh.nodes[cell:cell+1]
-            if _is_strictly_pos(model.S,i)
+            if _has_right_boundary(model.S,i)
                 o = expected_orbit_from_pdf(x->(b-a)*pdf(a+x*(b-a),i),mesh.me,0.0,1.0,fun_evals) 
             else
                 o = expected_orbit_from_pdf(x->(b-a)*pdf(b-x*(b-a),i),mesh.me,0.0,1.0,fun_evals) 
@@ -130,11 +130,11 @@ function SFMDistribution(pdf::Function,model::Model,mesh::FRAPMesh; fun_evals=10
 end
 
 function interior_point_mass(x::Float64,i::Int,model::Model,mesh::FRAPMesh)
-    if _is_strictly_pos(model.S,i) 
+    if _has_right_boundary(model.S,i) 
         cell_idx, ~, coeff_idx = _get_coeff_index_pos(x,i,mesh,model) 
         yₖ = mesh.nodes[cell_idx]
         d = x-yₖ
-    elseif _is_strictly_neg(model.S,i)
+    elseif _has_left_boundary(model.S,i)
         cell_idx, ~, coeff_idx = _get_coeff_index_neg(x,i,mesh,model)
         yₖ₊₁ = mesh.nodes[cell_idx+1]
         d = yₖ₊₁-x
@@ -194,9 +194,9 @@ function _get_point_mass_data_neg(i::Int,mesh::Mesh,model::Model)
     return cellnodes, coeff_idx 
 end
 _is_left_point_mass(x::Float64,i::Int,mesh::Mesh,model::Model) = 
-    (x==mesh.nodes[1])&&_is_strictly_neg(model.S,i)
+    (x==mesh.nodes[1])&&_has_left_boundary(model.S,i)
 _is_right_point_mass(x::Float64,i::Int,mesh::Mesh,model::Model) = 
-    (x==mesh.nodes[end])&&_is_strictly_pos(model.S,i)
+    (x==mesh.nodes[end])&&_has_right_boundary(model.S,i)
     
 
 function _get_coeffs_index(x::Float64,i::Int,model::Model,mesh::Mesh)
@@ -210,9 +210,9 @@ function _get_coeffs_index(x::Float64,i::Int,model::Model,mesh::Mesh)
         cell_idx = "point mass"
         cellnodes, coeff_idx = _get_point_mass_data_pos(i,mesh,model)
     else # not a point mass 
-        if _is_strictly_pos(model.S,i)
+        if _has_right_boundary(model.S,i)
             cell_idx, cellnodes, coeff_idx = _get_coeff_index_pos(x,i,mesh,model) 
-        elseif _is_strictly_neg(model.S,i)
+        elseif _has_left_boundary(model.S,i)
             cell_idx, cellnodes, coeff_idx = _get_coeff_index_neg(x,i,mesh,model) 
         end
     end
@@ -281,10 +281,10 @@ function pdf(d::SFMDistribution{FRAPMesh},model::Model)
             coeffs = d.coeffs[coeff_idx]
             # if not a point mass, then reconstruct solution
             # if !(cell_idx=="point mass")
-                if _is_strictly_pos(model.S,i)
+                if _has_right_boundary(model.S,i)
                     yₖ₊₁ = mesh.nodes[cell_idx+1]
                     to_go = yₖ₊₁-x
-                elseif _is_strictly_neg(model.S,i)
+                elseif _has_left_boundary(model.S,i)
                     yₖ = mesh.nodes[cell_idx]
                     to_go = x-yₖ
                 end
@@ -380,7 +380,7 @@ function cdf(d::SFMDistribution{DGMesh},model::Model)
         else
             # Fxi = 0.0
             # left pm
-            if (x>=mesh.nodes[1])&&_is_strictly_neg(model.S,i)
+            if (x>=mesh.nodes[1])&&_has_left_boundary(model.S,i)
                 ~, left_pm_idx = _get_point_mass_data_neg(i,mesh,model)
                 left_pm = d.coeffs[left_pm_idx]
                 Fxi += left_pm
@@ -398,7 +398,7 @@ function cdf(d::SFMDistribution{DGMesh},model::Model)
                 Fxi += quad
             end
             # add the RH point mass if  required
-            if (x>=mesh.nodes[end])&&_is_strictly_pos(model.S,i)
+            if (x>=mesh.nodes[end])&&_has_right_boundary(model.S,i)
                 ~, right_pm_idx = _get_point_mass_data_pos(i,mesh,model)
                 right_pm = d.coeffs[right_pm_idx]
                 Fxi += right_pm
@@ -425,7 +425,7 @@ function cdf(d::SFMDistribution{FRAPMesh},model::Model)
         else
             # Fxi = 0.0
             # left pm
-            if _is_strictly_neg(model.S,i)
+            if _has_left_boundary(model.S,i)
                 ~, left_pm_idx = _get_point_mass_data_neg(i,mesh,model)
                 left_pm = d.coeffs[left_pm_idx]
                 Fxi += left_pm
@@ -443,7 +443,7 @@ function cdf(d::SFMDistribution{FRAPMesh},model::Model)
                 # me = MakeME(CMEParams[n_bases(mesh)], mean = Δ(mesh)[cell_idx])
                 me = mesh.me
                 a = Array(coeffs')
-                if _is_strictly_pos(model.S,i)
+                if _has_right_boundary(model.S,i)
                     yₖ₊₁ = mesh.nodes[cell_idx+1]
                     mass = sum(a)
                     if mass > 0
@@ -451,7 +451,7 @@ function cdf(d::SFMDistribution{FRAPMesh},model::Model)
                         to_go = (yₖ₊₁-xd)/Δ(mesh,cell_idx)
                         Fxi += mass*(ccdf(a,me,to_go)-ccdf(a,me,2.0-to_go))/cdf(a,me,2.0)
                     end
-                elseif _is_strictly_neg(model.S,i)
+                elseif _has_left_boundary(model.S,i)
                     yₖ = mesh.nodes[cell_idx]
                     mass = sum(a)
                     if mass > 0
@@ -461,7 +461,7 @@ function cdf(d::SFMDistribution{FRAPMesh},model::Model)
                     end
                 end
             end
-            if (x>=mesh.nodes[end])&&_is_strictly_pos(model.S,i)
+            if (x>=mesh.nodes[end])&&_has_right_boundary(model.S,i)
                 ~, right_pm_idx = _get_point_mass_data_pos(i,mesh,model)
                 right_pm = d.coeffs[right_pm_idx]
                 Fxi += right_pm
@@ -494,7 +494,7 @@ function cdf(d::SFMDistribution{FVMesh},model::Model)
         else
             # Fxi = 0.0
             # left pm
-            if (x>=mesh.nodes[1])&&_is_strictly_neg(model.S,i)
+            if (x>=mesh.nodes[1])&&_has_left_boundary(model.S,i)
                 ~, left_pm_idx = _get_point_mass_data_neg(i,mesh,model)
                 left_pm = d.coeffs[left_pm_idx]
                 Fxi += left_pm
@@ -512,7 +512,7 @@ function cdf(d::SFMDistribution{FVMesh},model::Model)
                 quad = gauss_lobatto_quadrature(temp_pdf,mesh.nodes[cell_idx],xd,_order(mesh))
                 Fxi += quad 
             end
-            if (x>=mesh.nodes[end])&&_is_strictly_pos(model.S,i)
+            if (x>=mesh.nodes[end])&&_has_right_boundary(model.S,i)
                 ~, right_pm_idx = _get_point_mass_data_pos(i,mesh,model)
                 right_pm = d.coeffs[right_pm_idx]
                 Fxi += right_pm

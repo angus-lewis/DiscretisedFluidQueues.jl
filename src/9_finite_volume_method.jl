@@ -97,16 +97,16 @@ function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
     QBDidx = MakeQBDidx(model,mesh)
     
     # Boundary conditions
-    T₋₋ = model.T[_is_strictly_neg.(m),_is_strictly_neg.(m)]
-    T₊₋ = model.T[_is_strictly_pos.(m),:].*((C.<0)')
-    T₋₊ = model.T[_is_strictly_neg.(m),:].*((C.>0)')
-    T₊₊ = model.T[_is_strictly_pos.(m),_is_strictly_pos.(m)]
+    T₋₋ = model.T[_has_left_boundary.(m),_has_left_boundary.(m)]
+    T₊₋ = model.T[_has_right_boundary.(m),:].*((C.<0)')
+    T₋₊ = model.T[_has_left_boundary.(m),:].*((C.>0)')
+    T₊₊ = model.T[_has_right_boundary.(m),_has_right_boundary.(m)]
     # yuck
     begin 
         nodes = cell_nodes(mesh)[1:order]
         coeffs = lagrange_polynomials(nodes,mesh.nodes[1])
-        idxdown = ((1:order).+total_n_bases(mesh)*(findall(_is_strictly_neg.(m)) .- 1)')[:] .+ n₋
-        down_rates = LinearAlgebra.diagm(0 => C[_is_strictly_neg.(m)])
+        idxdown = ((1:order).+total_n_bases(mesh)*(findall(_has_left_boundary.(m)) .- 1)')[:] .+ n₋
+        down_rates = LinearAlgebra.diagm(0 => C[_has_left_boundary.(m)])
         B[idxdown, 1:n₋] = LinearAlgebra.kron(down_rates,-coeffs)
     end
     # inLower = [
@@ -120,10 +120,10 @@ function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
         nodes = cell_nodes(mesh)[end-order+1:end]
         coeffs = lagrange_polynomials(nodes,mesh.nodes[end])
         idxup =
-            ((1:order).+total_n_bases(mesh)*(findall(_is_strictly_pos.(m)) .- 1)')[:] .+
+            ((1:order).+total_n_bases(mesh)*(findall(_has_right_boundary.(m)) .- 1)')[:] .+
             (n₋ + total_n_bases(mesh) - order)
         B[idxup, (end-n₊+1):end] = LinearAlgebra.kron(
-            LinearAlgebra.diagm(0 => C[_is_strictly_pos.(m)]),
+            LinearAlgebra.diagm(0 => C[_has_right_boundary.(m)]),
             coeffs,
         )
     end

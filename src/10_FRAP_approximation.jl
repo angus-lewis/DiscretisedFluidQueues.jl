@@ -61,7 +61,10 @@ function MakeLazyGenerator(
     model::Model,
     mesh::FRAPMesh;
     v::Bool=false,
-)
+)   
+    # if any(membership(model.S).===0) 
+    #     throw(DomainError("membership cannot be 0, phases must have association with + or -"))
+    # end
     me = mesh.me::AbstractMatrixExponential
     blocks = (me.s*me.a, me.S, me.s*me.a)
 

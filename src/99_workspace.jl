@@ -122,7 +122,7 @@ end
             (i==:dgmesh) && include("test_DG_B_data.jl")
             (i==:frapmesh) && include("test_FRAP_B_data.jl")
             @eval begin
-                B = StochasticFluidQueues.MakeLazyGenerator(am,$i)
+                B = @eval StochasticFluidQueues.MakeLazyGenerator(am,$i)
                 # types
                 @test typeof(B)==StochasticFluidQueues.LazyGenerator
                 @test typeof(B)<:AbstractArray
@@ -135,8 +135,8 @@ end
                 @test all(isapprox.(sum(B,dims=2),0,atol=√eps()))
                 @test all(isapprox.(B*B,B_data*B_data,atol=1e-3))
                 # multiplication (types)
-                @test typeof(B*Matrix(I(size(B,1))))==Array{Float64,2}
-                @test typeof(Matrix(I(size(B,1)))*B)==Array{Float64,2}
+                @test typeof(B*Matrix{Float64}(I(size(B,1))))==Array{Float64,2}
+                @test typeof(Matrix{Float64}(I(size(B,1)))*B)==Array{Float64,2}
                 @test typeof(B*SparseMatrixCSC{Float64,Int}(I(size(B,1))))==SparseMatrixCSC{Float64,Int}
                 @test typeof(SparseMatrixCSC{Float64,Int}(I(size(B,1)))*B)==SparseMatrixCSC{Float64,Int}
                 @test typeof(B*B)==SparseMatrixCSC{Float64,Int}
@@ -467,7 +467,7 @@ end
             @test pass
         end
 
-        @testset "cdf points -- c.f. model vs. augmented model" begin
+        @testset "cdf points -- model vs. augmented model" begin
             pass = true
             for x in x_vec
                 (!isapprox(stationary_cdf_estimate.(x,2:3),stationary_cdf_estimate_am.(x,3:4), rtol=1e-2 )) && (pass=false)
