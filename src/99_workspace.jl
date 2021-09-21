@@ -330,14 +330,14 @@ end
         if mtype!=:fvmesh
             @test sum(d)≈1.0
         end
-        f_rec = StochasticFluidQueues.pdf(d,am)
+        f_rec = StochasticFluidQueues.pdf(d)
         x = (0.01:0.4:11.99)'
         if mtype!=:frapmesh
             @test all(isapprox.( f_rec.(x,1:4)-f.(x,1:4), 0, atol=sqrt(eps()) ))
         end
 
         # cdfs
-        cdf_rec = StochasticFluidQueues.cdf(d,am)
+        cdf_rec = StochasticFluidQueues.cdf(d)
         f_cdf(x,i) = f(x,i)*x
         @test sum(cdf_rec.(msh.nodes[end],1:4))≈1.0
         @test sum(cdf_rec.(msh.nodes[end]+1.0,1:4))≈sum(f_cdf.(msh.nodes[end],1:4))
@@ -349,7 +349,7 @@ end
         d[1] = 0.25
         d[end] = 0.25
         f_cdf_2(x,i) = 0.25*(i∈(2))*(x>=msh.nodes[1])+0.5*f_cdf(x,i)*(x>=msh.nodes[1])+0.25*(x>=msh.nodes[end])*(i∈(3))
-        cdf_rec_2 = StochasticFluidQueues.cdf(d,am)
+        cdf_rec_2 = StochasticFluidQueues.cdf(d)
         @test sum(cdf_rec_2.(msh.nodes[end],1:4))≈1.0
         @test sum(cdf_rec_2.(msh.nodes[end]+1.0,1:4))≈sum(f_cdf.(msh.nodes[end],1:4))
         @test all(isapprox.( f_cdf_2.(x,1:4), cdf_rec_2.(x,1:4), atol=5e-2 ))
@@ -376,6 +376,19 @@ end
 # check 12_time_integration
 @testset "time integration" begin
     
+end
+
+@testset "sim" begin
+    import StableRNGs
+    rng = StableRNGs.StableRNG(1)
+    fixed_time = StochasticFluidQueues.FixedTime(3.2)
+    n_sims = 100_000
+    initial_condition = (φ=ones(Int,n_sims),X=zeros(n_sims))
+    sims = StochasticFluidQueues.simulate(model,fixed_time,initial_condition,rng)
+    f(x,i) = StochasticFluidQueues.cdf(sims)(x,i)
+    @test sum(f.(10.0,StochasticFluidQueues.phases(model)))≈1.0 
+    p_3_2 = ([1.0 0 0] * exp(model.T*3))[:]
+    @test f.(10.0,StochasticFluidQueues.phases(model))≈p_3_2 rtol=1e-3
 end
 
 @testset "numerical checks" begin
@@ -413,7 +426,7 @@ end
             end
             stationary_coeffs = b/generator.B
             d = StochasticFluidQueues.SFMDistribution(stationary_coeffs,model,msh)
-            stationary_cdf_estimate = StochasticFluidQueues.cdf(d,model)
+            stationary_cdf_estimate = StochasticFluidQueues.cdf(d)
             analytical_cdf = StochasticFluidQueues.StationaryDistributionX(model)[3]
             x_vec = bounds[1]:0.23:bounds[end]
             pass = true
@@ -438,7 +451,7 @@ end
             end
             stationary_coeffs_am = b_am/generator_am.B
             d_am = StochasticFluidQueues.SFMDistribution(stationary_coeffs_am,am,msh)
-            stationary_cdf_estimate_am = StochasticFluidQueues.cdf(d_am,am)
+            stationary_cdf_estimate_am = StochasticFluidQueues.cdf(d_am)
             analytical_cdf_am = StochasticFluidQueues.StationaryDistributionX(am)[3]
             x_vec = bounds[1]:0.23:bounds[end]
             pass = true

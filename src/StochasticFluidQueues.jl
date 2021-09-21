@@ -1,7 +1,7 @@
 module StochasticFluidQueues
 import Base: *, size, show, getindex, +, -, setindex!
 import Jacobi, LinearAlgebra, SparseArrays
-import Plots, StatsBase, KernelDensity
+# import Plots, StatsBase, KernelDensity
 
 # model
 include("1_SFM.jl")
@@ -23,7 +23,7 @@ include("11_distributions.jl")
 
 include("12_time_integration.jl")
 
-include("13_simulate_SFFM.jl")
+include("13_simulate.jl")
 
 include("14_plots.jl")
 

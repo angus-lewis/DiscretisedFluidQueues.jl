@@ -97,3 +97,9 @@ function vandermonde(nBases::Int)
     end
     return (V = V, inv = inv(V), D = DV, w = w)
 end
+
+function legendre_to_lagrange(coeffs)
+    order = length(coeffs)
+    V = vandermonde(n_bases(mesh))
+    return V.V*coeffs
+end
