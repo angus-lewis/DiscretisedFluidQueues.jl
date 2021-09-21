@@ -1,7 +1,7 @@
 import FileIO#, LinearAlgebra, JSON
 dir = @__DIR__
-methods(FileIO.load)
-display(Pkg.status())
+
+display(methods(FileIO.load))
 erlangDParams = FileIO.load(dir*"/erlangParamsData/erlangDParams.jld2", "erlangDParams")
 
 CMEParams = FileIO.load(dir*"/CMEParamsData/CMEParams.jld2", "CMEParams")
