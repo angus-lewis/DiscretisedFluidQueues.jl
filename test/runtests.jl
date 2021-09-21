@@ -1,5 +1,6 @@
 include("../src/StochasticFluidQueues.jl")
 import .StochasticFluidQueues 
+using LinearAlgebra, SparseArrays
 using Test
 
 T = [-2.5 2 0.5; 1 -2 1; 1 2 -3]
