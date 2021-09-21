@@ -1,6 +1,6 @@
-import FileIO, JLD2#, LinearAlgebra, JSON
+import FileIO#, LinearAlgebra, JSON
 dir = @__DIR__
-import Pkg
+methods(FileIO.load)
 display(Pkg.status())
 erlangDParams = FileIO.load(dir*"/erlangParamsData/erlangDParams.jld2", "erlangDParams")
 
