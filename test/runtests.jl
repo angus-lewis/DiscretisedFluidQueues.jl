@@ -1,5 +1,5 @@
-include("../src/StochasticFluidQueues.jl")
-import .StochasticFluidQueues 
+# include("../src/StochasticFluidQueues.jl")
+import StochasticFluidQueues 
 using LinearAlgebra, SparseArrays
 using Test
 
