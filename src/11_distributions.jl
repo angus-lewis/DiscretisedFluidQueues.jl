@@ -11,7 +11,7 @@ SFMDistribution(coeffs::Array{Float64,2},dq::DiscretisedFluidQueue{T}) where T =
     SFMDistribution{T}(coeffs,dq)
 
 SFMDistribution(dq::DiscretisedFluidQueue{T}) where T = 
-    SFMDistribution{T}(zeros(1,total_n_bases(dq.mesh)*n_phases(dq.mesh)+N₊(dq.model.S))+N₋(dq.model.S))
+    SFMDistribution{T}(zeros(1,n_bases_per_phase(dq)*n_phases(dq)+N₊(dq))+N₋(dq))
 
 +(f::SFMDistribution,g::SFMDistribution) = throw(DomainError("cannot add SFMDistributions with differen mesh types"))
 function +(f::SFMDistribution{T},g::SFMDistribution{T}) where T<:Mesh

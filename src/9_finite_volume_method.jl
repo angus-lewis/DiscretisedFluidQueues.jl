@@ -21,11 +21,11 @@ end
 
 """
 
-    n_bases(mesh::FVMesh)
+    n_bases_per_cell(mesh::FVMesh)
 
 Constant 1
 """
-n_bases(mesh::FVMesh) = 1
+n_bases_per_cell(mesh::FVMesh) = 1
 _order(mesh::FVMesh) = mesh.order
 
 """
@@ -44,11 +44,11 @@ Constant ""
 """
 basis(mesh::FVMesh) = ""
 
-total_n_bases(mesh::FVMesh) = n_intervals(mesh)
+n_bases_per_phase(mesh::FVMesh) = n_intervals(mesh)
 
 function MakeFVFlux(mesh::Mesh)
     order = _order(mesh)
-    nNodes = total_n_bases(mesh)
+    nNodes = n_bases_per_phase(mesh)
     F = zeros(Float64,nNodes,nNodes)
     ptsLHS = Int(ceil(order/2))
     interiorCoeffs = lagrange_polynomials(cell_nodes(mesh)[1:order],mesh.nodes[ptsLHS+1])
@@ -74,9 +74,9 @@ end
 
 function MakeFullGenerator(dq::DiscretisedFluidQueue{FVMesh}; v::Bool=false)
     model = dq.model
-    mesh = dq.mesh
-    order = _order(mesh)
-    F = MakeFVFlux(mesh)
+    
+    order = _order(dq.mesh)
+    F = MakeFVFlux(dq.mesh)
 
     m = membership(model.S)
     C = rates(model.S)
@@ -85,12 +85,12 @@ function MakeFullGenerator(dq::DiscretisedFluidQueue{FVMesh}; v::Bool=false)
 
     B = SparseArrays.spzeros(
         Float64,
-        n_phases(model) * n_intervals(mesh) + n₋ + n₊,
-        n_phases(model) * n_intervals(mesh) + n₋ + n₊,
+        n_phases(model) * n_intervals(dq) + n₋ + n₊,
+        n_phases(model) * n_intervals(dq) + n₋ + n₊,
     )
     B[n₋+1:end-n₊,n₋+1:end-n₊] = SparseArrays.kron(
             model.T,
-            SparseArrays.I(n_intervals(mesh))
+            SparseArrays.I(n_intervals(dq))
         )
 
     ## Make QBD index
@@ -103,34 +103,34 @@ function MakeFullGenerator(dq::DiscretisedFluidQueue{FVMesh}; v::Bool=false)
     T₊₊ = model.T[_has_right_boundary.(model.S),_has_right_boundary.(model.S)]
     # yuck
     begin 
-        nodes = cell_nodes(mesh)[1:order]
-        coeffs = lagrange_polynomials(nodes,mesh.nodes[1])
-        idxdown = ((1:order).+total_n_bases(mesh)*(findall(_has_left_boundary.(model.S)) .- 1)')[:] .+ n₋
+        nodes = cell_nodes(dq)[1:order]
+        coeffs = lagrange_polynomials(nodes,dq.mesh.nodes[1])
+        idxdown = ((1:order).+n_bases_per_phase(dq)*(findall(_has_left_boundary.(model.S)) .- 1)')[:] .+ n₋
         down_rates = LinearAlgebra.diagm(0 => C[_has_left_boundary.(model.S)])
         B[idxdown, 1:n₋] = LinearAlgebra.kron(down_rates,-coeffs)
     end
     outLower = [
-        T₋₊./Δ(mesh,1) SparseArrays.zeros(n₋,n₊+(n_intervals(mesh)-1)*n_phases(model))
+        T₋₊./Δ(dq,1) SparseArrays.zeros(n₋,n₊+(n_intervals(dq)-1)*n_phases(model))
     ]
     begin
-        nodes = cell_nodes(mesh)[end-order+1:end]
-        coeffs = lagrange_polynomials(nodes,mesh.nodes[end])
+        nodes = cell_nodes(dq)[end-order+1:end]
+        coeffs = lagrange_polynomials(nodes,dq.mesh.nodes[end])
         idxup =
-            ((1:order).+total_n_bases(mesh)*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
-            (n₋ + total_n_bases(mesh) - order)
+            ((1:order).+n_bases_per_phase(dq)*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
+            (n₋ + n_bases_per_phase(dq) - order)
         B[idxup, (end-n₊+1):end] = LinearAlgebra.kron(
             LinearAlgebra.diagm(0 => C[_has_right_boundary.(model.S)]),
             coeffs,
         )
     end
     outUpper = [
-        SparseArrays.zeros(n₊,n₋+(n_intervals(mesh)-1)*n_phases(model)) T₊₋./Δ(mesh,n_intervals(mesh))
+        SparseArrays.zeros(n₊,n₋+(n_intervals(dq)-1)*n_phases(model)) T₊₋./Δ(dq,n_intervals(dq))
     ]
     
     B[1:n₋,QBDidx] = [T₋₋ outLower]
     B[end-n₊+1:end,QBDidx] = [outUpper T₊₊]
     for i = 1:n_phases(model)
-        idx = ((i-1)*n_intervals(mesh)+1:i*n_intervals(mesh)) .+ n₋
+        idx = ((i-1)*n_intervals(dq)+1:i*n_intervals(dq)) .+ n₋
         if C[i] > 0
             B[idx, idx] += C[i] * F
         elseif C[i] < 0

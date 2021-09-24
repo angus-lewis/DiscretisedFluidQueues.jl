@@ -30,7 +30,7 @@ Constructs a DGMesh composite type, a subtype of the abstract type Mesh.
     - `:Δ`:A vector of mesh widths, Δ[k] = x_{k+1} - x_k
     - `:NIntervals`: The number of cells
     - `:nodes`: the cell edges
-    - `:total_n_bases`: `NIntervals*n_bases`
+    - `:n_bases_per_phase`: `NIntervals*n_bases`
     - `:basis`: a string specifying whether the
 
 # Examples
@@ -58,11 +58,11 @@ DGMesh() = DGMesh([0.0],0,"")
 
 """
 
-    n_bases(mesh::DGMesh)
+    n_bases_per_cell(mesh::DGMesh)
 
 Number of bases in a cell
 """
-n_bases(mesh::DGMesh) = mesh.n_bases
+n_bases_per_cell(mesh::DGMesh) = mesh.n_bases
 
 
 """
@@ -72,10 +72,10 @@ n_bases(mesh::DGMesh) = mesh.n_bases
 The positions of the GLJ nodes within each cell
 """
 function cell_nodes(mesh::DGMesh)
-    cellnodes = zeros(Float64, n_bases(mesh), n_intervals(mesh))
-    if n_bases(mesh) > 1
-        z = Jacobi.zglj(n_bases(mesh), 0, 0) # the LGL nodes
-    elseif n_bases(mesh) == 1
+    cellnodes = zeros(Float64, n_bases_per_cell(mesh), n_intervals(mesh))
+    if n_bases_per_cell(mesh) > 1
+        z = Jacobi.zglj(n_bases_per_cell(mesh), 0, 0) # the LGL nodes
+    elseif n_bases_per_cell(mesh) == 1
         z = 0.0
     end
     for i = 1:n_intervals(mesh)
@@ -83,7 +83,7 @@ function cell_nodes(mesh::DGMesh)
         cellnodes[:, i] .= (mesh.nodes[i+1] + mesh.nodes[i]) / 2 .+ (mesh.nodes[i+1] - mesh.nodes[i]) / 2 * z
     end
     cellnodes[1,:] .+= sqrt(eps()) # move the cell edges because funny things can happen at boundaries
-    if n_bases(mesh)>1
+    if n_bases_per_cell(mesh)>1
         cellnodes[end,:] .-= sqrt(eps())
     end
     return cellnodes
@@ -103,16 +103,16 @@ function local_dg_operators(
     v::Bool = false,
 )
     ## Construct local blocks
-    V = vandermonde(n_bases(mesh))
+    V = vandermonde(n_bases_per_cell(mesh))
     if basis(mesh) == "legendre"
         Dw = (
-            DwInv = LinearAlgebra.diagm(0 => ones(Float64, n_bases(mesh))),
-            Dw = LinearAlgebra.diagm(0 => ones(Float64, n_bases(mesh))),
+            DwInv = LinearAlgebra.diagm(0 => ones(Float64, n_bases_per_cell(mesh))),
+            Dw = LinearAlgebra.diagm(0 => ones(Float64, n_bases_per_cell(mesh))),
         ) # function weights are not available for legendre basis as this is
         # in density land
-        MLocal = Matrix{Float64}(LinearAlgebra.I(n_bases(mesh)))
+        MLocal = Matrix{Float64}(LinearAlgebra.I(n_bases_per_cell(mesh)))
         GLocal = V.inv * V.D
-        MInvLocal = Matrix{Float64}(LinearAlgebra.I(n_bases(mesh)))
+        MInvLocal = Matrix{Float64}(LinearAlgebra.I(n_bases_per_cell(mesh)))
         Phi = V.V[[1; end], :]
     elseif basis(mesh) == "lagrange"
         Dw = (
@@ -160,9 +160,9 @@ Creates the DG approximation to the generator `B`.
     - `:BDict::Dict{String,Array{Float64,2}}`: a dictionary storing Bᵢⱼˡᵐ with
         keys string(i,j,ℓ,m), and values Bᵢⱼˡᵐ, i.e. `B.BDict["12+-"]` = B₁₂⁺⁻
     - `:B::SparseArrays.SparseMatrixCSC{Float64,Int64}`:
-        `NPhases(model)*total_n_bases(mesh)×NPhases(model)*total_n_bases(mesh)`, the
+        `NPhases(model)*n_bases_per_phase(mesh)×NPhases(model)*n_bases_per_phase(mesh)`, the
         global approximation to `B`
-    - `:QBDidx::Array{Int64,1}`: `NPhases(model)*total_n_bases(mesh)×1` vector of
+    - `:QBDidx::Array{Int64,1}`: `NPhases(model)*n_bases_per_phase(mesh)×1` vector of
         integers such such that `:B[QBDidx,QBDidx]` puts all the blocks relating
         to cell `k` next to each other
 """
@@ -179,7 +179,7 @@ function MakeLazyGenerator(dq::DiscretisedFluidQueue{DGMesh}; v::Bool = false)
                 out = (m.Phi[1, :]' * m.Dw.Dw * m.MInv)[:])
     )
 
-    D = LinearAlgebra.I(n_bases(dq.mesh))
+    D = LinearAlgebra.I(n_bases_per_cell(dq))
 
     out = LazyGenerator(dq,blocks,boundary_flux,D)
     v && println("UPDATE: LazyGenerator object created with keys ", keys(out))

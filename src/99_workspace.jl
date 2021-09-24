@@ -11,14 +11,13 @@ C = [0.0; 2.0; -3.0]
 m = -1 .+ 2*Int.(DiscretisedFluidQueues._strictly_pos.(C))
 S = DiscretisedFluidQueues.PhaseSet(C)
 
-bounds = [0.0,12]
-model = DiscretisedFluidQueues.FluidQueue(T,S,bounds)
+model = DiscretisedFluidQueues.FluidQueue(T,S)
 
 T_aug = [-2.5 0 2 0.5; 0 -2.5 2 0.5; 1 0 -2 1; 0 1 2 -3]
 C_aug = [0.0;-0.0;C[2:3]]
 m_aug = -1 .+ 2*Int.(DiscretisedFluidQueues._strictly_pos.(C_aug))
 S_aug = DiscretisedFluidQueues.PhaseSet(C_aug)
-am = DiscretisedFluidQueues.FluidQueue(T_aug,S_aug,model.bounds)
+am = DiscretisedFluidQueues.FluidQueue(T_aug,S_aug)
 
 nodes = [0.0;3.0;4.0;12.0]
 nbases = 3
@@ -61,12 +60,11 @@ frapmesh = DiscretisedFluidQueues.FRAPMesh(nodes,order)
         @test DiscretisedFluidQueues.n_phases(model)==length(C)
         @test DiscretisedFluidQueues.phases(model)==1:length(C)
 
-        @test_logs (:warn,"row sums of T must be 0 (tol=1e-5)") DiscretisedFluidQueues.FluidQueue(T_warn,S,bounds)
+        @test_logs (:warn,"row sums of T must be 0 (tol=1e-5)") DiscretisedFluidQueues.FluidQueue(T_warn,S)
 
-        @test_throws DomainError DiscretisedFluidQueues.FluidQueue(T_nz[1:2,:],S,bounds)
-        @test_throws DomainError DiscretisedFluidQueues.FluidQueue(T_nz,S,bounds)
-        @test_throws DomainError DiscretisedFluidQueues.FluidQueue(T,S,[0])
-        @test_throws DomainError DiscretisedFluidQueues.FluidQueue(T,S[1:end-1],bounds)
+        @test_throws DomainError DiscretisedFluidQueues.FluidQueue(T_nz[1:2,:],S)
+        @test_throws DomainError DiscretisedFluidQueues.FluidQueue(T_nz,S)
+        @test_throws DomainError DiscretisedFluidQueues.FluidQueue(T,S[1:end-1])
     end
 
     for f in fieldnames(DiscretisedFluidQueues.FluidQueue)
@@ -81,8 +79,8 @@ end
         @test DiscretisedFluidQueues.n_intervals(dgmesh)==length(nodes)-1
         @test DiscretisedFluidQueues.Δ(dgmesh) == nodes[2:end]-nodes[1:end-1]
         @test DiscretisedFluidQueues.Δ(dgmesh,1) == nodes[2]-nodes[1]
-        @test DiscretisedFluidQueues.total_n_bases(dgmesh) == (length(nodes)-1)*nbases
-        @test DiscretisedFluidQueues.n_bases(dgmesh) == 3
+        @test DiscretisedFluidQueues.n_bases_per_phase(dgmesh) == (length(nodes)-1)*nbases
+        @test DiscretisedFluidQueues.n_bases_per_cell(dgmesh) == 3
         @test DiscretisedFluidQueues.cell_nodes(dgmesh)≈
             [nodes[1:end-1]';(nodes[1:end-1]'+nodes[2:end]')/2;nodes[2:end]'] atol=1e-5
         @test DiscretisedFluidQueues.basis(dgmesh) == "lagrange"
@@ -96,8 +94,8 @@ end
         @test DiscretisedFluidQueues.n_intervals(fvmesh)==length(nodes)-1
         @test DiscretisedFluidQueues.Δ(fvmesh) == nodes[2:end]-nodes[1:end-1]
         @test DiscretisedFluidQueues.Δ(fvmesh,1) == nodes[2]-nodes[1]
-        @test DiscretisedFluidQueues.total_n_bases(fvmesh) == (length(nodes)-1)
-        @test DiscretisedFluidQueues.n_bases(fvmesh) == 1
+        @test DiscretisedFluidQueues.n_bases_per_phase(fvmesh) == (length(nodes)-1)
+        @test DiscretisedFluidQueues.n_bases_per_cell(fvmesh) == 1
         @test DiscretisedFluidQueues._order(fvmesh) == fv_order
         @test DiscretisedFluidQueues.cell_nodes(fvmesh)≈Array(((fvmesh.nodes[1:end-1] + fvmesh.nodes[2:end]) / 2 )') atol=1e-5
         @test DiscretisedFluidQueues.basis(fvmesh) == ""
@@ -109,8 +107,8 @@ end
         @test DiscretisedFluidQueues.n_intervals(frapmesh)==length(nodes)-1
         @test DiscretisedFluidQueues.Δ(frapmesh) == nodes[2:end]-nodes[1:end-1]
         @test DiscretisedFluidQueues.Δ(frapmesh,1) == nodes[2]-nodes[1]
-        @test DiscretisedFluidQueues.total_n_bases(frapmesh) == (length(nodes)-1)*order
-        @test DiscretisedFluidQueues.n_bases(frapmesh) == order
+        @test DiscretisedFluidQueues.n_bases_per_phase(frapmesh) == (length(nodes)-1)*order
+        @test DiscretisedFluidQueues.n_bases_per_cell(frapmesh) == order
         @test DiscretisedFluidQueues.cell_nodes(frapmesh)≈Array(((frapmesh.nodes[1:end-1] + frapmesh.nodes[2:end]) / 2 )') atol=1e-5
         @test DiscretisedFluidQueues.basis(frapmesh) == ""
     end
@@ -359,14 +357,14 @@ end
 
         @test_throws DomainError DiscretisedFluidQueues.left_point_mass(1,dq)
         tst = zeros(1,
-            DiscretisedFluidQueues.n_phases(am)*DiscretisedFluidQueues.total_n_bases(msh) 
+            DiscretisedFluidQueues.n_phases(am)*DiscretisedFluidQueues.n_bases_per_phase(msh) 
             + DiscretisedFluidQueues.N₋(am.S) + DiscretisedFluidQueues.N₊(am.S))
         tst[1] = 1.0
         @test DiscretisedFluidQueues.left_point_mass(2,dq)==tst
         
         @test_throws DomainError DiscretisedFluidQueues.right_point_mass(2,dq)
         tst2 = zeros(1,
-            DiscretisedFluidQueues.n_phases(am)*DiscretisedFluidQueues.total_n_bases(msh) 
+            DiscretisedFluidQueues.n_phases(am)*DiscretisedFluidQueues.n_bases_per_phase(msh) 
             + DiscretisedFluidQueues.N₋(am.S) + DiscretisedFluidQueues.N₊(am.S))
         tst2[end] = 1.0
         @test DiscretisedFluidQueues.right_point_mass(3,dq)==tst2
@@ -387,7 +385,7 @@ end
     fixed_time = DiscretisedFluidQueues.FixedTime(3.2)
     n_sims = 100_000
     initial_condition = (φ=ones(Int,n_sims),X=zeros(n_sims))
-    sims = DiscretisedFluidQueues.simulate(model,fixed_time,initial_condition,rng)
+    sims = DiscretisedFluidQueues.simulate(model,nodes[1],nodes[end],fixed_time,initial_condition,rng)
     f(x,i) = DiscretisedFluidQueues.cdf(sims)(x,i)
     @test sum(f.(10.0,DiscretisedFluidQueues.phases(model)))≈1.0 
     p_3_2 = ([1.0 0 0] * exp(model.T*3))[:]
@@ -400,8 +398,7 @@ end
     C = [0, 2.0, -6.0]
     S = DiscretisedFluidQueues.PhaseSet(C)
 
-    bounds = [0.0,12.0]
-    model = DiscretisedFluidQueues.FluidQueue(T,S,bounds)
+    model = DiscretisedFluidQueues.FluidQueue(T,S)
     am = DiscretisedFluidQueues.augment_model(model)
 
     mtypes = (DiscretisedFluidQueues.DGMesh,
@@ -432,7 +429,7 @@ end
             d = DiscretisedFluidQueues.SFMDistribution(stationary_coeffs,dq)
             stationary_cdf_estimate = DiscretisedFluidQueues.cdf(d)
             analytical_cdf = DiscretisedFluidQueues.StationaryDistributionX(model)[3]
-            x_vec = bounds[1]:0.23:bounds[end]
+            x_vec = nodes[1]:0.23:nodes[end]
             pass = true
             for x in x_vec
                 (!isapprox(analytical_cdf(x),stationary_cdf_estimate.(x,1:3), rtol=1e-2)) && (pass = false)
@@ -458,7 +455,7 @@ end
             d_am = DiscretisedFluidQueues.SFMDistribution(stationary_coeffs_am,dq_am)
             stationary_cdf_estimate_am = DiscretisedFluidQueues.cdf(d_am)
             analytical_cdf_am = DiscretisedFluidQueues.StationaryDistributionX(am)[3]
-            x_vec = bounds[1]:0.23:bounds[end]
+            x_vec = nodes[1]:0.23:nodes[end]
             pass = true
             for x in x_vec
                 (!isapprox(analytical_cdf_am(x),stationary_cdf_estimate_am.(x,1:4), rtol=1e-2)) && (pass = false)
@@ -476,6 +473,7 @@ end
 end
 
 # more testing for lazy_generators now with new modularised code
+# testing for DiscretisedFluidQueue
 # etc...
 end
 

@@ -81,21 +81,20 @@ checksquare(A::AbstractArray{<:Any,2}) = !(size(A,1)==size(A,2)) ? throw(DomainE
 struct FluidQueue <: Model
     T::Array{<:Real,2}
     S::PhaseSet
-    bounds::Array{<:Real,1}
-    function FluidQueue(T::Array{<:Real,2}, S::PhaseSet, bounds::Array{<:Real,1})
+    function FluidQueue(T::Array{<:Real,2}, S::PhaseSet)
         checksquare(T)
         !all(isapprox.(sum(T,dims=2),0, atol=1e-5))&&throw(DomainError(T, "row sums must be 0 (tol=1e-5)"))
         !all(sum(T,dims=2).==0)&&@warn "row sums of T must be 0 (tol=1e-5)"
         !(size(T,1)==length(S))&&throw(DomainError("PhaseSet must have length the dimension of T"))
-        !((length(bounds)==2)&&(bounds[1]<bounds[2]))&&throw(DomainError("bound must have 2 entries, upper and lower"))
-        return new(T,S,bounds)
+        return new(T,S)
     end
 end 
 rates(m::FluidQueue) = rates(m.S)
 rates(m::FluidQueue,i::Int) = rates(m.S,i)
 n_phases(m::FluidQueue) = n_phases(m.S)
 phases(m::FluidQueue) = 1:n_phases(m.S)
-
+N₋(m::FluidQueue) = N₋(m.S)
+N₊(m::FluidQueue) = N₊(m.S)
 
 function _duplicate_zero_states(T::Array{<:Real,2},C::Array{<:Real,1})
     n_0 = sum(C.==0)
@@ -143,7 +142,7 @@ function augment_model(model::FluidQueue)
     if (any(rates(model).==0))
         T_aug, C_aug, m_aug, lpm_aug, rpm_aug = _duplicate_zero_states(model.T,rates(model))
         S_aug = PhaseSet(C_aug,m_aug,lpm_aug,rpm_aug)
-        return FluidQueue(T_aug,S_aug,model.bounds)
+        return FluidQueue(T_aug,S_aug)
     else # no zero states, no augmentation needed
        return model 
     end

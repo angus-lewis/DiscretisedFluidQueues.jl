@@ -10,11 +10,11 @@ end
 
 """
 
-    n_bases(mesh::FRAPMesh)
+    n_bases_per_cell(mesh::FRAPMesh)
     
 Number of bases in a cell
 """
-n_bases(mesh::FRAPMesh) = _order(mesh.me)
+n_bases_per_cell(mesh::FRAPMesh) = _order(mesh.me)
 
 
 """
@@ -37,7 +37,7 @@ function MakeLazyGenerator(
     dq::DiscretisedFluidQueue{FRAPMesh};
     v::Bool=false,
 )   
-    me = dq.mesh.me::AbstractMatrixExponential
+    me = dq.mesh.me
     blocks = (me.s*me.a, me.S, me.s*me.a)
     boundary_flux = (in = me.s[:], out = me.a[:])
     D = me.D

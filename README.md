@@ -3,9 +3,9 @@
 
 The evolution of stochastic fluid queues can be described by the PDE (when it exists)
 \begin{equation}
-    \frac{\partial}{\partial t} \mathbf f(x,i,t) = \mathbf f(x,i,t) T - \frac{\partial}{\partial x} \mathbf f(x,i,t) C,
+    \frac{\partial}{\partial t}  f(x,i,t) =  f(x,i,t) T - \frac{\partial}{\partial x}  f(x,i,t) C,
 \end{equation}
-where $\mathbf f(x,i,t) dx = P(X(t)\in dx, \varphi(t)=i)$ the time-dependent joint density/mass function. 
+where $ f(x,i,t) dx = (f(x,i,t))_{i\in S} = (P(X(t)\in dx, \varphi(t)=i))_{i\in S}$ the time-dependent joint density/mass function. 
 
 This package implements finite element and finite volume numerical solvers to approximate the right-hand side of this PDE; 
     + Discontinuous Galerkin: projects the right-hand side of the PDE on to a basis of polynomials,
@@ -26,14 +26,13 @@ C = [0.0; 2.0; -3.0]    # rates dX/dt
 
 S = DiscretisedFluidQueues.PhaseSet(C) # constructor for phases
 
-bounds = [0.0,12]
-model = DiscretisedFluidQueues.FluidQueue(T,S,bounds) # model object
+model = DiscretisedFluidQueues.FluidQueue(T,S) # model object
 ```
 
-Create a mesh (a grid over which to approximate the solution) with (e.g.)
+Create a discretisation mesh (a grid + method with which to approximate the solution) with any of (e.g.)
 ```jl
 nbases = 3
-dgmesh = DiscretisedFluidQueues.DGMesh(nodes,nbases)
+mesh = DiscretisedFluidQueues.DGMesh(nodes,nbases)
 
 fv_order = 3
 fvmesh = DiscretisedFluidQueues.FVMesh(nodes,fv_order)
@@ -42,31 +41,36 @@ order = 3
 frapmesh = DiscretisedFluidQueues.FRAPMesh(nodes,order)
 ```
 
+Combine the model and the discretisation scheme (mesh) to form a discretised fluid queue
+```
+dq = DiscretisedFluidQueues.DiscretisedFluidQueue(model,mesh)
+```
+
 Construct an approximation to the generator with 
 ```jl
-B = StochasticFluidQueues.MakeFullGenerator(am,mesh)
+B = DiscretisedFluidQueues.MakeFullGenerator(dq)
 ```
 `B` is essentially a matrix which we can think of as describing the ODE
 \begin{equation}
-    \frac{\partial}{\partial t} \mathbf a(t) = \mathbf a(t) B
+    \frac{\partial}{\partial t}  a(t) =  a(t) B
 \end{equation}
-where $\mathbf a(t)u(x) \approx f(x,i,t)$ approximates the solution.
+where $a(t)$ is a row vector of coefficients and $ a(t)u(x) \approx f(x,i,t)$ approximates the solution where $u(x)$ is a column vector of function defined by the discretistion scheme.
 
 Construct an initial distribution with (e.g.)
 ```jl
 f(x,i) = (i-1)/12.0./sum(1:3) # the initial distribution
-d = StochasticFluidQueues.SFMDistribution(f,model,mesh)
+d = DiscretisedFluidQueues.SFMDistribution(f,dq)
 ```
 
 Integrate over time with 
 ```jl
 t = 3.2
-dt = StochasticFluidQueues.integrate_time(d,B,t)
+dt = DiscretisedFluidQueues.integrate_time(d,B,t)
 ```
 
 Reconstruct approximate solution with 
 ```jl
-u = StochasticFluidQueues.cdf(d)
+u = DiscretisedFluidQueues.cdf(d)
 ```
 Evaluate solution as a function 
 ```jl

@@ -7,6 +7,7 @@ import Jacobi, LinearAlgebra, SparseArrays
 include("1_SFM.jl")
 
 include("2_abstract_mesh.jl") # things which apply to all meshs
+include("2a_discretised_fluid_queue.jl")
 include("3_lazy_generators.jl")
 include("4_full_generators.jl")
 include("5_SFM_operators.jl")

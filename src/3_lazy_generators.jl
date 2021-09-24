@@ -52,14 +52,14 @@ function MakeLazyGenerator(dq::DiscretisedFluidQueue; v::Bool=false)
 end
 
 function size(B::LazyGenerator)
-    sz = n_phases(B.dq.model)*total_n_bases(B.dq.mesh) + N₋(B.dq.model.S) + N₊(B.dq.model.S)
+    sz = total_n_bases(B.dq) + N₋(B.dq) + N₊(B.dq)
     return (sz,sz)
 end
 size(B::LazyGenerator, n::Int) = size(B)[n]
 
 _check_phase_index(i::Int,model::Model) = (i∉phases(model)) && throw(DomainError("i is not a valid phase in model"))
 _check_mesh_index(k::Int,mesh::Mesh) = !(1<=k<=n_intervals(mesh)) && throw(DomainError("k in not a valid cell"))
-_check_basis_index(p::Int,mesh::Mesh) = !(1<=p<=n_bases(mesh))
+_check_basis_index(p::Int,mesh::Mesh) = !(1<=p<=n_bases_per_cell(mesh))
 
 function _map_to_index_interior(i::Int,k::Int,p::Int,dq::DiscretisedFluidQueue)
     # i phase
@@ -70,11 +70,11 @@ function _map_to_index_interior(i::Int,k::Int,p::Int,dq::DiscretisedFluidQueue)
     _check_mesh_index(k,dq.mesh)
     _check_basis_index(p,dq.mesh)
 
-    P = n_bases(dq.mesh)
-    KP = total_n_bases(dq.mesh)
+    P = n_bases_per_cell(dq)
+    KP = n_bases_per_phase(dq)
 
     idx = (i-1)*KP + (k-1)*P + p
-    return N₋(dq.mesh) + idx 
+    return N₋(dq) + idx 
 end
 function _map_to_index_boundary(i::Int,dq::DiscretisedFluidQueue)
     # i phase
@@ -82,22 +82,22 @@ function _map_to_index_boundary(i::Int,dq::DiscretisedFluidQueue)
     if _has_left_boundary(dq.model.S,i) 
         idx = N₋(dq.model.S[1:i])
     else _has_right_boundary(dq.model.S,i)
-        N = n_phases(dq.model)
-        KP = total_n_bases(dq.mesh)
-        idx = N₊(dq.model.S[1:i]) + KP*N + N₋(dq.model.S)
+        N = n_phases(dq)
+        KP = n_bases_per_phase(dq)
+        idx = N₊(dq.model.S[1:i]) + KP*N + N₋(dq)
     end
     return idx
 end
 
-_is_boundary_index(n::Int,B::LazyGenerator) = (n∈1:N₋(B.dq.model.S))||(n∈(size(B,1).-(0:N₊(B.dq.model.S)-1)))
+_is_boundary_index(n::Int,B::LazyGenerator) = (n∈1:N₋(B.dq))||(n∈(size(B,1).-(0:N₊(B.dq)-1)))
 function _map_from_index_interior(n::Int,B::LazyGenerator)
     # n matrix index to map to phase, cell, basis
     (!(1<=n<=size(B,1))||_is_boundary_index(n,B))&&throw(DomainError(n,"not a valid interior index"))
     
-    n -= (N₋(B.dq.model.S)+1)
-    N = n_phases(B.dq.model)
-    KP = total_n_bases(B.dq.mesh)
-    P = n_bases(B.dq.mesh)
+    n -= (N₋(B.dq)+1)
+    N = n_phases(B.dq)
+    KP = n_bases_per_phase(B.dq)
+    P = n_bases_per_cell(B.dq)
 
     i = (n÷KP) + 1
     k = mod(n,KP)÷P + 1 #(n-1 - (i-1)*KP)÷P + 1
@@ -108,17 +108,17 @@ function _map_from_index_boundary(n::Int,B::LazyGenerator)
     # n matrix index to map to phase at boundary
     (!_is_boundary_index(n,B))&&throw(DomainError("not a valid boundary index"))
     
-    if n>N₋(B.dq.model.S)
-        i₊ = n-N₋(B.dq.model.S)-total_n_bases(B.dq.mesh)*n_phases(B.dq.model)
+    if n>N₋(B.dq)
+        i₊ = n-N₋(B.dq)-total_n_bases(B.dq)
         i = 1
-        for j in phases(B.dq.model.S)
+        for j in phases(B.dq)
             (i₊==N₊(B.dq.model.S[1:j])) && break
             i += 1
         end
     else 
         i₋ = n
         i = 1
-        for j in phases(B.dq.model.S)
+        for j in phases(B.dq)
             (i₋==N₋(B.dq.model.S[1:j])) && break
             i += 1
         end
@@ -141,40 +141,38 @@ function *(u::AbstractArray{Float64,2}, B::LazyGenerator)
     else 
         v = zeros(sz_u_1,sz_B_2)
     end
-    
     model = B.dq.model
     mesh = B.dq.mesh
-
-    Kp = total_n_bases(mesh) # K = n_intervals(mesh), p = n_bases(mesh)
-    C = rates(model)
-    n₋ = N₋(model.S)
-    n₊ = N₊(model.S)
+    Kp = n_bases_per_phase(B.dq) # K = n_intervals(mesh), p = n_bases_per_cell(mesh)
+    C = rates(B.dq)
+    n₋ = N₋(B.dq)
+    n₊ = N₊(B.dq)
 
     # boundaries
     # at lower
     v[:,1:n₋] += u[:,1:n₋]*model.T[_has_left_boundary.(model.S),_has_left_boundary.(model.S)]
     # in to lower 
-    idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_has_left_boundary.(model.S)) .- 1)')[:]
+    idxdown = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(_has_left_boundary.(model.S)) .- 1)')[:]
     v[:,1:n₋] += u[:,idxdown]*LinearAlgebra.kron(
         LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(model.S)])),
         B.boundary_flux.lower.in/Δ(mesh,1),
     )
     # out of lower 
-    idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases(mesh)))[:]
+    idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases_per_cell(mesh)))[:]
     v[:,idxup] += u[:,1:n₋]*kron(model.T[_has_left_boundary.(model.S),C.>0],B.boundary_flux.lower.out')
 
     # at upper
     v[:,end-n₊+1:end] += u[:,end-n₊+1:end]*model.T[_has_right_boundary.(model.S),_has_right_boundary.(model.S)]
     # in to upper
-    idxup = n₋ .+ ((1:n_bases(mesh)) .+ Kp*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
-        (Kp - n_bases(mesh))
+    idxup = n₋ .+ ((1:n_bases_per_cell(mesh)) .+ Kp*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
+        (Kp - n_bases_per_cell(mesh))
     v[:,end-n₊+1:end] += u[:,idxup]*LinearAlgebra.kron(
         LinearAlgebra.diagm(0 => C[_has_right_boundary.(model.S)]),
         B.boundary_flux.upper.in/Δ(mesh,n_intervals(mesh)),
     )
     # out of upper 
-    idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases(mesh)))[:] .+
-        (Kp - n_bases(mesh))
+    idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases_per_cell(mesh)))[:] .+
+        (Kp - n_bases_per_cell(mesh))
     v[:,idxdown] += u[:,end-n₊+1:end]*kron(model.T[_has_right_boundary.(model.S),C.<0],B.boundary_flux.upper.out')
 
     # innards
@@ -182,15 +180,15 @@ function *(u::AbstractArray{Float64,2}, B::LazyGenerator)
         if i == j 
             # mult on diagonal
             for k in 1:n_intervals(mesh)
-                k_idx = (i-1)*Kp .+ (k-1)*n_bases(mesh) .+ (1:n_bases(mesh)) .+ n₋
+                k_idx = (i-1)*Kp .+ (k-1)*n_bases_per_cell(mesh) .+ (1:n_bases_per_cell(mesh)) .+ n₋
                 for ℓ in 1:n_intervals(mesh)
                     if (k == ℓ+1) && (C[i] > 0)
-                        ℓ_idx = k_idx .- n_bases(mesh) 
+                        ℓ_idx = k_idx .- n_bases_per_cell(mesh) 
                         v[:,k_idx] += C[i]*(u[:,ℓ_idx]*B.blocks[4])/Δ(mesh,ℓ)
                     elseif k == ℓ
                         v[:,k_idx] += (u[:,k_idx]*(abs(C[i])*B.blocks[2 + (C[i].<0)]/Δ(mesh,ℓ) + model.T[i,j]*LinearAlgebra.I))
                     elseif (k == ℓ-1) && (C[i] < 0)
-                        ℓ_idx = k_idx .+ n_bases(mesh) 
+                        ℓ_idx = k_idx .+ n_bases_per_cell(mesh) 
                         v[:,k_idx] += abs(C[i])*(u[:,ℓ_idx]*B.blocks[1])/Δ(mesh,ℓ)
                     end
                 end
@@ -200,8 +198,8 @@ function *(u::AbstractArray{Float64,2}, B::LazyGenerator)
             for k in 1:n_intervals(mesh)
                 for ℓ in 1:n_intervals(mesh)
                     if k == ℓ
-                        i_idx = (i-1)*Kp .+ (k-1)*n_bases(mesh) .+ (1:n_bases(mesh)) .+ n₋
-                        j_idx = (j-1)*Kp .+ (k-1)*n_bases(mesh) .+ (1:n_bases(mesh)) .+ n₋
+                        i_idx = (i-1)*Kp .+ (k-1)*n_bases_per_cell(mesh) .+ (1:n_bases_per_cell(mesh)) .+ n₋
+                        j_idx = (j-1)*Kp .+ (k-1)*n_bases_per_cell(mesh) .+ (1:n_bases_per_cell(mesh)) .+ n₋
                         v[:,j_idx] += (u[:,i_idx]*(model.T[i,j]*B.D))
                     end
                 end
@@ -230,64 +228,64 @@ function *(B::LazyGenerator, u::AbstractArray{Float64,2})
     end
 
     model = B.dq.model
-    mesh = B.dq.mesh
-    Kp = total_n_bases(mesh) # K = n_intervals, p = n_bases
+
+    Kp = n_bases_per_phase(B.dq) # K = n_intervals, p = n_bases
 
     C = rates(model)
-    n₋ = N₋(model.S)
-    n₊ = N₊(model.S)
+    n₋ = N₋(B.dq)
+    n₊ = N₊(B.dq)
     # boundaries
     # at lower
     v[1:n₋,:] += model.T[_has_left_boundary.(model.S),_has_left_boundary.(model.S)]*u[1:n₋,:]
     # in to lower 
-    idxdown = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_has_left_boundary.(model.S)) .- 1)')[:]
+    idxdown = n₋ .+ ((1:n_bases_per_cell(B.dq)).+Kp*(findall(_has_left_boundary.(model.S)) .- 1)')[:]
     v[idxdown,:] += LinearAlgebra.kron(
         LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(model.S)])),
-        B.boundary_flux.lower.in/Δ(mesh,1),
+        B.boundary_flux.lower.in/Δ(B.dq,1),
     )*u[1:n₋,:]
     # out of lower 
-    idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases(mesh)))[:]
+    idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases_per_cell(B.dq)))[:]
     v[1:n₋,:] += kron(model.T[_has_left_boundary.(model.S),C.>0],B.boundary_flux.lower.out')*u[idxup,:]
 
     # at upper
     v[end-n₊+1:end,:] += model.T[_has_right_boundary.(model.S),_has_right_boundary.(model.S)]*u[end-n₊+1:end,:]
     # in to upper
-    idxup = n₋ .+ ((1:n_bases(mesh)).+Kp*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
-        (Kp - n_bases(mesh))
+    idxup = n₋ .+ ((1:n_bases_per_cell(B.dq)).+Kp*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
+        (Kp - n_bases_per_cell(B.dq))
     v[idxup,:] += LinearAlgebra.kron(
         LinearAlgebra.diagm(0 => C[_has_right_boundary.(model.S)]),
-        B.boundary_flux.upper.in/Δ(mesh,n_intervals(mesh)),
+        B.boundary_flux.upper.in/Δ(B.dq,n_intervals(B.dq)),
     )*u[end-n₊+1:end,:]
     # out of upper 
-    idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases(mesh)))[:] .+
-        (Kp - n_bases(mesh))
+    idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases_per_cell(B.dq)))[:] .+
+        (Kp - n_bases_per_cell(B.dq))
     v[end-n₊+1:end,:] += kron(model.T[_has_right_boundary.(model.S),C.<0],B.boundary_flux.upper.out')*u[idxdown,:]
 
     # innards
     for i in phases(model), j in phases(model)
         if i == j 
             # mult on diagonal
-            for k in 1:n_intervals(mesh)
-                k_idx = (i-1)*Kp .+ (k-1)*n_bases(mesh) .+ (1:n_bases(mesh)) .+ n₋
-                for ℓ in 1:n_intervals(mesh)
+            for k in 1:n_intervals(B.dq)
+                k_idx = (i-1)*Kp .+ (k-1)*n_bases_per_cell(B.dq) .+ (1:n_bases_per_cell(B.dq)) .+ n₋
+                for ℓ in 1:n_intervals(B.dq)
                     if (k == ℓ+1) && (C[i] > 0) # upper diagonal block
-                        ℓ_idx = k_idx .- n_bases(mesh) 
-                        v[ℓ_idx,:] += C[i]*(B.blocks[4]*u[k_idx,:])/Δ(mesh,ℓ)
+                        ℓ_idx = k_idx .- n_bases_per_cell(B.dq) 
+                        v[ℓ_idx,:] += C[i]*(B.blocks[4]*u[k_idx,:])/Δ(B.dq,ℓ)
                     elseif k == ℓ # diagonal 
-                        v[k_idx,:] += ((abs(C[i])*B.blocks[2 + (C[i].<0)]/Δ(mesh,ℓ) + model.T[i,j]*LinearAlgebra.I)*u[k_idx,:])
+                        v[k_idx,:] += ((abs(C[i])*B.blocks[2 + (C[i].<0)]/Δ(B.dq,ℓ) + model.T[i,j]*LinearAlgebra.I)*u[k_idx,:])
                     elseif (k == ℓ-1) && (C[i] < 0) # lower diagonal
-                        ℓ_idx = k_idx .+ n_bases(mesh) 
-                        v[ℓ_idx,:] += abs(C[i])*(B.blocks[1]*u[k_idx,:])/Δ(mesh,ℓ)
+                        ℓ_idx = k_idx .+ n_bases_per_cell(B.dq) 
+                        v[ℓ_idx,:] += abs(C[i])*(B.blocks[1]*u[k_idx,:])/Δ(B.dq,ℓ)
                     end
                 end
             end
         elseif membership(model.S,i)!=membership(model.S,j) # B.pmidx[i,j]
             # changes from S₊ to S₋ etc.
-            for k in 1:n_intervals(mesh)
-                for ℓ in 1:n_intervals(mesh)
+            for k in 1:n_intervals(B.dq)
+                for ℓ in 1:n_intervals(B.dq)
                     if k == ℓ
-                        i_idx = (i-1)*Kp .+ (k-1)*n_bases(mesh) .+ (1:n_bases(mesh)) .+ n₋
-                        j_idx = (j-1)*Kp .+ (k-1)*n_bases(mesh) .+ (1:n_bases(mesh)) .+ n₋
+                        i_idx = (i-1)*Kp .+ (k-1)*n_bases_per_cell(B.dq) .+ (1:n_bases_per_cell(B.dq)) .+ n₋
+                        j_idx = (j-1)*Kp .+ (k-1)*n_bases_per_cell(B.dq) .+ (1:n_bases_per_cell(B.dq)) .+ n₋
                         v[i_idx,:] += (model.T[i,j]*B.D)*u[j_idx,:]
                     end
                 end
@@ -317,17 +315,16 @@ function getindex_interior(B::LazyGenerator,row::Int,col::Int)
     j, l, q = _map_from_index_interior(col,B)
     
     model = B.dq.model
-    mesh = B.dq.mesh
     C = rates(model)
 
     v=0.0
     if i==j
         if k==l
-            v=abs(C[i])*B.blocks[2 + (C[i].<0)][p,q]/Δ(mesh,k) + model.T[i,j]*(p==q)
+            v=abs(C[i])*B.blocks[2 + (C[i].<0)][p,q]/Δ(B.dq,k) + model.T[i,j]*(p==q)
         elseif k+1==l# upper diagonal blocks
-            (C[i]>0) && (v=C[i]*B.blocks[4][p,q]/Δ(mesh,k))
+            (C[i]>0) && (v=C[i]*B.blocks[4][p,q]/Δ(B.dq,k))
         elseif k-1==l
-            (C[i]<0) && (v=abs(C[i])*B.blocks[1][p,q]/Δ(mesh,k))
+            (C[i]<0) && (v=abs(C[i])*B.blocks[1][p,q]/Δ(B.dq,k))
         end
     elseif membership(model.S,i)!=membership(model.S,j)
         (k==l) && (v=model.T[i,j]*B.D[p,q])
@@ -341,13 +338,12 @@ function getindex_out_boundary(B::LazyGenerator,row::Int,col::Int)
     j, l, q = _map_from_index_interior(col,B)
     
     model = B.dq.model
-    mesh = B.dq.mesh
     C = rates(model)
 
     i = _map_from_index_boundary(row,B)
     if (l==1)&&(C[j]>0)&&_has_left_boundary(model.S,i)
         v = model.T[i,j]*B.boundary_flux.lower.out[q]
-    elseif (l==n_intervals(mesh))&&(C[j]<0)&&_has_right_boundary(model.S,i)
+    elseif (l==n_intervals(B.dq))&&(C[j]<0)&&_has_right_boundary(model.S,i)
         v = model.T[i,j]*B.boundary_flux.upper.out[q]
     else 
         v = 0.0
@@ -359,15 +355,13 @@ function getindex_in_boundary(B::LazyGenerator,row::Int,col::Int)
     (!_is_boundary_index(col,B))&&throw(DomainError(col,"col index does not correspond to a boundary"))
     i, k, p = _map_from_index_interior(row,B)
     
-    model = B.dq.model
-    mesh = B.dq.mesh
-    C = rates(model)
+    C = rates(B.dq)
     
     j = _map_from_index_boundary(col,B)
     if (k==1)&&(C[i]<0)&&(i==j)
-        v = abs(C[i])*B.boundary_flux.lower.in[p]/Δ(mesh,1)
-    elseif (k==n_intervals(mesh))&&(C[i]>0)&&(i==j)
-        v = abs(C[i])*B.boundary_flux.upper.in[p]/Δ(mesh,n_intervals(mesh))
+        v = abs(C[i])*B.boundary_flux.lower.in[p]/Δ(B.dq,1)
+    elseif (k==n_intervals(B.dq))&&(C[i]>0)&&(i==j)
+        v = abs(C[i])*B.boundary_flux.upper.in[p]/Δ(B.dq,n_intervals(B.dq))
     else 
         v = 0.0
     end
@@ -378,12 +372,10 @@ end
 function getindex(B::LazyGenerator,row::Int,col::Int)
     checkbounds(B,row,col)
 
-    model = B.dq.model
-
     if _is_boundary_index(row,B) && _is_boundary_index(col,B)
         i = _map_from_index_boundary(row,B)
         j = _map_from_index_boundary(col,B)
-        (_has_left_boundary(model.S,i)==_has_left_boundary(model.S,j)) ? (v = model.T[i,j]) : (v=0.0)
+        (_has_left_boundary(B.dq.model.S,i)==_has_left_boundary(B.dq.model.S,j)) ? (v = B.dq.model.T[i,j]) : (v=0.0)
     elseif _is_boundary_index(col,B)
         v = getindex_in_boundary(B,row,col)
     elseif _is_boundary_index(row,B)

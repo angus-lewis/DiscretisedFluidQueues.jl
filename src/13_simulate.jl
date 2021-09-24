@@ -24,6 +24,7 @@ given the `InitialCondition` on (φ(0),X(0)).
 
     simulate(
         model::Model,
+        lwr::Float64, upr::Float64,
         StoppingTime::Function,
         InitCondition::NamedTuple{(:φ, :X)},
     )
@@ -59,6 +60,7 @@ given the `InitialCondition` on (φ(0),X(0)).
 """
 function simulate(
     model::FluidQueue,
+    lwr::Float64, upr::Float64,
     StoppingTime::Function,
     InitCondition::NamedTuple{(:φ, :X)},
     rng::Random.AbstractRNG=Random.default_rng(),
@@ -80,11 +82,11 @@ function simulate(
         while 1 == 1
             S = log(rand(rng)) / Λ[SFM0.φ] # generate exp random variable
             t = SFM0.t + S
-            X = UpdateXt(model, SFM0, S)
+            X = UpdateXt(model, SFM0, S, lwr, upr)
             φ = findfirst(rand(rng) .< CumP[SFM0.φ, :])
             n = SFM0.n + 1
             SFM = (t = t, φ = φ, X = X, n = n)
-            τ = StoppingTime(model, SFM, SFM0)
+            τ = StoppingTime(model, SFM, SFM0, lwr, upr)
             if τ.Ind # if the stopping time occurs
                 (tSims[m], φSims[m], XSims[m], nSims[m]) = τ.SFM
                 break
@@ -132,13 +134,12 @@ function UpdateXt(
     model::Model,
     SFM0::NamedTuple,
     S::Real,
+    lwr::Float64,
+    upr::Float64,
 )
     # given the last position of a SFM, SFM0, a time step of size s, find the
     # position of X at time t
-    X = min(
-        max(SFM0.X + rates(model,SFM0.φ) * S, model.bounds[1]),
-        model.bounds[2],
-    )
+    X = min( max(SFM0.X+rates(model,SFM0.φ)*S, lwr), upr)
     return X
 end
 
@@ -158,18 +159,20 @@ Constructs the `StoppingTime` ``1(t>T)``
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
     )`: a stopping time for a SFM.
 """
-function FixedTime( T::Float64)
+function FixedTime(T::Float64)
     # Defines a simple stopping time, 1(t>T).
     # SFM method
     function FixedTimeFun(
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
+        lwr::Float64,
+        upr::Float64,
     )
         Ind = SFM.t > T
         if Ind
             s = T - SFM0.t
-            X = UpdateXt(model, SFM0, s)
+            X = UpdateXt(model, SFM0, s, lwr, upr)
             SFM = (t = T, φ = SFM0.φ, X = X, n = SFM0.n)
         end
         return (Ind = Ind, SFM = SFM)

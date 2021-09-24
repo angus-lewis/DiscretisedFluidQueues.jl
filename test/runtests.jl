@@ -80,8 +80,8 @@ end
         @test DiscretisedFluidQueues.n_intervals(dgmesh)==length(nodes)-1
         @test DiscretisedFluidQueues.Δ(dgmesh) == nodes[2:end]-nodes[1:end-1]
         @test DiscretisedFluidQueues.Δ(dgmesh,1) == nodes[2]-nodes[1]
-        @test DiscretisedFluidQueues.total_n_bases(dgmesh) == (length(nodes)-1)*nbases
-        @test DiscretisedFluidQueues.n_bases(dgmesh) == 3
+        @test DiscretisedFluidQueues.n_bases_per_phase(dgmesh) == (length(nodes)-1)*nbases
+        @test DiscretisedFluidQueues.n_bases_per_cell(dgmesh) == 3
         @test DiscretisedFluidQueues.cell_nodes(dgmesh)≈
             [nodes[1:end-1]';(nodes[1:end-1]'+nodes[2:end]')/2;nodes[2:end]'] atol=1e-5
         @test DiscretisedFluidQueues.basis(dgmesh) == "lagrange"
@@ -95,8 +95,8 @@ end
         @test DiscretisedFluidQueues.n_intervals(fvmesh)==length(nodes)-1
         @test DiscretisedFluidQueues.Δ(fvmesh) == nodes[2:end]-nodes[1:end-1]
         @test DiscretisedFluidQueues.Δ(fvmesh,1) == nodes[2]-nodes[1]
-        @test DiscretisedFluidQueues.total_n_bases(fvmesh) == (length(nodes)-1)
-        @test DiscretisedFluidQueues.n_bases(fvmesh) == 1
+        @test DiscretisedFluidQueues.n_bases_per_phase(fvmesh) == (length(nodes)-1)
+        @test DiscretisedFluidQueues.n_bases_per_cell(fvmesh) == 1
         @test DiscretisedFluidQueues._order(fvmesh) == fv_order
         @test DiscretisedFluidQueues.cell_nodes(fvmesh)≈Array(((fvmesh.nodes[1:end-1] + fvmesh.nodes[2:end]) / 2 )') atol=1e-5
         @test DiscretisedFluidQueues.basis(fvmesh) == ""
@@ -108,8 +108,8 @@ end
         @test DiscretisedFluidQueues.n_intervals(frapmesh)==length(nodes)-1
         @test DiscretisedFluidQueues.Δ(frapmesh) == nodes[2:end]-nodes[1:end-1]
         @test DiscretisedFluidQueues.Δ(frapmesh,1) == nodes[2]-nodes[1]
-        @test DiscretisedFluidQueues.total_n_bases(frapmesh) == (length(nodes)-1)*order
-        @test DiscretisedFluidQueues.n_bases(frapmesh) == order
+        @test DiscretisedFluidQueues.n_bases_per_phase(frapmesh) == (length(nodes)-1)*order
+        @test DiscretisedFluidQueues.n_bases_per_cell(frapmesh) == order
         @test DiscretisedFluidQueues.cell_nodes(frapmesh)≈Array(((frapmesh.nodes[1:end-1] + frapmesh.nodes[2:end]) / 2 )') atol=1e-5
         @test DiscretisedFluidQueues.basis(frapmesh) == ""
     end
@@ -358,14 +358,14 @@ end
 
         @test_throws DomainError DiscretisedFluidQueues.left_point_mass(1,dq)
         tst = zeros(1,
-            DiscretisedFluidQueues.n_phases(am)*DiscretisedFluidQueues.total_n_bases(msh) 
+            DiscretisedFluidQueues.n_phases(am)*DiscretisedFluidQueues.n_bases_per_phase(msh) 
             + DiscretisedFluidQueues.N₋(am.S) + DiscretisedFluidQueues.N₊(am.S))
         tst[1] = 1.0
         @test DiscretisedFluidQueues.left_point_mass(2,dq)==tst
         
         @test_throws DomainError DiscretisedFluidQueues.right_point_mass(2,dq)
         tst2 = zeros(1,
-            DiscretisedFluidQueues.n_phases(am)*DiscretisedFluidQueues.total_n_bases(msh) 
+            DiscretisedFluidQueues.n_phases(am)*DiscretisedFluidQueues.n_bases_per_phase(msh) 
             + DiscretisedFluidQueues.N₋(am.S) + DiscretisedFluidQueues.N₊(am.S))
         tst2[end] = 1.0
         @test DiscretisedFluidQueues.right_point_mass(3,dq)==tst2
