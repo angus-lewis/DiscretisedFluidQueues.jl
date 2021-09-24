@@ -2,9 +2,17 @@
 
     Mesh 
 
-Abstract type representing a mesh for a numerical scheme. 
+Abstract type representing a discretisation mesh for a numerical scheme. 
 """
 abstract type Mesh end 
+
+"""
+ 
+"""
+struct DiscretisedFluidQueue{T<:Mesh}
+    model::Model
+    mesh::T
+end
 
 """
 
@@ -38,8 +46,10 @@ Total number of bases in the stencil
 """
 total_n_bases(mesh::Mesh) = n_bases(mesh) * n_intervals(mesh)
 
-function MakeQBDidx(model::Model, mesh::Mesh)
+function MakeQBDidx(dq::DiscretisedFluidQueue)
     ## Make QBD index
+    model = dq.model
+    mesh = dq.mesh
 
     c = N₋(model.S)
     n₊ = N₊(model.S)

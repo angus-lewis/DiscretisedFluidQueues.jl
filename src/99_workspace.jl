@@ -1,4 +1,4 @@
-using Revise, LinearAlgebra, SparseArrays
+using LinearAlgebra, SparseArrays #Revise
 include("DiscretisedFluidQueues.jl")
 import .DiscretisedFluidQueues 
 using Test
@@ -121,7 +121,8 @@ end
         for i in (:dgmesh,:frapmesh) 
             (i==:dgmesh) && include("test_DG_B_data.jl")
             (i==:frapmesh) && include("test_FRAP_B_data.jl")
-            B = @eval DiscretisedFluidQueues.MakeLazyGenerator(am,$i)
+            dq = @eval DiscretisedFluidQueues.DiscretisedFluidQueue(am,$i)
+            B = DiscretisedFluidQueues.MakeLazyGenerator(dq)
             # types
             @test typeof(B)==DiscretisedFluidQueues.LazyGenerator
             @test typeof(B)<:AbstractArray
@@ -167,9 +168,10 @@ end
             (i==:frapmesh) && include("test_FRAP_B_data.jl")
             (i==:fvmesh) && include("test_FV_B_data.jl")
             @eval begin 
-                B_Full = DiscretisedFluidQueues.MakeFullGenerator(am,$i)
+                dq = DiscretisedFluidQueues.DiscretisedFluidQueue(am,$i)
+                B_Full = DiscretisedFluidQueues.MakeFullGenerator(dq)
                 if typeof($i)!=DiscretisedFluidQueues.FVMesh
-                    B = DiscretisedFluidQueues.MakeLazyGenerator(am,$i) 
+                    B = DiscretisedFluidQueues.MakeLazyGenerator(dq) 
                     @test DiscretisedFluidQueues.materialise(B)==B_Full
                     @test all(isapprox.(B_Full*B_Full,B*B,atol=√eps()))
                     # size
@@ -326,7 +328,8 @@ end
         # pdfs
         f(x,i) = (i-1)/12.0./sum(1:3)
         msh = @eval $mtype
-        d = DiscretisedFluidQueues.SFMDistribution(f,am,msh)#DiscretisedFluidQueues.point_mass(11.990,2,am,$i)#
+        dq = DiscretisedFluidQueues.DiscretisedFluidQueue(am,msh)
+        d = DiscretisedFluidQueues.SFMDistribution(f,dq)#DiscretisedFluidQueues.point_mass(11.990,2,am,$i)#
         if mtype!=:fvmesh
             @test sum(d)≈1.0
         end
@@ -354,19 +357,19 @@ end
         @test sum(cdf_rec_2.(msh.nodes[end]+1.0,1:4))≈sum(f_cdf.(msh.nodes[end],1:4))
         @test all(isapprox.( f_cdf_2.(x,1:4), cdf_rec_2.(x,1:4), atol=5e-2 ))
 
-        @test_throws DomainError DiscretisedFluidQueues.left_point_mass(1,am,msh)
+        @test_throws DomainError DiscretisedFluidQueues.left_point_mass(1,dq)
         tst = zeros(1,
             DiscretisedFluidQueues.n_phases(am)*DiscretisedFluidQueues.total_n_bases(msh) 
             + DiscretisedFluidQueues.N₋(am.S) + DiscretisedFluidQueues.N₊(am.S))
         tst[1] = 1.0
-        @test DiscretisedFluidQueues.left_point_mass(2,am,msh)==tst
+        @test DiscretisedFluidQueues.left_point_mass(2,dq)==tst
         
-        @test_throws DomainError DiscretisedFluidQueues.right_point_mass(2,am,msh)
+        @test_throws DomainError DiscretisedFluidQueues.right_point_mass(2,dq)
         tst2 = zeros(1,
             DiscretisedFluidQueues.n_phases(am)*DiscretisedFluidQueues.total_n_bases(msh) 
             + DiscretisedFluidQueues.N₋(am.S) + DiscretisedFluidQueues.N₊(am.S))
         tst2[end] = 1.0
-        @test DiscretisedFluidQueues.right_point_mass(3,am,msh)==tst2
+        @test DiscretisedFluidQueues.right_point_mass(3,dq)==tst2
 
         # test point masses not at boundaries...
     end
@@ -413,7 +416,8 @@ end
             ####
             # non-augmented model
             ####
-            generator = DiscretisedFluidQueues.MakeFullGenerator(model,msh)
+            dq = DiscretisedFluidQueues.DiscretisedFluidQueue(model,msh)
+            generator = DiscretisedFluidQueues.MakeFullGenerator(dq)
             b = zeros(1,size(generator,1))
             b[1] = 1.0
             if mtype==DiscretisedFluidQueues.FVMesh
@@ -425,7 +429,7 @@ end
                 generator[:,1] .= 1.0
             end
             stationary_coeffs = b/generator.B
-            d = DiscretisedFluidQueues.SFMDistribution(stationary_coeffs,model,msh)
+            d = DiscretisedFluidQueues.SFMDistribution(stationary_coeffs,dq)
             stationary_cdf_estimate = DiscretisedFluidQueues.cdf(d)
             analytical_cdf = DiscretisedFluidQueues.StationaryDistributionX(model)[3]
             x_vec = bounds[1]:0.23:bounds[end]
@@ -438,7 +442,8 @@ end
             ####
             # augmented model
             ####
-            generator_am = DiscretisedFluidQueues.MakeFullGenerator(am,msh)
+            dq_am = DiscretisedFluidQueues.DiscretisedFluidQueue(am,msh)
+            generator_am = DiscretisedFluidQueues.MakeFullGenerator(dq_am)
             b_am = zeros(1,size(generator_am,1))
             b_am[1] = 1.0
             if mtype==DiscretisedFluidQueues.FVMesh
@@ -450,7 +455,7 @@ end
                 generator_am[:,1] .= 1.0
             end
             stationary_coeffs_am = b_am/generator_am.B
-            d_am = DiscretisedFluidQueues.SFMDistribution(stationary_coeffs_am,am,msh)
+            d_am = DiscretisedFluidQueues.SFMDistribution(stationary_coeffs_am,dq_am)
             stationary_cdf_estimate_am = DiscretisedFluidQueues.cdf(d_am)
             analytical_cdf_am = DiscretisedFluidQueues.StationaryDistributionX(am)[3]
             x_vec = bounds[1]:0.23:bounds[end]
@@ -473,4 +478,6 @@ end
 # more testing for lazy_generators now with new modularised code
 # etc...
 end
+
+
 

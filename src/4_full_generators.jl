@@ -25,8 +25,8 @@ function show(io::IO, mime::MIME"text/plain", B::FullGenerator)
     end
 end
 
-function MakeFullGenerator(model::Model, mesh::Mesh; v::Bool=false)
-    lazy = MakeLazyGenerator(model,mesh; v=v)
+function MakeFullGenerator(dq::DiscretisedFluidQueue; v::Bool=false) 
+    lazy = MakeLazyGenerator(dq; v=v)
     return materialise(lazy)
 end
 

@@ -34,15 +34,14 @@ Constant ""
 basis(mesh::FRAPMesh) = ""
 
 function MakeLazyGenerator(
-    model::Model,
-    mesh::FRAPMesh;
+    dq::DiscretisedFluidQueue{FRAPMesh};
     v::Bool=false,
 )   
-    me = mesh.me::AbstractMatrixExponential
+    me = dq.mesh.me::AbstractMatrixExponential
     blocks = (me.s*me.a, me.S, me.s*me.a)
     boundary_flux = (in = me.s[:], out = me.a[:])
     D = me.D
-    out = LazyGenerator(model,mesh,blocks,boundary_flux,D)
+    out = LazyGenerator(dq,blocks,boundary_flux,D)
     v && println("UPDATE: LazyGenerator object created with keys ", keys(out))
     return out
 end

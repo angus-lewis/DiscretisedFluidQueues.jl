@@ -72,7 +72,9 @@ function MakeFVFlux(mesh::Mesh)
     return F
 end
 
-function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
+function MakeFullGenerator(dq::DiscretisedFluidQueue{FVMesh}; v::Bool=false)
+    model = dq.model
+    mesh = dq.mesh
     order = _order(mesh)
     F = MakeFVFlux(mesh)
 
@@ -92,7 +94,7 @@ function MakeFullGenerator(model::Model, mesh::FVMesh; v::Bool=false)
         )
 
     ## Make QBD index
-    QBDidx = MakeQBDidx(model,mesh)
+    QBDidx = MakeQBDidx(dq)
     
     # Boundary conditions
     T₋₋ = model.T[_has_left_boundary.(model.S),_has_left_boundary.(model.S)]

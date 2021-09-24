@@ -3,14 +3,12 @@ abstract type Generator <: AbstractArray{Real,2} end
 const BoundaryFluxTupleType = NamedTuple{(:upper,:lower),Tuple{NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}},NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}}}}
 
 struct LazyGenerator  <: Generator
-    model::FluidQueue
-    mesh::Mesh
+    dq::DiscretisedFluidQueue
     blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2},Array{Float64,2}}
     boundary_flux::BoundaryFluxTupleType
     D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}}
     function LazyGenerator(
-        model::FluidQueue,
-        mesh::Mesh,
+        dq::DiscretisedFluidQueue,
         blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2},Array{Float64,2}},
         boundary_flux::NamedTuple{(:upper,:lower),Tuple{NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}},NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}}}},
         D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
@@ -23,35 +21,38 @@ struct LazyGenerator  <: Generator
         checksquare(D)
         !(s == size(D)) && throw(DomainError("blocks must be the same size as D"))
         
-        return new(model,mesh,blocks,boundary_flux,D)
+        return new(dq,blocks,boundary_flux,D)
     end
 end
 function LazyGenerator(
-    model::Model,
-    mesh::Mesh,
+    dq::DiscretisedFluidQueue,
     blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2}},
     boundary_flux::NamedTuple{(:in, :out),Tuple{Array{Float64,1},Array{Float64,1}}},
     D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
 )
     blocks = (blocks[1],blocks[2],blocks[2],blocks[3])
     boundary_flux = (upper = boundary_flux, lower = boundary_flux)
-    return LazyGenerator(model,mesh,blocks,boundary_flux,D)
+    return LazyGenerator(dq,blocks,boundary_flux,D)
 end
-function LazyGenerator(
-    blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2}},
-    boundary_flux::NamedTuple{(:in, :out),Tuple{Array{Float64,1},Array{Float64,1}}},
-    D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
-)
-    blocks = (blocks[1],blocks[2],blocks[2],blocks[3])
-    boundary_flux = (upper = boundary_flux, lower = boundary_flux)
-    return LazyGenerator(blocks, boundary_flux, D)
-end
-function MakeLazyGenerator(model::Model, mesh::Mesh; v::Bool=false)
+
+# I think this is a duplicate: delete?
+
+# function LazyGenerator(
+#     blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2}},
+#     boundary_flux::NamedTuple{(:in, :out),Tuple{Array{Float64,1},Array{Float64,1}}},
+#     D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
+# )
+#     blocks = (blocks[1],blocks[2],blocks[2],blocks[3])
+#     boundary_flux = (upper = boundary_flux, lower = boundary_flux)
+#     return LazyGenerator(blocks, boundary_flux, D)
+# end
+
+function MakeLazyGenerator(dq::DiscretisedFluidQueue; v::Bool=false)
     throw(DomainError("Can construct LazyGenerator for DGMesh, FRAPMesh, only"))
 end
 
 function size(B::LazyGenerator)
-    sz = n_phases(B.model)*total_n_bases(B.mesh) + N₋(B.model.S) + N₊(B.model.S)
+    sz = n_phases(B.dq.model)*total_n_bases(B.dq.mesh) + N₋(B.dq.model.S) + N₊(B.dq.model.S)
     return (sz,sz)
 end
 size(B::LazyGenerator, n::Int) = size(B)[n]
@@ -60,43 +61,43 @@ _check_phase_index(i::Int,model::Model) = (i∉phases(model)) && throw(DomainErr
 _check_mesh_index(k::Int,mesh::Mesh) = !(1<=k<=n_intervals(mesh)) && throw(DomainError("k in not a valid cell"))
 _check_basis_index(p::Int,mesh::Mesh) = !(1<=p<=n_bases(mesh))
 
-function _map_to_index_interior(i::Int,k::Int,p::Int,model::Model,mesh::Mesh)
+function _map_to_index_interior(i::Int,k::Int,p::Int,dq::DiscretisedFluidQueue)
     # i phase
     # k cell
     # p basis
     
-    _check_phase_index(i,model)
-    _check_mesh_index(k,mesh)
-    _check_basis_index(p,mesh)
+    _check_phase_index(i,dq.model)
+    _check_mesh_index(k,dq.mesh)
+    _check_basis_index(p,dq.mesh)
 
-    P = n_bases(mesh)
-    KP = total_n_bases(mesh)
+    P = n_bases(dq.mesh)
+    KP = total_n_bases(dq.mesh)
 
     idx = (i-1)*KP + (k-1)*P + p
-    return N₋(mesh) + idx 
+    return N₋(dq.mesh) + idx 
 end
-function _map_to_index_boundary(i::Int,model::Model,mesh::Mesh)
+function _map_to_index_boundary(i::Int,dq::DiscretisedFluidQueue)
     # i phase
-    _check_phase_index(i,model)
-    if _has_left_boundary(model.S,i) 
-        idx = N₋(model.S[1:i])
-    else _has_right_boundary(model.S,i)
-        N = n_phases(model)
-        KP = total_n_bases(mesh)
-        idx = N₊(model.S[1:i]) + KP*N + N₋(model.S)
+    _check_phase_index(i,dq.model)
+    if _has_left_boundary(dq.model.S,i) 
+        idx = N₋(dq.model.S[1:i])
+    else _has_right_boundary(dq.model.S,i)
+        N = n_phases(dq.model)
+        KP = total_n_bases(dq.mesh)
+        idx = N₊(dq.model.S[1:i]) + KP*N + N₋(dq.model.S)
     end
     return idx
 end
 
-_is_boundary_index(n::Int,B::LazyGenerator) = (n∈1:N₋(B.model.S))||(n∈(size(B,1).-(0:N₊(B.model.S)-1)))
+_is_boundary_index(n::Int,B::LazyGenerator) = (n∈1:N₋(B.dq.model.S))||(n∈(size(B,1).-(0:N₊(B.dq.model.S)-1)))
 function _map_from_index_interior(n::Int,B::LazyGenerator)
     # n matrix index to map to phase, cell, basis
     (!(1<=n<=size(B,1))||_is_boundary_index(n,B))&&throw(DomainError(n,"not a valid interior index"))
     
-    n -= (N₋(B.model.S)+1)
-    N = n_phases(B.model)
-    KP = total_n_bases(B.mesh)
-    P = n_bases(B.mesh)
+    n -= (N₋(B.dq.model.S)+1)
+    N = n_phases(B.dq.model)
+    KP = total_n_bases(B.dq.mesh)
+    P = n_bases(B.dq.mesh)
 
     i = (n÷KP) + 1
     k = mod(n,KP)÷P + 1 #(n-1 - (i-1)*KP)÷P + 1
@@ -107,18 +108,18 @@ function _map_from_index_boundary(n::Int,B::LazyGenerator)
     # n matrix index to map to phase at boundary
     (!_is_boundary_index(n,B))&&throw(DomainError("not a valid boundary index"))
     
-    if n>N₋(B.model.S)
-        i₊ = n-N₋(B.model.S)-total_n_bases(B.mesh)*n_phases(B.model)
+    if n>N₋(B.dq.model.S)
+        i₊ = n-N₋(B.dq.model.S)-total_n_bases(B.dq.mesh)*n_phases(B.dq.model)
         i = 1
-        for j in phases(B.model.S)
-            (i₊==N₊(B.model.S[1:j])) && break
+        for j in phases(B.dq.model.S)
+            (i₊==N₊(B.dq.model.S[1:j])) && break
             i += 1
         end
     else 
         i₋ = n
         i = 1
-        for j in phases(B.model.S)
-            (i₋==N₋(B.model.S[1:j])) && break
+        for j in phases(B.dq.model.S)
+            (i₋==N₋(B.dq.model.S[1:j])) && break
             i += 1
         end
     end
@@ -141,8 +142,8 @@ function *(u::AbstractArray{Float64,2}, B::LazyGenerator)
         v = zeros(sz_u_1,sz_B_2)
     end
     
-    model = B.model
-    mesh = B.mesh
+    model = B.dq.model
+    mesh = B.dq.mesh
 
     Kp = total_n_bases(mesh) # K = n_intervals(mesh), p = n_bases(mesh)
     C = rates(model)
@@ -228,8 +229,8 @@ function *(B::LazyGenerator, u::AbstractArray{Float64,2})
         v = zeros(sz_u_1,sz_B_2)
     end
 
-    model = B.model
-    mesh = B.mesh
+    model = B.dq.model
+    mesh = B.dq.mesh
     Kp = total_n_bases(mesh) # K = n_intervals, p = n_bases
 
     C = rates(model)
@@ -315,8 +316,8 @@ function getindex_interior(B::LazyGenerator,row::Int,col::Int)
     i, k, p = _map_from_index_interior(row,B)
     j, l, q = _map_from_index_interior(col,B)
     
-    model = B.model
-    mesh = B.mesh
+    model = B.dq.model
+    mesh = B.dq.mesh
     C = rates(model)
 
     v=0.0
@@ -339,8 +340,8 @@ function getindex_out_boundary(B::LazyGenerator,row::Int,col::Int)
     (!_is_boundary_index(row,B))&&throw(DomainError(row,"row index does not correspond to a boundary"))
     j, l, q = _map_from_index_interior(col,B)
     
-    model = B.model
-    mesh = B.mesh
+    model = B.dq.model
+    mesh = B.dq.mesh
     C = rates(model)
 
     i = _map_from_index_boundary(row,B)
@@ -358,8 +359,8 @@ function getindex_in_boundary(B::LazyGenerator,row::Int,col::Int)
     (!_is_boundary_index(col,B))&&throw(DomainError(col,"col index does not correspond to a boundary"))
     i, k, p = _map_from_index_interior(row,B)
     
-    model = B.model
-    mesh = B.mesh
+    model = B.dq.model
+    mesh = B.dq.mesh
     C = rates(model)
     
     j = _map_from_index_boundary(col,B)
@@ -377,7 +378,7 @@ end
 function getindex(B::LazyGenerator,row::Int,col::Int)
     checkbounds(B,row,col)
 
-    model = B.model
+    model = B.dq.model
 
     if _is_boundary_index(row,B) && _is_boundary_index(col,B)
         i = _map_from_index_boundary(row,B)

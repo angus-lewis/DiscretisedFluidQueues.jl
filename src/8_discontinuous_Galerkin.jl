@@ -166,9 +166,9 @@ Creates the DG approximation to the generator `B`.
         integers such such that `:B[QBDidx,QBDidx]` puts all the blocks relating
         to cell `k` next to each other
 """
-function MakeLazyGenerator(model::Model, mesh::DGMesh; v::Bool = false)
+function MakeLazyGenerator(dq::DiscretisedFluidQueue{DGMesh}; v::Bool = false)
 
-    m = local_dg_operators(mesh; v=v)
+    m = local_dg_operators(dq.mesh; v=v)
     blocks = (m.LowDiagBlock*m.MInv*2, (m.G+m.PosDiagBlock)*m.MInv*2, 
         -(m.G+m.NegDiagBlock)*m.MInv*2, m.UpDiagBlock*m.MInv*2)
 
@@ -179,9 +179,9 @@ function MakeLazyGenerator(model::Model, mesh::DGMesh; v::Bool = false)
                 out = (m.Phi[1, :]' * m.Dw.Dw * m.MInv)[:])
     )
 
-    D = LinearAlgebra.I(n_bases(mesh))
+    D = LinearAlgebra.I(n_bases(dq.mesh))
 
-    out = LazyGenerator(model,mesh,blocks,boundary_flux,D)
+    out = LazyGenerator(dq,blocks,boundary_flux,D)
     v && println("UPDATE: LazyGenerator object created with keys ", keys(out))
     return out
 end

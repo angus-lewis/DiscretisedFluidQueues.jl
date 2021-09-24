@@ -100,6 +100,6 @@ end
 
 function legendre_to_lagrange(coeffs)
     order = length(coeffs)
-    V = vandermonde(n_bases(mesh))
+    V = vandermonde(order)
     return V.V*coeffs
 end
