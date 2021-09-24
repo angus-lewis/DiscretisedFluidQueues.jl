@@ -13,10 +13,10 @@ This package implements finite element and finite volume numerical solvers to ap
     + QBD-RAP approximation: use matrix-exponential distributions to model the solution locally on each cell.
 
 ```jl
-pkg> add https://github.com/angus-lewis/StochasticFluidQueues
+pkg> add https://github.com/angus-lewis/DiscretisedFluidQueues
 ```
 ```jl
-julia> import StochasticFluidQueues
+julia> import DiscretisedFluidQueues
 ```
 
 Create a model with (for example)
@@ -24,22 +24,22 @@ Create a model with (for example)
 T = [-2.5 2 0.5; 1 -2 1; 1 2 -3] # generator of the phase
 C = [0.0; 2.0; -3.0]    # rates dX/dt
 
-S = StochasticFluidQueues.PhaseSet(C) # constructor for phases
+S = DiscretisedFluidQueues.PhaseSet(C) # constructor for phases
 
 bounds = [0.0,12]
-model = StochasticFluidQueues.FluidQueue(T,S,bounds) # model object
+model = DiscretisedFluidQueues.FluidQueue(T,S,bounds) # model object
 ```
 
 Create a mesh (a grid over which to approximate the solution) with (e.g.)
 ```jl
 nbases = 3
-dgmesh = StochasticFluidQueues.DGMesh(nodes,nbases)
+dgmesh = DiscretisedFluidQueues.DGMesh(nodes,nbases)
 
 fv_order = 3
-fvmesh = StochasticFluidQueues.FVMesh(nodes,fv_order)
+fvmesh = DiscretisedFluidQueues.FVMesh(nodes,fv_order)
 
 order = 3
-frapmesh = StochasticFluidQueues.FRAPMesh(nodes,order)
+frapmesh = DiscretisedFluidQueues.FRAPMesh(nodes,order)
 ```
 
 Construct an approximation to the generator with 
