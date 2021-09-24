@@ -1,17 +1,20 @@
 # DiscretisedFluidQueues
-#### Numerical approximation schemes for stochastic fluid queues.
+### Numerical approximation schemes for stochastic fluid queues.
 
-The evolution of stochastic fluid queues can be described by the PDE (when it exists)
-\begin{equation}
-    \frac{\partial}{\partial t}  f(x,i,t) =  f(x,i,t) T - \frac{\partial}{\partial x}  f(x,i,t) C,
-\end{equation}
-where $ f(x,i,t) dx = (f(x,i,t))_{i\in S} = (P(X(t)\in dx, \varphi(t)=i))_{i\in S}$ the time-dependent joint density/mass function. 
+The evolution of a stochastic fluid queue with generator <img src="https://render.githubusercontent.com/render/math?math=T=[T_{ij}]_{i,j\in S}"> and associated diagonal matrix of rates <img src="https://render.githubusercontent.com/render/math?math=C = diag(c_i,i\in S)"> can be described by the PDE (when it exists)
+
+<img src="https://render.githubusercontent.com/render/math?math=\cfrac{\partial}{\partial t}  \mathbf f(x,i,t) =  \mathbf f(x,i,t) T - \cfrac{\partial}{\partial x}  \mathbf f(x,i,t) C">
+
+where <img src="https://render.githubusercontent.com/render/math?math=\mathbf f(x,i,t) dx = (f(x,i,t))_{i\in S} = (P(X(t)\in dx, \varphi(t)=i))_{i\in S}"> the time-dependent joint density/mass function. 
 
 This package implements finite element and finite volume numerical solvers to approximate the right-hand side of this PDE; 
-    + Discontinuous Galerkin: projects the right-hand side of the PDE on to a basis of polynomials,
-    + Finite volume:
-    + QBD-RAP approximation: use matrix-exponential distributions to model the solution locally on each cell.
 
+* Discontinuous Galerkin: projects the right-hand side of the PDE on to a basis of polynomials,
+* Finite volume:
+* QBD-RAP approximation: use matrix-exponential distributions to model the solution locally on each cell.
+
+---
+### Usage
 ```jl
 pkg> add https://github.com/angus-lewis/DiscretisedFluidQueues
 ```
@@ -24,9 +27,9 @@ Create a model with (for example)
 T = [-2.5 2 0.5; 1 -2 1; 1 2 -3] # generator of the phase
 C = [0.0; 2.0; -3.0]    # rates dX/dt
 
-S = DiscretisedFluidQueues.PhaseSet(C) # constructor for phases
+S = DiscretisedFluidQueues.PhaseSet(C) 
 
-model = DiscretisedFluidQueues.FluidQueue(T,S) # model object
+model = DiscretisedFluidQueues.FluidQueue(T,S) 
 ```
 
 Create a discretisation mesh (a grid + method with which to approximate the solution) with any of (e.g.)
@@ -52,9 +55,9 @@ B = DiscretisedFluidQueues.MakeFullGenerator(dq)
 ```
 `B` is essentially a matrix which we can think of as describing the ODE
 \begin{equation}
-    \frac{\partial}{\partial t}  a(t) =  a(t) B
+    \frac{\partial}{\partial t}   \mathbf a(t) =   \mathbf a(t) B
 \end{equation}
-where $a(t)$ is a row vector of coefficients and $ a(t)u(x) \approx f(x,i,t)$ approximates the solution where $u(x)$ is a column vector of function defined by the discretistion scheme.
+where $ \mathbf a(t)$ is a row vector of coefficients and $  \mathbf a(t)  \mathbf u(x,i) \approx  \mathbf f(x,i,t)$ approximates the solution where $ \mathbf u(x,i)$ is a column vector of functions defined by the discretisation scheme.
 
 Construct an initial distribution with (e.g.)
 ```jl
