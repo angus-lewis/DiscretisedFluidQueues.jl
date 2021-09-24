@@ -1,4 +1,4 @@
-# StochasticFluidQueues
+# DiscretisedFluidQueues
 #### Numerical approximation schemes for stochastic fluid queues.
 
 The evolution of stochastic fluid queues can be described by the PDE (when it exists)
