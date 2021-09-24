@@ -146,23 +146,23 @@ end
 """
 Constructs the `StoppingTime` ``1(t>T)``
 
-    FixedTime( T::Real)
+    fixed_time( T::Real)
 
 # Arguments
 - `T`: a time at which to stop the process
 
 # Output
-- `FixedTimeFun`: a function with one methods
-    - `FixedTimeFun(
+- `fixed_timeFun`: a function with one methods
+    - `fixed_timeFun(
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
     )`: a stopping time for a SFM.
 """
-function FixedTime(T::Float64)
+function fixed_time(T::Float64)
     # Defines a simple stopping time, 1(t>T).
     # SFM method
-    function FixedTimeFun(
+    function fixed_timeFun(
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
@@ -177,30 +177,30 @@ function FixedTime(T::Float64)
         end
         return (Ind = Ind, SFM = SFM)
     end
-    return FixedTimeFun
+    return fixed_timeFun
 end
 
 """
 Constructs the `StoppingTime` ``1(N(t)>n)`` where ``N(t)`` is the number of
 jumps of ``φ`` by time ``t``.
 
-    NJumps( N::Int)
+    n_jumps( N::Int)
 
 # Arguments
 - `N`: a desired number of jumps
 
 # Output
-- `NJumpsFun`: a function with one methods
-    - `NJumpsFun(
+- `n_jumpsFun`: a function with one methods
+    - `n_jumpsFun(
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
     )`: a stopping time for a SFM.
 """
-function NJumps( N::Int)
+function n_jumps( N::Int)
     # Defines a simple stopping time, 1(n>N), where n is the number of jumps of φ.
     # SFM method
-    function NJumpsFun(
+    function n_jumpsFun(
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
@@ -208,30 +208,30 @@ function NJumps( N::Int)
         Ind = SFM.n >= N
         return (Ind = Ind, SFM = SFM)
     end
-    return NJumpsFun
+    return n_jumpsFun
 end
 
 """
 Constructs the `StoppingTime` which is the first exit of the process ``X(t)``
 from the interval ``[u,v]``.
 
-    FirstExitX( u::Real, v::Real)
+    first_exit_x( u::Real, v::Real)
 
 # Arguments
 - `u`: a lower boundary
 - `v`: an upper boundary
 
 # Output
-- `FirstExitXFun`: a function with one methods
-    - `FirstExitXFun(
+- `first_exit_xFun`: a function with one methods
+    - `first_exit_xFun(
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
     )`: a stopping time for a SFM.
 """
-function FirstExitX( u::Real, v::Real)
+function first_exit_x( u::Real, v::Real)
     # SFM Method
-    function FirstExitXFun(
+    function first_exit_xFun(
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
@@ -249,5 +249,5 @@ function FirstExitX( u::Real, v::Real)
         end
         return (Ind = Ind, SFM = SFM)
     end
-    return FirstExitXFun
+    return first_exit_xFun
 end

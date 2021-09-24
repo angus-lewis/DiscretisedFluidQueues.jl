@@ -1,7 +1,25 @@
 module DiscretisedFluidQueues
-import Base: *, size, show, getindex, +, -, setindex!
+
 import Jacobi, LinearAlgebra, SparseArrays
-# import Plots, StatsBase, KernelDensity
+import Base: *, size, show, getindex, +, -, setindex!
+
+# Types
+export Model, DiscretisedFluidQueue, FluidQueue, Phase, PhaseSet # Queues are <:Model
+export AbstractMatrixExponential, ConcentratedMatrixExponential, MatrixExponential 
+export Mesh, DGMesh, FRAPMesh, FVMesh # are <:Mesh
+export Generator, FullGenerator, LazyGenerator # are <:Generator
+export SFMDistribution
+export TimeIntegrationScheme, Euler # Euler <: TimeIntegrationScheme
+export Simulation
+
+# Functions 
+export augment_model, membership, N₋, N₊, n_phases, phases, rates # Model methods 
+export cell_nodes, Δ, n_bases_per_cell, n_bases_per_phase, n_intervals, total_n_bases # Mesh methods 
+export interior_point_mass, left_point_mass, right_point_mass, integrate_time # SFMDistribution methods
+export simulate, fixed_time, n_jumps, first_exit_x # Simulation methods
+export build_lazy_generator, build_full_generator
+export psi_fun_x, xi_x, stationary_distribution_x
+export cme_params, pdf, ccdf, cdf, build_me
 
 # model
 include("1_SFM.jl")

@@ -45,7 +45,7 @@ Uses newtons method to solve the Ricatti equation
 # Output
 - `Ψ(s)::Array{Float64,2}` the matrix ``Ψ``
 """
-function PsiFunX( model::Model; s = 0, MaxIters = 1000, err = 1e-8)
+function psi_fun_x( model::Model; s = 0, MaxIters = 1000, err = 1e-8)
     SDict, TDict = _model_dicts(model)
 
     T00inv = inv(TDict["00"] - s * LinearAlgebra.I)
@@ -82,16 +82,16 @@ end
 Construct the vector ``ξ`` containing the distribution of the phase at the time
 when ``X(t)`` first hits `0`.
 
-    MakeXiX( model::Model, Ψ::Array)
+    xi_x( model::Model, Ψ::Array)
 
 # Arguments
 - `model`: a Model object
-- `Ψ`: an array as output from `PsiFunX`
+- `Ψ`: an array as output from `psi_fun_x`
 
 # Output
 - the vector `ξ`
 """
-function MakeXiX( model::Model, Ψ::Array)
+function xi_x( model::Model, Ψ::Array)
     # the system to solve is [ξ 0](-[B₋₋ B₋₀; B₀₋ B₀₀])⁻¹[B₋₊; B₀₊]Ψ = ξ
     # writing this out and using block inversion (as described on wikipedia)
     # we can solve this in the following way
@@ -119,12 +119,12 @@ end
 """
 Construct the stationary distribution of the SFM
 
-    StationaryDistributionX( model::Model, Ψ::Array, ξ::Array)
+    stationary_distribution_x( model::Model, Ψ::Array, ξ::Array)
 
 # Arguments
 - `model`: a Model object
-- `Ψ`: an array as output from `PsiFunX`
-- `ξ`: an array as returned from `MakeXiX`
+- `Ψ`: an array as output from `psi_fun_x`
+- `ξ`: an array as returned from `xi_x`
 
 # Output
 - `pₓ::Array{Float64,2}`: the point masses of the SFM
@@ -135,8 +135,8 @@ Construct the stationary distribution of the SFM
         as is output by Coeff2Dist.
 - `K::Array{Float64,2}`: the matrix in the exponential of the density.
 """
-function StationaryDistributionX( model::Model, Ψ::Array, ξ::Array)
-    # using the same block inversion trick as in MakeXiX
+function stationary_distribution_x( model::Model, Ψ::Array, ξ::Array)
+    # using the same block inversion trick as in xi_x
     SDict, TDict = _model_dicts(model)
     
     T00inv = inv(TDict["00"])
@@ -230,9 +230,10 @@ function StationaryDistributionX( model::Model, Ψ::Array, ξ::Array)
     return pₓ, πₓ, Πₓ, K
 end
 
-function StationaryDistributionX( model::Model)
-    Ψ = PsiFunX( model)
-    ξ = MakeXiX( model, Ψ)
-    pₓ, πₓ, Πₓ, K = StationaryDistributionX(model,Ψ,ξ)
+function stationary_distribution_x( model::Model)
+    Ψ = psi_fun_x( model)
+    ξ = xi_x( model, Ψ)
+    pₓ, πₓ, Πₓ, K = stationary_distribution_x(model,Ψ,ξ)
     return pₓ, πₓ, Πₓ, K
 end
+

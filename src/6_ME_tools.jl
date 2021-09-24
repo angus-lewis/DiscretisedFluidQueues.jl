@@ -3,7 +3,7 @@ dir = @__DIR__
 
 erlangDParams = FileIO.load(dir*"/erlangParamsData/erlangDParams.jld2", "erlangDParams")
 
-CMEParams = FileIO.load(dir*"/CMEParamsData/CMEParams.jld2", "CMEParams")
+cme_params = FileIO.load(dir*"/CMEParamsData/CMEParams.jld2", "CMEParams")
 
 abstract type AbstractMatrixExponential end
 
@@ -127,7 +127,7 @@ cdf(a::Array{Float64,2}, me::AbstractMatrixExponential, x::Array{Float64}) = cdf
 """
 
 """
-function MakeME(params; mean::Real = 1)
+function build_me(params; mean::Real = 1)
     N = 2*params["n"]+1
     α = zeros(1,N)
     α[1] = params["c"]
@@ -152,7 +152,7 @@ function MakeME(params; mean::Real = 1)
     return ConcentratedMatrixExponential(α,Q,q,params["D"])
 end
 
-ConcentratedMatrixExponential(order::Int; mean::Float64 = 1.0) = MakeME(CMEParams[order], mean=mean)
+ConcentratedMatrixExponential(order::Int; mean::Float64 = 1.0) = build_me(cme_params[order], mean=mean)
 
 function MakeErlang(order; mean::Float64 = 1.0)
     α = zeros(1,order) # inital distribution
@@ -177,7 +177,7 @@ orbit(me::AbstractMatrixExponential,t::Float64) =
     orbit(me)(t)
 
 function orbit(me::ConcentratedMatrixExponential)
-    params = CMEParams[_order(me)]
+    params = cme_params[_order(me)]
     mean = -sum(me.a/me.S)
     function _orbit(t)
         position = zeros(size(me.a))
@@ -198,7 +198,7 @@ end
 
 function expected_orbit_from_pdf(pdf::Function,me::AbstractMatrixExponential,a::Float64,b::Float64,evals::Int=10)
     # evals is an integer specifying how many points to eval the function at
-    # params is a CMEParams dictionary entry, i.e. CMEParams[3]
+    # params is a cme_params dictionary entry, i.e. cme_params[3]
     (b<=a)&&throw(DomainError("must have b>a"))
     delta = b-a # the orbit repeats after this time
     edges = range(0,delta,length=evals+1) # points at which to evaluate the fn
@@ -225,7 +225,7 @@ end
 
 function expected_orbit_from_cdf(cdf::Function,me::AbstractMatrixExponential,a::Float64,b::Float64,evals::Int)
     # evals is an integer specifying how many points to eval the function at
-    # params is a CMEParams dictionary entry, i.e. CMEParams[3]
+    # params is a cme_params dictionary entry, i.e. cme_params[3]
     (b<=a)&&throw(DomainError("must have b>a"))
     delta = b-a # the orbit repeats after this time
     edges = range(0,delta,length=evals+1) # points at which to evaluate the fn
@@ -278,3 +278,4 @@ end
 #     end
 #     return (density=density,mean=mean,ExpectedOrbit=ExpectedOrbit)
 # end
+

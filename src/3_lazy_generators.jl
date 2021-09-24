@@ -47,7 +47,7 @@ end
 #     return LazyGenerator(blocks, boundary_flux, D)
 # end
 
-function MakeLazyGenerator(dq::DiscretisedFluidQueue; v::Bool=false)
+function build_lazy_generator(dq::DiscretisedFluidQueue; v::Bool=false)
     throw(DomainError("Can construct LazyGenerator for DGMesh, FRAPMesh, only"))
 end
 
@@ -385,6 +385,4 @@ function getindex(B::LazyGenerator,row::Int,col::Int)
     end
     return v
 end
-
-export getindex, *
 

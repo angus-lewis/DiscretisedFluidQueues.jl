@@ -148,5 +148,3 @@ function augment_model(model::FluidQueue)
     end
 end
 
-export Model, Phase, PhaseSet, n_phases, rates, membership, phases, 
-    checksquare, N₋, N₊, FluidQueue, augment_model, pmidx

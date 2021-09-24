@@ -25,12 +25,13 @@ function show(io::IO, mime::MIME"text/plain", B::FullGenerator)
     end
 end
 
-function MakeFullGenerator(dq::DiscretisedFluidQueue; v::Bool=false) 
-    lazy = MakeLazyGenerator(dq; v=v)
-    return materialise(lazy)
+function build_full_generator(dq::DiscretisedFluidQueue; v::Bool=false) 
+    lazy = build_lazy_generator(dq; v=v)
+    return build_full_generator(lazy)
 end
 
-function materialise(lzB::LazyGenerator)
+function build_full_generator(lzB::LazyGenerator)
     B = SparseArrays.SparseMatrixCSC{Float64,Int}(LinearAlgebra.I(size(lzB,1)))*lzB
     return FullGenerator(B)
 end
+

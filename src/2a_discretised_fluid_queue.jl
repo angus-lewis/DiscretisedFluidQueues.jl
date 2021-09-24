@@ -30,7 +30,7 @@ n_bases_per_phase(dq::DiscretisedFluidQueue) = n_bases_per_phase(dq.mesh)
 total_n_bases(dq::DiscretisedFluidQueue) = n_bases_per_phase(dq)*n_phases(dq)
 cell_nodes(dq::DiscretisedFluidQueue) = cell_nodes(dq.mesh)
 
-function MakeQBDidx(dq::DiscretisedFluidQueue)
+function QBDidx(dq::DiscretisedFluidQueue)
     ## Make QBD index
     model = dq.model
     mesh = dq.mesh

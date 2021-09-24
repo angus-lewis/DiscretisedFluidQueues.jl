@@ -117,7 +117,7 @@ function pdf(d::SFMDistribution{FRAPMesh})
                 yₖ = mesh.nodes[cell_idx]
                 to_go = x-yₖ
             end
-            me = MakeME(CMEParams[n_bases_per_cell(mesh)], mean = Δ(mesh)[cell_idx])
+            me = build_me(cme_params[n_bases_per_cell(mesh)], mean = Δ(mesh)[cell_idx])
             fxi = (pdf(Array(coeffs'),me,to_go) + pdf(Array(coeffs'),me,2*Δ(mesh)[cell_idx]-to_go))./cdf(Array(coeffs'),me,2*Δ(mesh)[cell_idx])
         end
         return fxi
@@ -261,7 +261,7 @@ function cdf(d::SFMDistribution{FRAPMesh})
                 Fxi += _sum_cells_left(d, i, cell_idx)
                 
                 # integrate up to x in the cell which contains x
-                # me = MakeME(CMEParams[n_bases_per_cell(mesh)], mean = Δ(mesh)[cell_idx])
+                # me = build_me(cme_params[n_bases_per_cell(mesh)], mean = Δ(mesh)[cell_idx])
                 me = mesh.me
                 a = Array(coeffs')
                 if _has_right_boundary(d.dq.model.S,i)

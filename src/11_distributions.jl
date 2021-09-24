@@ -30,4 +30,3 @@ setindex!(d::SFMDistribution,x::Float64,i::Int,j::Int) = (d.coeffs[i,j]=x)
 
 include("11a_approximation.jl")
 include("11b_reconstruction.jl")
-

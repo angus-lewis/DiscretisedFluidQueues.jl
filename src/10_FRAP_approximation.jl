@@ -2,7 +2,7 @@ struct FRAPMesh <: Mesh
     nodes::Array{Float64,1}
     me::AbstractMatrixExponential
 end 
-FRAPMesh(nodes::Array{Float64,1},n_bases::Int) = FRAPMesh(nodes,MakeME(CMEParams[n_bases]))
+FRAPMesh(nodes::Array{Float64,1},n_bases::Int) = FRAPMesh(nodes,build_me(cme_params[n_bases]))
 
 function FRAPMesh()
     FRAPMesh(Array{Float64,1}(undef,0),0)
@@ -33,7 +33,7 @@ Constant ""
 """
 basis(mesh::FRAPMesh) = ""
 
-function MakeLazyGenerator(
+function build_lazy_generator(
     dq::DiscretisedFluidQueue{FRAPMesh};
     v::Bool=false,
 )   

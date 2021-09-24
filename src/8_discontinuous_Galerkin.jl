@@ -97,7 +97,6 @@ Returns mesh.basis; either "lagrange" or "legendre"
 """
 basis(mesh::DGMesh) = mesh.basis
 
-
 function local_dg_operators(
     mesh::DGMesh;
     v::Bool = false,
@@ -144,7 +143,7 @@ end
 """
 Creates the DG approximation to the generator `B`.
 
-    MakeLazyGenerator(
+    build_lazy_generator(
         model::Model,
         mesh::DGMesh,
         Matrices::NamedTuple;
@@ -166,7 +165,7 @@ Creates the DG approximation to the generator `B`.
         integers such such that `:B[QBDidx,QBDidx]` puts all the blocks relating
         to cell `k` next to each other
 """
-function MakeLazyGenerator(dq::DiscretisedFluidQueue{DGMesh}; v::Bool = false)
+function build_lazy_generator(dq::DiscretisedFluidQueue{DGMesh}; v::Bool = false)
 
     m = local_dg_operators(dq.mesh; v=v)
     blocks = (m.LowDiagBlock*m.MInv*2, (m.G+m.PosDiagBlock)*m.MInv*2, 
@@ -186,5 +185,3 @@ function MakeLazyGenerator(dq::DiscretisedFluidQueue{DGMesh}; v::Bool = false)
     return out
 end
 
-
-export DGMesh, n_bases, cell_nodes, basis, local_dg_operators, MakeLazyGenerator

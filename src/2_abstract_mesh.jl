@@ -6,7 +6,6 @@ Abstract type representing a discretisation mesh for a numerical scheme.
 """
 abstract type Mesh end 
 
-
 """
 
     n_intervals(mesh::Mesh)
@@ -38,5 +37,3 @@ The width of cell k
 Total number of bases in the stencil
 """
 n_bases_per_phase(mesh::Mesh) = n_bases_per_cell(mesh) * n_intervals(mesh)
-
-export n_intervals, Δ, n_bases_per_phase, MakeQBDidx, Mesh
