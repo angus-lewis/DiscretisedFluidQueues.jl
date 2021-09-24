@@ -176,9 +176,9 @@ function StationaryDistributionX( model::Model, Ψ::Array, ξ::Array)
     # point masses
     pₓ = αpₓ/α
     # density method for scalar x-values
-    idx = [findall(StochasticFluidQueues.rates(model).>0);
-        findall(StochasticFluidQueues.rates(model).<0);
-        findall(StochasticFluidQueues.rates(model).==0)]
+    idx = [findall(rates(model).>0);
+        findall(rates(model).<0);
+        findall(rates(model).==0)]
     function πₓ(x::Real)
         out = zeros(n_phases(model))
         out[idx] = (pₓ *

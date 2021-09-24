@@ -1,6 +1,6 @@
 using Revise, LinearAlgebra, SparseArrays
-include("StochasticFluidQueues.jl")
-import .StochasticFluidQueues 
+include("DiscretisedFluidQueues.jl")
+import .DiscretisedFluidQueues 
 using Test
 
 T = [-2.5 2 0.5; 1 -2 1; 1 2 -3]
@@ -8,111 +8,111 @@ T_nz = T - [0.01 0 0;0 0 0;0 0 0]
 T_warn = T - [0.000001 0 0;0 0 0;0 0 0]
 
 C = [0.0; 2.0; -3.0]
-m = -1 .+ 2*Int.(StochasticFluidQueues._strictly_pos.(C))
-S = StochasticFluidQueues.PhaseSet(C)
+m = -1 .+ 2*Int.(DiscretisedFluidQueues._strictly_pos.(C))
+S = DiscretisedFluidQueues.PhaseSet(C)
 
 bounds = [0.0,12]
-model = StochasticFluidQueues.FluidQueue(T,S,bounds)
+model = DiscretisedFluidQueues.FluidQueue(T,S,bounds)
 
 T_aug = [-2.5 0 2 0.5; 0 -2.5 2 0.5; 1 0 -2 1; 0 1 2 -3]
 C_aug = [0.0;-0.0;C[2:3]]
-m_aug = -1 .+ 2*Int.(StochasticFluidQueues._strictly_pos.(C_aug))
-S_aug = StochasticFluidQueues.PhaseSet(C_aug)
-am = StochasticFluidQueues.FluidQueue(T_aug,S_aug,model.bounds)
+m_aug = -1 .+ 2*Int.(DiscretisedFluidQueues._strictly_pos.(C_aug))
+S_aug = DiscretisedFluidQueues.PhaseSet(C_aug)
+am = DiscretisedFluidQueues.FluidQueue(T_aug,S_aug,model.bounds)
 
 nodes = [0.0;3.0;4.0;12.0]
 nbases = 3
-dgmesh = StochasticFluidQueues.DGMesh(nodes,nbases)
+dgmesh = DiscretisedFluidQueues.DGMesh(nodes,nbases)
 
-am = StochasticFluidQueues.augment_model(model)
+am = DiscretisedFluidQueues.augment_model(model)
 
 fv_order = 3
-fvmesh = StochasticFluidQueues.FVMesh(nodes,fv_order)
+fvmesh = DiscretisedFluidQueues.FVMesh(nodes,fv_order)
 
 order = 3
-frapmesh = StochasticFluidQueues.FRAPMesh(nodes,order)
+frapmesh = DiscretisedFluidQueues.FRAPMesh(nodes,order)
 
 @testset begin
 @testset "Phase and FluidQueue" begin 
     @testset "PhaseSet struct" begin
-        @test S[1]==StochasticFluidQueues.Phase(0.0,1)
-        @test_throws DomainError StochasticFluidQueues.PhaseSet([-1.0],[1]) 
-        @test_throws DomainError StochasticFluidQueues.PhaseSet([-1.0],[2]) 
-        @test S == [StochasticFluidQueues.Phase(C[i]) for i in 1:length(C)]
-        @test StochasticFluidQueues.n_phases(S)==3
-        @test [StochasticFluidQueues.rates(S,i) for i in 1:length(C)]==C
-        @test StochasticFluidQueues.rates(S)==C
-        @test [StochasticFluidQueues.membership(S,i) for i in 1:length(m)]==m
-        @test StochasticFluidQueues.membership(S)==m
-        @test StochasticFluidQueues.phases(S)==1:length(C)
-        @test StochasticFluidQueues.N₊(S)==sum(C.>=0.0)
-        @test StochasticFluidQueues.N₋(S)==sum(C.<=0.0)
-        @test StochasticFluidQueues.checksquare(T)===nothing
-        @test_throws DomainError StochasticFluidQueues.checksquare(T[1:2,:])
+        @test S[1]==DiscretisedFluidQueues.Phase(0.0,1)
+        @test_throws DomainError DiscretisedFluidQueues.PhaseSet([-1.0],[1]) 
+        @test_throws DomainError DiscretisedFluidQueues.PhaseSet([-1.0],[2]) 
+        @test S == [DiscretisedFluidQueues.Phase(C[i]) for i in 1:length(C)]
+        @test DiscretisedFluidQueues.n_phases(S)==3
+        @test [DiscretisedFluidQueues.rates(S,i) for i in 1:length(C)]==C
+        @test DiscretisedFluidQueues.rates(S)==C
+        @test [DiscretisedFluidQueues.membership(S,i) for i in 1:length(m)]==m
+        @test DiscretisedFluidQueues.membership(S)==m
+        @test DiscretisedFluidQueues.phases(S)==1:length(C)
+        @test DiscretisedFluidQueues.N₊(S)==sum(C.>=0.0)
+        @test DiscretisedFluidQueues.N₋(S)==sum(C.<=0.0)
+        @test DiscretisedFluidQueues.checksquare(T)===nothing
+        @test_throws DomainError DiscretisedFluidQueues.checksquare(T[1:2,:])
     end
 
     @testset "FluidQueue struct" begin
         @test model.T==T
-        @test StochasticFluidQueues.n_phases(model)==length(C)
-        @test StochasticFluidQueues.n_phases(model.S)==length(C)
+        @test DiscretisedFluidQueues.n_phases(model)==length(C)
+        @test DiscretisedFluidQueues.n_phases(model.S)==length(C)
         @test model.S==S
-        @test StochasticFluidQueues.rates(model)==C
-        @test StochasticFluidQueues.rates(model,1)==C[1]
-        @test StochasticFluidQueues.n_phases(model)==length(C)
-        @test StochasticFluidQueues.phases(model)==1:length(C)
+        @test DiscretisedFluidQueues.rates(model)==C
+        @test DiscretisedFluidQueues.rates(model,1)==C[1]
+        @test DiscretisedFluidQueues.n_phases(model)==length(C)
+        @test DiscretisedFluidQueues.phases(model)==1:length(C)
 
-        @test_logs (:warn,"row sums of T must be 0 (tol=1e-5)") StochasticFluidQueues.FluidQueue(T_warn,S,bounds)
+        @test_logs (:warn,"row sums of T must be 0 (tol=1e-5)") DiscretisedFluidQueues.FluidQueue(T_warn,S,bounds)
 
-        @test_throws DomainError StochasticFluidQueues.FluidQueue(T_nz[1:2,:],S,bounds)
-        @test_throws DomainError StochasticFluidQueues.FluidQueue(T_nz,S,bounds)
-        @test_throws DomainError StochasticFluidQueues.FluidQueue(T,S,[0])
-        @test_throws DomainError StochasticFluidQueues.FluidQueue(T,S[1:end-1],bounds)
+        @test_throws DomainError DiscretisedFluidQueues.FluidQueue(T_nz[1:2,:],S,bounds)
+        @test_throws DomainError DiscretisedFluidQueues.FluidQueue(T_nz,S,bounds)
+        @test_throws DomainError DiscretisedFluidQueues.FluidQueue(T,S,[0])
+        @test_throws DomainError DiscretisedFluidQueues.FluidQueue(T,S[1:end-1],bounds)
     end
 
-    for f in fieldnames(StochasticFluidQueues.FluidQueue)
-        @eval @test am.$f==StochasticFluidQueues.augment_model(model).$f
+    for f in fieldnames(DiscretisedFluidQueues.FluidQueue)
+        @eval @test am.$f==DiscretisedFluidQueues.augment_model(model).$f
     end
 end 
 
 @testset "Mesh Basics" begin 
     @testset "DG Mesh basics" begin    
-        @test typeof(dgmesh)==StochasticFluidQueues.DGMesh
-        @test typeof(dgmesh)<:StochasticFluidQueues.Mesh
-        @test StochasticFluidQueues.n_intervals(dgmesh)==length(nodes)-1
-        @test StochasticFluidQueues.Δ(dgmesh) == nodes[2:end]-nodes[1:end-1]
-        @test StochasticFluidQueues.Δ(dgmesh,1) == nodes[2]-nodes[1]
-        @test StochasticFluidQueues.total_n_bases(dgmesh) == (length(nodes)-1)*nbases
-        @test StochasticFluidQueues.n_bases(dgmesh) == 3
-        @test StochasticFluidQueues.cell_nodes(dgmesh)≈
+        @test typeof(dgmesh)==DiscretisedFluidQueues.DGMesh
+        @test typeof(dgmesh)<:DiscretisedFluidQueues.Mesh
+        @test DiscretisedFluidQueues.n_intervals(dgmesh)==length(nodes)-1
+        @test DiscretisedFluidQueues.Δ(dgmesh) == nodes[2:end]-nodes[1:end-1]
+        @test DiscretisedFluidQueues.Δ(dgmesh,1) == nodes[2]-nodes[1]
+        @test DiscretisedFluidQueues.total_n_bases(dgmesh) == (length(nodes)-1)*nbases
+        @test DiscretisedFluidQueues.n_bases(dgmesh) == 3
+        @test DiscretisedFluidQueues.cell_nodes(dgmesh)≈
             [nodes[1:end-1]';(nodes[1:end-1]'+nodes[2:end]')/2;nodes[2:end]'] atol=1e-5
-        @test StochasticFluidQueues.basis(dgmesh) == "lagrange"
+        @test DiscretisedFluidQueues.basis(dgmesh) == "lagrange"
         # @test local_dg_operators(dgmesh) == ???
         # test MakeQBDidx 
     end
 
     @testset "FV Mesh basics" begin    
-        @test typeof(fvmesh)==StochasticFluidQueues.FVMesh
-        @test typeof(fvmesh)<:StochasticFluidQueues.Mesh
-        @test StochasticFluidQueues.n_intervals(fvmesh)==length(nodes)-1
-        @test StochasticFluidQueues.Δ(fvmesh) == nodes[2:end]-nodes[1:end-1]
-        @test StochasticFluidQueues.Δ(fvmesh,1) == nodes[2]-nodes[1]
-        @test StochasticFluidQueues.total_n_bases(fvmesh) == (length(nodes)-1)
-        @test StochasticFluidQueues.n_bases(fvmesh) == 1
-        @test StochasticFluidQueues._order(fvmesh) == fv_order
-        @test StochasticFluidQueues.cell_nodes(fvmesh)≈Array(((fvmesh.nodes[1:end-1] + fvmesh.nodes[2:end]) / 2 )') atol=1e-5
-        @test StochasticFluidQueues.basis(fvmesh) == ""
+        @test typeof(fvmesh)==DiscretisedFluidQueues.FVMesh
+        @test typeof(fvmesh)<:DiscretisedFluidQueues.Mesh
+        @test DiscretisedFluidQueues.n_intervals(fvmesh)==length(nodes)-1
+        @test DiscretisedFluidQueues.Δ(fvmesh) == nodes[2:end]-nodes[1:end-1]
+        @test DiscretisedFluidQueues.Δ(fvmesh,1) == nodes[2]-nodes[1]
+        @test DiscretisedFluidQueues.total_n_bases(fvmesh) == (length(nodes)-1)
+        @test DiscretisedFluidQueues.n_bases(fvmesh) == 1
+        @test DiscretisedFluidQueues._order(fvmesh) == fv_order
+        @test DiscretisedFluidQueues.cell_nodes(fvmesh)≈Array(((fvmesh.nodes[1:end-1] + fvmesh.nodes[2:end]) / 2 )') atol=1e-5
+        @test DiscretisedFluidQueues.basis(fvmesh) == ""
     end
 
     @testset "FRAP Mesh basics" begin    
-        @test typeof(frapmesh)==StochasticFluidQueues.FRAPMesh
-        @test typeof(frapmesh)<:StochasticFluidQueues.Mesh
-        @test StochasticFluidQueues.n_intervals(frapmesh)==length(nodes)-1
-        @test StochasticFluidQueues.Δ(frapmesh) == nodes[2:end]-nodes[1:end-1]
-        @test StochasticFluidQueues.Δ(frapmesh,1) == nodes[2]-nodes[1]
-        @test StochasticFluidQueues.total_n_bases(frapmesh) == (length(nodes)-1)*order
-        @test StochasticFluidQueues.n_bases(frapmesh) == order
-        @test StochasticFluidQueues.cell_nodes(frapmesh)≈Array(((frapmesh.nodes[1:end-1] + frapmesh.nodes[2:end]) / 2 )') atol=1e-5
-        @test StochasticFluidQueues.basis(frapmesh) == ""
+        @test typeof(frapmesh)==DiscretisedFluidQueues.FRAPMesh
+        @test typeof(frapmesh)<:DiscretisedFluidQueues.Mesh
+        @test DiscretisedFluidQueues.n_intervals(frapmesh)==length(nodes)-1
+        @test DiscretisedFluidQueues.Δ(frapmesh) == nodes[2:end]-nodes[1:end-1]
+        @test DiscretisedFluidQueues.Δ(frapmesh,1) == nodes[2]-nodes[1]
+        @test DiscretisedFluidQueues.total_n_bases(frapmesh) == (length(nodes)-1)*order
+        @test DiscretisedFluidQueues.n_bases(frapmesh) == order
+        @test DiscretisedFluidQueues.cell_nodes(frapmesh)≈Array(((frapmesh.nodes[1:end-1] + frapmesh.nodes[2:end]) / 2 )') atol=1e-5
+        @test DiscretisedFluidQueues.basis(frapmesh) == ""
     end
 end 
 
@@ -121,9 +121,9 @@ end
         for i in (:dgmesh,:frapmesh) 
             (i==:dgmesh) && include("test_DG_B_data.jl")
             (i==:frapmesh) && include("test_FRAP_B_data.jl")
-            B = @eval StochasticFluidQueues.MakeLazyGenerator(am,$i)
+            B = @eval DiscretisedFluidQueues.MakeLazyGenerator(am,$i)
             # types
-            @test typeof(B)==StochasticFluidQueues.LazyGenerator
+            @test typeof(B)==DiscretisedFluidQueues.LazyGenerator
             @test typeof(B)<:AbstractArray
             @test all(isapprox.(B,B_data,atol=1e-4))
             # multiplcation (values)
@@ -167,10 +167,10 @@ end
             (i==:frapmesh) && include("test_FRAP_B_data.jl")
             (i==:fvmesh) && include("test_FV_B_data.jl")
             @eval begin 
-                B_Full = StochasticFluidQueues.MakeFullGenerator(am,$i)
-                if typeof($i)!=StochasticFluidQueues.FVMesh
-                    B = StochasticFluidQueues.MakeLazyGenerator(am,$i) 
-                    @test StochasticFluidQueues.materialise(B)==B_Full
+                B_Full = DiscretisedFluidQueues.MakeFullGenerator(am,$i)
+                if typeof($i)!=DiscretisedFluidQueues.FVMesh
+                    B = DiscretisedFluidQueues.MakeLazyGenerator(am,$i) 
+                    @test DiscretisedFluidQueues.materialise(B)==B_Full
                     @test all(isapprox.(B_Full*B_Full,B*B,atol=√eps()))
                     # size
                     @test size(B_Full) == (40,40)
@@ -200,57 +200,57 @@ end
 
 # test 6_ME_tools
 @testset "ME tools" begin 
-    @test StochasticFluidQueues.MatrixExponential <: StochasticFluidQueues.AbstractMatrixExponential
-    @test_throws DimensionMismatch StochasticFluidQueues.MatrixExponential(ones(1,2),-ones(1,1),ones(1,1))
-    @test_throws DomainError StochasticFluidQueues.MatrixExponential(ones(1,1),-[1.0 1.0],ones(1,1))
-    @test_throws DomainError StochasticFluidQueues.MatrixExponential(ones(1,1),-[1.0 1.0],ones(1,2))
-    exp_rv = StochasticFluidQueues.MatrixExponential(ones(1,1),-ones(1,1),ones(1,1))
+    @test DiscretisedFluidQueues.MatrixExponential <: DiscretisedFluidQueues.AbstractMatrixExponential
+    @test_throws DimensionMismatch DiscretisedFluidQueues.MatrixExponential(ones(1,2),-ones(1,1),ones(1,1))
+    @test_throws DomainError DiscretisedFluidQueues.MatrixExponential(ones(1,1),-[1.0 1.0],ones(1,1))
+    @test_throws DomainError DiscretisedFluidQueues.MatrixExponential(ones(1,1),-[1.0 1.0],ones(1,2))
+    exp_rv = DiscretisedFluidQueues.MatrixExponential(ones(1,1),-ones(1,1),ones(1,1))
     # pdf 
-    @test StochasticFluidQueues._order(exp_rv)==1
-    exp_pdf = StochasticFluidQueues.pdf(exp_rv)
+    @test DiscretisedFluidQueues._order(exp_rv)==1
+    exp_pdf = DiscretisedFluidQueues.pdf(exp_rv)
     @test typeof(exp_pdf(1.0))<:Float64
     r = -log.(rand(10))
     @test exp_pdf.(r)≈exp.(-r)
-    @test_throws DomainError StochasticFluidQueues.pdf([1.0 1.0],exp_rv)
-    @test StochasticFluidQueues.pdf(exp_rv,r)≈StochasticFluidQueues.pdf(exp_rv).(r)
-    @test StochasticFluidQueues.pdf(exp(-1).*ones(1,1),exp_rv,r)≈StochasticFluidQueues.pdf(exp_rv).(r.+1.0)
+    @test_throws DomainError DiscretisedFluidQueues.pdf([1.0 1.0],exp_rv)
+    @test DiscretisedFluidQueues.pdf(exp_rv,r)≈DiscretisedFluidQueues.pdf(exp_rv).(r)
+    @test DiscretisedFluidQueues.pdf(exp(-1).*ones(1,1),exp_rv,r)≈DiscretisedFluidQueues.pdf(exp_rv).(r.+1.0)
     # ccdf
-    exp_ccdf = StochasticFluidQueues.ccdf(exp_rv)
+    exp_ccdf = DiscretisedFluidQueues.ccdf(exp_rv)
     @test typeof(exp_ccdf(1.0))<:Float64
     r = -log.(rand(10))
     @test exp_ccdf.(r)≈exp.(-r)
-    @test_throws DomainError StochasticFluidQueues.ccdf([1.0 1.0],exp_rv)
-    @test StochasticFluidQueues.ccdf(exp_rv,r)≈StochasticFluidQueues.ccdf(exp_rv).(r)
-    @test StochasticFluidQueues.ccdf(exp(-1).*ones(1,1),exp_rv,r)≈StochasticFluidQueues.ccdf(exp_rv).(r.+1.0)
+    @test_throws DomainError DiscretisedFluidQueues.ccdf([1.0 1.0],exp_rv)
+    @test DiscretisedFluidQueues.ccdf(exp_rv,r)≈DiscretisedFluidQueues.ccdf(exp_rv).(r)
+    @test DiscretisedFluidQueues.ccdf(exp(-1).*ones(1,1),exp_rv,r)≈DiscretisedFluidQueues.ccdf(exp_rv).(r.+1.0)
     # cdf
-    exp_cdf = StochasticFluidQueues.cdf(exp_rv)
+    exp_cdf = DiscretisedFluidQueues.cdf(exp_rv)
     @test typeof(exp_cdf(1.0))<:Float64
     r = -log.(rand(10))
     @test exp_cdf.(r)≈1.0.-exp.(-r)
-    @test_throws DomainError StochasticFluidQueues.cdf([1.0 1.0],exp_rv)
-    @test StochasticFluidQueues.cdf(exp_rv,r)≈StochasticFluidQueues.cdf(exp_rv).(r)
+    @test_throws DomainError DiscretisedFluidQueues.cdf([1.0 1.0],exp_rv)
+    @test DiscretisedFluidQueues.cdf(exp_rv,r)≈DiscretisedFluidQueues.cdf(exp_rv).(r)
     # MakeME
-    me_1 = StochasticFluidQueues.MakeME(StochasticFluidQueues.CMEParams[1])
-    @test StochasticFluidQueues.cdf(me_1,r)≈StochasticFluidQueues.cdf(exp_rv,r)
+    me_1 = DiscretisedFluidQueues.MakeME(DiscretisedFluidQueues.CMEParams[1])
+    @test DiscretisedFluidQueues.cdf(me_1,r)≈DiscretisedFluidQueues.cdf(exp_rv,r)
     #
-    me_3 = StochasticFluidQueues.MakeME(StochasticFluidQueues.CMEParams[3])
-    @test typeof(me_3)<:StochasticFluidQueues.AbstractMatrixExponential
-    @test typeof(me_3)<:StochasticFluidQueues.ConcentratedMatrixExponential
-    me_3_cdf = StochasticFluidQueues.cdf(me_3)
+    me_3 = DiscretisedFluidQueues.MakeME(DiscretisedFluidQueues.CMEParams[3])
+    @test typeof(me_3)<:DiscretisedFluidQueues.AbstractMatrixExponential
+    @test typeof(me_3)<:DiscretisedFluidQueues.ConcentratedMatrixExponential
+    me_3_cdf = DiscretisedFluidQueues.cdf(me_3)
     @test typeof(me_3_cdf(1.0))<:Float64
-    for f in fieldnames(StochasticFluidQueues.ConcentratedMatrixExponential)
+    for f in fieldnames(DiscretisedFluidQueues.ConcentratedMatrixExponential)
         @eval begin 
-            me_3 = StochasticFluidQueues.MakeME(StochasticFluidQueues.CMEParams[3])
-            @test StochasticFluidQueues.ConcentratedMatrixExponential(3).$f==me_3.$f
+            me_3 = DiscretisedFluidQueues.MakeME(DiscretisedFluidQueues.CMEParams[3])
+            @test DiscretisedFluidQueues.ConcentratedMatrixExponential(3).$f==me_3.$f
         end
     end
     @test -sum(me_3.a/me_3.S)≈1.0
     # MakeErlang
-    erl_1 = StochasticFluidQueues.MakeErlang(1)
-    @test typeof(erl_1)<:StochasticFluidQueues.AbstractMatrixExponential
-    @test typeof(erl_1)<:StochasticFluidQueues.MatrixExponential
-    @test StochasticFluidQueues.ccdf(erl_1,r)≈StochasticFluidQueues.ccdf(exp_rv,r)
-    erl_3 = StochasticFluidQueues.MakeErlang(3)
+    erl_1 = DiscretisedFluidQueues.MakeErlang(1)
+    @test typeof(erl_1)<:DiscretisedFluidQueues.AbstractMatrixExponential
+    @test typeof(erl_1)<:DiscretisedFluidQueues.MatrixExponential
+    @test DiscretisedFluidQueues.ccdf(erl_1,r)≈DiscretisedFluidQueues.ccdf(exp_rv,r)
+    erl_3 = DiscretisedFluidQueues.MakeErlang(3)
     @test -sum(erl_3.a/erl_3.S)≈1.0
     e1 = zeros(1,3)
     e1[1]=1.0
@@ -258,63 +258,63 @@ end
     @test erl_3.S≈[-3.0 3.0 0.0; 0.0 -3.0 3.0; 0.0 0.0 -3.0]
     @test erl_3.s≈3*e1[end:-1:1]
     # orbits 
-    exp_rv_orbit_fun = StochasticFluidQueues.orbit(exp_rv)
+    exp_rv_orbit_fun = DiscretisedFluidQueues.orbit(exp_rv)
     @test exp_rv_orbit_fun(2.0)≈[1.0]
 
-    me_3_orbit_fun = StochasticFluidQueues.orbit(me_3)
-    me_3_mean_2 = StochasticFluidQueues.ConcentratedMatrixExponential(3; mean=2.0)
-    me_3_mean_2_orbit_fun = StochasticFluidQueues.orbit(me_3_mean_2)
+    me_3_orbit_fun = DiscretisedFluidQueues.orbit(me_3)
+    me_3_mean_2 = DiscretisedFluidQueues.ConcentratedMatrixExponential(3; mean=2.0)
+    me_3_mean_2_orbit_fun = DiscretisedFluidQueues.orbit(me_3_mean_2)
     @test me_3_mean_2_orbit_fun.(r)≈me_3_orbit_fun.(0.5*r)
-    me_3_not_CME_Type = StochasticFluidQueues.MatrixExponential(me_3.a,me_3.S,me_3.s,me_3.D)
-    me_3_not_CME_Type_orbit_fun = StochasticFluidQueues.orbit(me_3_not_CME_Type)
+    me_3_not_CME_Type = DiscretisedFluidQueues.MatrixExponential(me_3.a,me_3.S,me_3.s,me_3.D)
+    me_3_not_CME_Type_orbit_fun = DiscretisedFluidQueues.orbit(me_3_not_CME_Type)
     @test me_3_orbit_fun.(r)≈me_3_not_CME_Type_orbit_fun.(r)
     me_3_mean_2_not_CME_Type = 
-        StochasticFluidQueues.MatrixExponential(me_3_mean_2.a,me_3_mean_2.S,me_3_mean_2.s,me_3_mean_2.D)
-    me_3_mean_2_not_CME_Type_orbit_fun = StochasticFluidQueues.orbit(me_3_mean_2_not_CME_Type)
+        DiscretisedFluidQueues.MatrixExponential(me_3_mean_2.a,me_3_mean_2.S,me_3_mean_2.s,me_3_mean_2.D)
+    me_3_mean_2_not_CME_Type_orbit_fun = DiscretisedFluidQueues.orbit(me_3_mean_2_not_CME_Type)
     @test me_3_mean_2_not_CME_Type_orbit_fun.(r)≈me_3_not_CME_Type_orbit_fun.(0.5*r)
     # Expected orbits
     ω = abs(me_3.S[3,2])
     period = 2*pi/ω
     exp_orbit = 
-        StochasticFluidQueues.expected_orbit_from_pdf(
-            x->StochasticFluidQueues.ccdf(me_3,x)/-sum(me_3.a/me_3.S),
+        DiscretisedFluidQueues.expected_orbit_from_pdf(
+            x->DiscretisedFluidQueues.ccdf(me_3,x)/-sum(me_3.a/me_3.S),
             me_3,0.0,period,10000)/(1-exp(me_3.S[1,1]*period))
     stationary = (me_3.a/me_3.S)/sum(me_3.a/me_3.S)
     @test exp_orbit≈stationary atol=1e-6
     exp_orbit_from_cdf = 
-        StochasticFluidQueues.expected_orbit_from_cdf(
-            x->StochasticFluidQueues.cdf(stationary,me_3,x)/-sum(me_3.a/me_3.S),
+        DiscretisedFluidQueues.expected_orbit_from_cdf(
+            x->DiscretisedFluidQueues.cdf(stationary,me_3,x)/-sum(me_3.a/me_3.S),
             me_3,0.0,period,10000)/(1-exp(me_3.S[1,1]*period))
     @test exp_orbit_from_cdf≈stationary atol=1e-6
 end 
 
 @testset "polynomials" begin
-    @test StochasticFluidQueues.gauss_lobatto_points(2.0,2.5,1)≈[2.25]
-    @test StochasticFluidQueues.gauss_lobatto_points(2.0,3.0,2)≈[2.0;3.0]
-    @test StochasticFluidQueues.gauss_lobatto_points(2.0,4.0,3)≈[2.0;3.0;4.0]
+    @test DiscretisedFluidQueues.gauss_lobatto_points(2.0,2.5,1)≈[2.25]
+    @test DiscretisedFluidQueues.gauss_lobatto_points(2.0,3.0,2)≈[2.0;3.0]
+    @test DiscretisedFluidQueues.gauss_lobatto_points(2.0,4.0,3)≈[2.0;3.0;4.0]
     nnodes = 5
-    nodes = StochasticFluidQueues.gauss_lobatto_points(-1.0,1.0,nnodes)
+    nodes = DiscretisedFluidQueues.gauss_lobatto_points(-1.0,1.0,nnodes)
     for n in 1:nnodes
         en = zeros(nnodes)
         en[n] = 1.0
-        @test StochasticFluidQueues.lagrange_polynomials(nodes,nodes[n])≈en atol=sqrt(eps())
+        @test DiscretisedFluidQueues.lagrange_polynomials(nodes,nodes[n])≈en atol=sqrt(eps())
     end
-    @test StochasticFluidQueues.lagrange_polynomials([1.0],1.0)≈[1.0] atol=sqrt(eps())
-    @test StochasticFluidQueues.gauss_lobatto_weights(-1.0,1.0,1)≈[2.0]
+    @test DiscretisedFluidQueues.lagrange_polynomials([1.0],1.0)≈[1.0] atol=sqrt(eps())
+    @test DiscretisedFluidQueues.gauss_lobatto_weights(-1.0,1.0,1)≈[2.0]
     nnodes = 3
-    nodes = StochasticFluidQueues.gauss_lobatto_points(-1.0,1.0,nnodes)
-    @test StochasticFluidQueues.gauss_lobatto_weights(-1.0,1.0,nnodes)≈[1.0,4.0,1.0]./3
+    nodes = DiscretisedFluidQueues.gauss_lobatto_points(-1.0,1.0,nnodes)
+    @test DiscretisedFluidQueues.gauss_lobatto_weights(-1.0,1.0,nnodes)≈[1.0,4.0,1.0]./3
     x4 = x->x^4
-    x4_interp = StochasticFluidQueues.lagrange_interpolation(x4,-1.0,1.0,5)
+    x4_interp = DiscretisedFluidQueues.lagrange_interpolation(x4,-1.0,1.0,5)
     x = collect(-3:0.02:3)
     @test x4_interp.(x)≈x4.(x)
-    x4_quad = StochasticFluidQueues.gauss_lobatto_quadrature(x4,-1.0,1.0,4)
+    x4_quad = DiscretisedFluidQueues.gauss_lobatto_quadrature(x4,-1.0,1.0,4)
     @test x4_quad≈2/5
 
-    x4_interp_p0 = StochasticFluidQueues.lagrange_interpolation(x->1.0-x4(x),-1.0,1.0,1)
+    x4_interp_p0 = DiscretisedFluidQueues.lagrange_interpolation(x->1.0-x4(x),-1.0,1.0,1)
     x = collect(-3:0.02:3)
     @test x4_interp_p0.(x)≈ones(size(x))
-    x4_quad_p0 = StochasticFluidQueues.gauss_lobatto_quadrature(x->1.0-x4(x),-1.0,1.0,1)
+    x4_quad_p0 = DiscretisedFluidQueues.gauss_lobatto_quadrature(x->1.0-x4(x),-1.0,1.0,1)
     @test x4_quad_p0≈2.0
 end 
 
@@ -326,18 +326,18 @@ end
         # pdfs
         f(x,i) = (i-1)/12.0./sum(1:3)
         msh = @eval $mtype
-        d = StochasticFluidQueues.SFMDistribution(f,am,msh)#StochasticFluidQueues.point_mass(11.990,2,am,$i)#
+        d = DiscretisedFluidQueues.SFMDistribution(f,am,msh)#DiscretisedFluidQueues.point_mass(11.990,2,am,$i)#
         if mtype!=:fvmesh
             @test sum(d)≈1.0
         end
-        f_rec = StochasticFluidQueues.pdf(d)
+        f_rec = DiscretisedFluidQueues.pdf(d)
         x = (0.01:0.4:11.99)'
         if mtype!=:frapmesh
             @test all(isapprox.( f_rec.(x,1:4)-f.(x,1:4), 0, atol=sqrt(eps()) ))
         end
 
         # cdfs
-        cdf_rec = StochasticFluidQueues.cdf(d)
+        cdf_rec = DiscretisedFluidQueues.cdf(d)
         f_cdf(x,i) = f(x,i)*x
         @test sum(cdf_rec.(msh.nodes[end],1:4))≈1.0
         @test sum(cdf_rec.(msh.nodes[end]+1.0,1:4))≈sum(f_cdf.(msh.nodes[end],1:4))
@@ -345,28 +345,28 @@ end
         @test all(isapprox.( f_cdf.(x,1:4), cdf_rec.(x,1:4), atol=5e-2 ))
 
         # point masses at boundaries
-        d = StochasticFluidQueues.:*(d,0.5)
+        d = DiscretisedFluidQueues.:*(d,0.5)
         d[1] = 0.25
         d[end] = 0.25
         f_cdf_2(x,i) = 0.25*(i∈(2))*(x>=msh.nodes[1])+0.5*f_cdf(x,i)*(x>=msh.nodes[1])+0.25*(x>=msh.nodes[end])*(i∈(3))
-        cdf_rec_2 = StochasticFluidQueues.cdf(d)
+        cdf_rec_2 = DiscretisedFluidQueues.cdf(d)
         @test sum(cdf_rec_2.(msh.nodes[end],1:4))≈1.0
         @test sum(cdf_rec_2.(msh.nodes[end]+1.0,1:4))≈sum(f_cdf.(msh.nodes[end],1:4))
         @test all(isapprox.( f_cdf_2.(x,1:4), cdf_rec_2.(x,1:4), atol=5e-2 ))
 
-        @test_throws DomainError StochasticFluidQueues.left_point_mass(1,am,msh)
+        @test_throws DomainError DiscretisedFluidQueues.left_point_mass(1,am,msh)
         tst = zeros(1,
-            StochasticFluidQueues.n_phases(am)*StochasticFluidQueues.total_n_bases(msh) 
-            + StochasticFluidQueues.N₋(am.S) + StochasticFluidQueues.N₊(am.S))
+            DiscretisedFluidQueues.n_phases(am)*DiscretisedFluidQueues.total_n_bases(msh) 
+            + DiscretisedFluidQueues.N₋(am.S) + DiscretisedFluidQueues.N₊(am.S))
         tst[1] = 1.0
-        @test StochasticFluidQueues.left_point_mass(2,am,msh)==tst
+        @test DiscretisedFluidQueues.left_point_mass(2,am,msh)==tst
         
-        @test_throws DomainError StochasticFluidQueues.right_point_mass(2,am,msh)
+        @test_throws DomainError DiscretisedFluidQueues.right_point_mass(2,am,msh)
         tst2 = zeros(1,
-            StochasticFluidQueues.n_phases(am)*StochasticFluidQueues.total_n_bases(msh) 
-            + StochasticFluidQueues.N₋(am.S) + StochasticFluidQueues.N₊(am.S))
+            DiscretisedFluidQueues.n_phases(am)*DiscretisedFluidQueues.total_n_bases(msh) 
+            + DiscretisedFluidQueues.N₋(am.S) + DiscretisedFluidQueues.N₊(am.S))
         tst2[end] = 1.0
-        @test StochasticFluidQueues.right_point_mass(3,am,msh)==tst2
+        @test DiscretisedFluidQueues.right_point_mass(3,am,msh)==tst2
 
         # test point masses not at boundaries...
     end
@@ -381,29 +381,29 @@ end
 @testset "sim" begin
     import StableRNGs
     rng = StableRNGs.StableRNG(1)
-    fixed_time = StochasticFluidQueues.FixedTime(3.2)
+    fixed_time = DiscretisedFluidQueues.FixedTime(3.2)
     n_sims = 100_000
     initial_condition = (φ=ones(Int,n_sims),X=zeros(n_sims))
-    sims = StochasticFluidQueues.simulate(model,fixed_time,initial_condition,rng)
-    f(x,i) = StochasticFluidQueues.cdf(sims)(x,i)
-    @test sum(f.(10.0,StochasticFluidQueues.phases(model)))≈1.0 
+    sims = DiscretisedFluidQueues.simulate(model,fixed_time,initial_condition,rng)
+    f(x,i) = DiscretisedFluidQueues.cdf(sims)(x,i)
+    @test sum(f.(10.0,DiscretisedFluidQueues.phases(model)))≈1.0 
     p_3_2 = ([1.0 0 0] * exp(model.T*3))[:]
-    @test f.(10.0,StochasticFluidQueues.phases(model))≈p_3_2 rtol=1e-3
+    @test f.(10.0,DiscretisedFluidQueues.phases(model))≈p_3_2 rtol=1e-3
 end
 
 @testset "numerical checks" begin
     T = [-2.5 2 0.5; 1 -3 2; 1 2 -3]
 
     C = [0, 2.0, -6.0]
-    S = StochasticFluidQueues.PhaseSet(C)
+    S = DiscretisedFluidQueues.PhaseSet(C)
 
     bounds = [0.0,12.0]
-    model = StochasticFluidQueues.FluidQueue(T,S,bounds)
-    am = StochasticFluidQueues.augment_model(model)
+    model = DiscretisedFluidQueues.FluidQueue(T,S,bounds)
+    am = DiscretisedFluidQueues.augment_model(model)
 
-    mtypes = (StochasticFluidQueues.DGMesh,
-        StochasticFluidQueues.FVMesh,
-        StochasticFluidQueues.FRAPMesh)
+    mtypes = (DiscretisedFluidQueues.DGMesh,
+        DiscretisedFluidQueues.FVMesh,
+        DiscretisedFluidQueues.FRAPMesh)
     for mtype in mtypes
         @testset "mtype" begin
             nodes = collect(0:0.1:12)
@@ -413,21 +413,21 @@ end
             ####
             # non-augmented model
             ####
-            generator = StochasticFluidQueues.MakeFullGenerator(model,msh)
+            generator = DiscretisedFluidQueues.MakeFullGenerator(model,msh)
             b = zeros(1,size(generator,1))
             b[1] = 1.0
-            if mtype==StochasticFluidQueues.FVMesh
+            if mtype==DiscretisedFluidQueues.FVMesh
                 generator[:,1] = [
-                    ones(StochasticFluidQueues.N₋(model.S));
-                    repeat(StochasticFluidQueues.Δ(msh),StochasticFluidQueues.n_phases(model));
-                    ones(StochasticFluidQueues.N₊(model.S))]
+                    ones(DiscretisedFluidQueues.N₋(model.S));
+                    repeat(DiscretisedFluidQueues.Δ(msh),DiscretisedFluidQueues.n_phases(model));
+                    ones(DiscretisedFluidQueues.N₊(model.S))]
             else
                 generator[:,1] .= 1.0
             end
             stationary_coeffs = b/generator.B
-            d = StochasticFluidQueues.SFMDistribution(stationary_coeffs,model,msh)
-            stationary_cdf_estimate = StochasticFluidQueues.cdf(d)
-            analytical_cdf = StochasticFluidQueues.StationaryDistributionX(model)[3]
+            d = DiscretisedFluidQueues.SFMDistribution(stationary_coeffs,model,msh)
+            stationary_cdf_estimate = DiscretisedFluidQueues.cdf(d)
+            analytical_cdf = DiscretisedFluidQueues.StationaryDistributionX(model)[3]
             x_vec = bounds[1]:0.23:bounds[end]
             pass = true
             for x in x_vec
@@ -438,21 +438,21 @@ end
             ####
             # augmented model
             ####
-            generator_am = StochasticFluidQueues.MakeFullGenerator(am,msh)
+            generator_am = DiscretisedFluidQueues.MakeFullGenerator(am,msh)
             b_am = zeros(1,size(generator_am,1))
             b_am[1] = 1.0
-            if mtype==StochasticFluidQueues.FVMesh
+            if mtype==DiscretisedFluidQueues.FVMesh
                 generator_am[:,1] = [
-                    ones(StochasticFluidQueues.N₋(am.S));
-                    repeat(StochasticFluidQueues.Δ(msh),StochasticFluidQueues.n_phases(am));
-                    ones(StochasticFluidQueues.N₊(am.S))]
+                    ones(DiscretisedFluidQueues.N₋(am.S));
+                    repeat(DiscretisedFluidQueues.Δ(msh),DiscretisedFluidQueues.n_phases(am));
+                    ones(DiscretisedFluidQueues.N₊(am.S))]
             else
                 generator_am[:,1] .= 1.0
             end
             stationary_coeffs_am = b_am/generator_am.B
-            d_am = StochasticFluidQueues.SFMDistribution(stationary_coeffs_am,am,msh)
-            stationary_cdf_estimate_am = StochasticFluidQueues.cdf(d_am)
-            analytical_cdf_am = StochasticFluidQueues.StationaryDistributionX(am)[3]
+            d_am = DiscretisedFluidQueues.SFMDistribution(stationary_coeffs_am,am,msh)
+            stationary_cdf_estimate_am = DiscretisedFluidQueues.cdf(d_am)
+            analytical_cdf_am = DiscretisedFluidQueues.StationaryDistributionX(am)[3]
             x_vec = bounds[1]:0.23:bounds[end]
             pass = true
             for x in x_vec

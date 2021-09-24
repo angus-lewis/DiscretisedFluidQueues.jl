@@ -1,4 +1,4 @@
-module StochasticFluidQueues
+module DiscretisedFluidQueues
 import Base: *, size, show, getindex, +, -, setindex!
 import Jacobi, LinearAlgebra, SparseArrays
 # import Plots, StatsBase, KernelDensity
