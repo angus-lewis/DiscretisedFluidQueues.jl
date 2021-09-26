@@ -94,7 +94,7 @@ function build_full_generator(dq::DiscretisedFluidQueue{FVMesh}; v::Bool=false)
         )
 
     ## Make QBD index
-    QBDidx = QBDidx(dq)
+    QBDidx = qbd_idx(dq)
     
     # Boundary conditions
     T₋₋ = model.T[_has_left_boundary.(model.S),_has_left_boundary.(model.S)]

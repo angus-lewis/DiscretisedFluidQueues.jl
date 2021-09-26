@@ -12,6 +12,6 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/angus-lewis/.jl.git",
+    repo = "github.com/angus-lewis/DiscretisedFluidQueues.jl.git",
     push_preview = true
 )

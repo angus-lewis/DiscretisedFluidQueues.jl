@@ -9,3 +9,5 @@ CMEParams*.json
 *~
 
 *.png
+
+docs/build/

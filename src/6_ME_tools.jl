@@ -154,7 +154,7 @@ end
 
 ConcentratedMatrixExponential(order::Int; mean::Float64 = 1.0) = build_me(cme_params[order], mean=mean)
 
-function MakeErlang(order; mean::Float64 = 1.0)
+function build_erlang(order; mean::Float64 = 1.0)
     α = zeros(1,order) # inital distribution
     α[1] = 1
     λ = order/mean

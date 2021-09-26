@@ -85,7 +85,7 @@ end
             [nodes[1:end-1]';(nodes[1:end-1]'+nodes[2:end]')/2;nodes[2:end]'] atol=1e-5
         @test DiscretisedFluidQueues.basis(dgmesh) == "lagrange"
         # @test local_dg_operators(dgmesh) == ???
-        # test MakeQBDidx 
+        # test QBDidx 
     end
 
     @testset "FV Mesh basics" begin    
@@ -245,12 +245,12 @@ end
         end
     end
     @test -sum(me_3.a/me_3.S)≈1.0
-    # MakeErlang
-    erl_1 = DiscretisedFluidQueues.MakeErlang(1)
+    # build_erlang
+    erl_1 = DiscretisedFluidQueues.build_erlang(1)
     @test typeof(erl_1)<:DiscretisedFluidQueues.AbstractMatrixExponential
     @test typeof(erl_1)<:DiscretisedFluidQueues.MatrixExponential
     @test DiscretisedFluidQueues.ccdf(erl_1,r)≈DiscretisedFluidQueues.ccdf(exp_rv,r)
-    erl_3 = DiscretisedFluidQueues.MakeErlang(3)
+    erl_3 = DiscretisedFluidQueues.build_erlang(3)
     @test -sum(erl_3.a/erl_3.S)≈1.0
     e1 = zeros(1,3)
     e1[1]=1.0
