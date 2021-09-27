@@ -54,9 +54,9 @@ Construct an approximation to the generator with
 B = build_full_generator(dq)
 ```
 `B` is essentially a matrix which we can think of as describing the ODE
-\begin{equation}
-    \frac{\partial}{\partial t}   \mathbf a(t) =   \mathbf a(t) B
-\end{equation}
+
+$\frac{\partial}{\partial t}   \mathbf a(t) =   \mathbf a(t) B$
+
 where $ \mathbf a(t)$ is a row vector of coefficients and $  \mathbf a(t)  \mathbf u(x,i) \approx  \mathbf f(x,i,t)$ approximates the solution where $ \mathbf u(x,i)$ is a column vector of functions defined by the discretisation scheme.
 
 Construct an initial distribution with (e.g.)
