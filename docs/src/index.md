@@ -3,9 +3,7 @@
 
 The evolution of a stochastic fluid queue with generator $[T_{ij}]_{i,j\in S}$ and associated diagonal matrix of rates $C = diag(c_i,i\in S)$ can be described by the PDE (when it exists)
 
-\begin{equation}
-    \cfrac{\partial}{\partial t}  \mathbf f(x,i,t) =  \mathbf f(x,i,t) T - \cfrac{\partial}{\partial x}  \mathbf f(x,i,t) C
-\end{equation}
+$\cfrac{\partial}{\partial t}  \mathbf f(x,i,t) =  \mathbf f(x,i,t) T - \cfrac{\partial}{\partial x}  \mathbf f(x,i,t) C$
 
 where $\mathbf f(x,i,t) dx = (f(x,i,t))_{i\in S} = (P(X(t)\in dx, \varphi(t)=i))_{i\in S}$ the time-dependent joint density/mass function. 
 
