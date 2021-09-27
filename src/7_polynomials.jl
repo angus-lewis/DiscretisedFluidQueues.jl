@@ -33,6 +33,7 @@ function gauss_lobatto_points(a::Float64,b::Float64,n_evals::Int)
     end
     return nodes
 end
+
 """
     gauss_lobatto_weights(a::Float64, b::Float64, n_evals::Int)
 
@@ -65,6 +66,7 @@ function lagrange_interpolation(fun::Function,a::Float64,b::Float64,n_evals::Int
     interpolant(x) = LinearAlgebra.dot(fun_vals,lagrange_polynomials(nodes,x))
     return interpolant
 end
+
 """
     gauss_lobatto_quadrature(fun::Function, a::Float64, b::Float64, n_evals::Int)
 
