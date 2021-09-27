@@ -11,4 +11,7 @@ makedocs(
     # clean = true,
     # checkdocs = :exports,
 
-deploydocs(repo = "github.com/angus-lewis/DiscretisedFluidQueues.jl.git")
+deploydocs(
+    repo = "github.com/angus-lewis/DiscretisedFluidQueues.jl.git",
+    push_preview = true
+)
