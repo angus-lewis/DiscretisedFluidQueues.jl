@@ -3,6 +3,11 @@ dir = @__DIR__
 
 erlangDParams = FileIO.load(dir*"/erlangParamsData/erlangDParams.jld2", "erlangDParams")
 
+"""
+    cme_params
+
+A Dict storing parameters of concentrated matrix exponential distributions. See https://github.com/ghorvath78/iltcme.
+"""
 cme_params = FileIO.load(dir*"/CMEParamsData/CMEParams.jld2", "CMEParams")
 
 abstract type AbstractMatrixExponential end

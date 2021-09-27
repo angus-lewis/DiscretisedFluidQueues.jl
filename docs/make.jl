@@ -6,8 +6,14 @@ makedocs(
     authors = "angus-lewis",
     sitename = "DiscretisedFluidQueues.jl",
     pages = Any["index.md", 
-        "API" => ["Types" => "types.md", 
-        "Methods" => "methods.md"]],
+        "API" => ["Models and Discretisations" => "m_and_d.md", 
+        "Distributions" => "dist.md",
+        "Generators" => "generators.md",
+        "Simulate" => "sim.md",
+        "Tools" => [
+        "ME Tools" => "me_tools.md",
+        "Polynomial tools" => "poly.md",
+        "Matrix-analytic methods tools" => "sfm.md"]]],
 )
     # strict = true,
     # clean = true,
