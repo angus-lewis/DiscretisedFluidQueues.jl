@@ -68,7 +68,7 @@ d = SFMDistribution(f,dq)
 Integrate over time with 
 ```jl
 t = 3.2
-dt = integrate_time(d,B,t)
+dt = integrate_time(d,B,t, Euler(0.01))
 ```
 
 Reconstruct approximate solution with 

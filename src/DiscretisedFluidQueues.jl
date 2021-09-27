@@ -1,6 +1,6 @@
 module DiscretisedFluidQueues
 
-import Jacobi, LinearAlgebra, SparseArrays
+import Jacobi, LinearAlgebra, SparseArrays, StaticArrays
 import Base: *, size, show, getindex, +, -, setindex!
 
 # Types
@@ -9,7 +9,7 @@ export AbstractMatrixExponential, ConcentratedMatrixExponential, MatrixExponenti
 export Mesh, DGMesh, FRAPMesh, FVMesh # are <:Mesh
 export Generator, FullGenerator, LazyGenerator # are <:Generator
 export SFMDistribution
-export TimeIntegrationScheme, Euler # Euler <: TimeIntegrationScheme
+export TimeIntegrationScheme, Euler, RungeKutta4 # Euler, RungeKutta4 <: TimeIntegrationScheme
 export Simulation
 
 # Functions 

@@ -116,11 +116,11 @@ function build_lazy_generator(dq::DiscretisedFluidQueue{DGMesh}; v::Bool = false
     blocks = (m.LowDiagBlock*m.MInv*2, (m.G+m.PosDiagBlock)*m.MInv*2, 
         -(m.G+m.NegDiagBlock)*m.MInv*2, m.UpDiagBlock*m.MInv*2)
 
-    boundary_flux = (
-        upper = (in = (m.Dw.DwInv * m.Phi[end, :]*2)[:], 
-                out = (m.Phi[end, :]' * m.Dw.Dw * m.MInv)[:]),
-        lower = (in = (m.Dw.DwInv * m.Phi[1, :]*2)[:], 
-                out = (m.Phi[1, :]' * m.Dw.Dw * m.MInv)[:])
+    boundary_flux = BoundaryFlux(
+        OneBoundaryFlux((m.Dw.DwInv * m.Phi[end, :]*2)[:],
+            (m.Phi[end, :]' * m.Dw.Dw * m.MInv)[:]),
+        OneBoundaryFlux((m.Dw.DwInv * m.Phi[1, :]*2)[:], 
+            (m.Phi[1, :]' * m.Dw.Dw * m.MInv)[:])
     )
 
     D = LinearAlgebra.I(n_bases_per_cell(dq))

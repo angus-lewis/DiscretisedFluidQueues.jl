@@ -17,5 +17,6 @@ cdf(d::SFMDistribution, x, i)
 ```@docs
 TimeIntegrationScheme
 Euler
+RungeKutta4
 integrate_time
 ```

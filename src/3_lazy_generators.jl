@@ -5,7 +5,30 @@ Abstract type representing a discretised infinitesimal generator of a FLuidQueue
 """
 abstract type Generator <: AbstractArray{Real,2} end 
 
-const BoundaryFluxTupleType = NamedTuple{(:upper,:lower),Tuple{NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}},NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}}}}
+const UnionVectors = Union{StaticArrays.SVector,Vector{Float64}}
+const UnionArrays = Union{Array{Float64,2},StaticArrays.SMatrix}
+const BoundaryFluxTupleType = Union{
+    NamedTuple{(:upper,:lower), Tuple{
+        NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}},
+        NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}}
+        }
+    },
+    NamedTuple{(:upper, :lower), Tuple{
+        NamedTuple{(:in, :out), Tuple{StaticArrays.SVector, StaticArrays.SVector}},
+        NamedTuple{(:in, :out), Tuple{StaticArrays.SVector, StaticArrays.SVector}}
+        }
+    }
+}
+
+struct OneBoundaryFlux{T<:Union{StaticArrays.SVector,Vector{Float64}}}
+    in::T
+    out::T
+end
+struct BoundaryFlux{T<:Union{StaticArrays.SVector,Vector{Float64}}}
+    upper::OneBoundaryFlux{T}
+    lower::OneBoundaryFlux{T}
+end
+
 
 """
     LazyGenerator <: Generator
@@ -23,7 +46,7 @@ Lower memory requirements than FullGenerator but aritmetic operations and indexi
     diagonal block describing the flow of mass within a cell for a phase with positive (negative) rate.
     `blocks[4]` is the upper diagonal block describing the flow of mass from cell k to k+1 (for phases 
     with positive rate only).  
-- `boundary_flux::BoundaryFluxTupleType`: A named tuple structure such that 
+- `boundary_flux::BoundaryFlux`: A named tuple structure such that 
         - `boundary_flux.lower.in`: describes flow of density into lower boundary
         - `boundary_flux.lower.out`: describes flow of density out of lower boundary
         - `boundary_flux.upper.in`: describes flow of density into upper boundary
@@ -34,14 +57,14 @@ Lower memory requirements than FullGenerator but aritmetic operations and indexi
 """
 struct LazyGenerator  <: Generator
     dq::DiscretisedFluidQueue
-    blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2},Array{Float64,2}}
-    boundary_flux::BoundaryFluxTupleType
-    D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}}
+    blocks::NTuple{4,UnionArrays}
+    boundary_flux::BoundaryFlux
+    D::Union{UnionArrays,LinearAlgebra.Diagonal{Bool,Array{Bool,1}}}
     function LazyGenerator(
         dq::DiscretisedFluidQueue,
-        blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2},Array{Float64,2}},
-        boundary_flux::NamedTuple{(:upper,:lower),Tuple{NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}},NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}}}},
-        D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
+        blocks::NTuple{4,UnionArrays},
+        boundary_flux::BoundaryFlux,
+        D::Union{UnionArrays,LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
     )
         s = size(blocks[1])
         for b in 1:4
@@ -57,12 +80,43 @@ end
 function LazyGenerator(
     dq::DiscretisedFluidQueue,
     blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2}},
-    boundary_flux::NamedTuple{(:in, :out),Tuple{Array{Float64,1},Array{Float64,1}}},
+    boundary_flux::OneBoundaryFlux,
     D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
 )
     blocks = (blocks[1],blocks[2],blocks[2],blocks[3])
-    boundary_flux = (upper = boundary_flux, lower = boundary_flux)
+    boundary_flux = BoundaryFlux(boundary_flux, boundary_flux)
     return LazyGenerator(dq,blocks,boundary_flux,D)
+end
+
+macro static_generator(lz)
+    display(lz)
+    sz = Expr(:call, size, :(lz.blocks[1]), 1)
+    ex_smatrix = Expr(:curly, :(StaticArrays.SMatrix), sz, sz)
+    ex_svector = Expr(:curly, :(StaticArrays.SVector), sz)
+    b1 = Expr(:call, ex_smatrix, :(lz.blocks[1]))
+    b2 = Expr(:call, ex_smatrix, :(lz.blocks[2]))
+    b3 = Expr(:call, ex_smatrix, :(lz.blocks[3]))
+    b4 = Expr(:call, ex_smatrix, :(lz.blocks[4]))
+    upperin = Expr(:call, ex_svector, :(lz.boundary_flux.upper.in))
+    upperout = Expr(:call, ex_svector, :(lz.boundary_flux.upper.out))
+    lowerin = Expr(:call, ex_svector, :(lz.boundary_flux.lower.in))
+    lowerout = Expr(:call, ex_svector, :(lz.boundary_flux.lower.out))
+    D = Expr(:call, ex_smatrix, :(lz.D))
+    dq = :(lz.dq)
+    display(eval(dq))
+    display(eval(b1))
+    display(eval(b2))
+    display(eval(b3))
+    display(eval(b4))
+    display(eval(upperin))
+    display(eval(upperout))
+    display(eval(lowerin))
+    display(eval(lowerout))
+    display(eval(D))
+    return Expr(:call, LazyGenerator, eval(dq), (eval(b1),eval(b2),eval(b3),eval(b4)), 
+        DiscretisedFluidQueues.BoundaryFlux(DiscretisedFluidQueues.OneBoundaryFlux(eval(upperin),eval(upperout)),
+            DiscretisedFluidQueues.OneBoundaryFlux(eval(lowerin),eval(lowerout))), 
+        eval(D))
 end
 
 # I think this is a duplicate: delete?

@@ -47,7 +47,7 @@ function build_lazy_generator(
 )   
     me = dq.mesh.me
     blocks = (me.s*me.a, me.S, me.s*me.a)
-    boundary_flux = (in = me.s[:], out = me.a[:])
+    boundary_flux = OneBoundaryFlux(me.s[:],me.a[:])
     D = me.D
     out = LazyGenerator(dq,blocks,boundary_flux,D)
     v && println("UPDATE: LazyGenerator object created with keys ", keys(out))
