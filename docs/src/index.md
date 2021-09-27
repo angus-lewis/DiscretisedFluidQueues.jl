@@ -86,6 +86,6 @@ This is my PhD topic. I'll provide a link to a write up when I've done one...
 
 
 ```@autodocs
-Modules = [Foo, Bar, Bar.Baz]
+Modules = [DiscretisedFluidQueues]
 Order   = [:function, :type]
 ```
