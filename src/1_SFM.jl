@@ -1,3 +1,8 @@
+"""
+    Model 
+
+Abstract type represnting a FluidQueue or DiscretisedFluidQueue
+"""
 abstract type Model end
 
 """

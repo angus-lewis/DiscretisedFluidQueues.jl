@@ -1,6 +1,6 @@
 ### Methods 
 
-```@autodocs
-Modules = [DiscretisedFluidQueues]
-Order   = [:function]
+```@docs
+n_phases
+rates
 ```
