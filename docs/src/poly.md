@@ -3,10 +3,10 @@
 DG and FV methods rely on polynomial approximations. 
 
 ```@docs
-lagrange_polynomials
-gauss_lobatto_points
-gauss_lobatto_weights
-lagrange_interpolation
-gauss_lobatto_quadrature
-vandermonde
+DiscretisedFluidQueues.lagrange_polynomials
+DiscretisedFluidQueues.gauss_lobatto_points
+DiscretisedFluidQueues.gauss_lobatto_weights
+DiscretisedFluidQueues.lagrange_interpolation
+DiscretisedFluidQueues.gauss_lobatto_quadrature
+DiscretisedFluidQueues.vandermonde
 ```

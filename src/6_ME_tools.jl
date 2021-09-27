@@ -10,6 +10,9 @@ A Dict storing parameters of concentrated matrix exponential distributions. See 
 """
 cme_params = FileIO.load(dir*"/CMEParamsData/CMEParams.jld2", "CMEParams")
 
+"""
+    AbstractMatrixExponential
+"""
 abstract type AbstractMatrixExponential end
 
 """
