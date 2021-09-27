@@ -5,7 +5,9 @@ makedocs(
     format = Documenter.HTML(; prettyurls = get(ENV, "CI", nothing) == "true"),
     authors = "angus-lewis",
     sitename = "DiscretisedFluidQueues.jl",
-    pages = Any["index.md"],
+    pages = Any["index.md", 
+        "API" => ["Types" => "types.md", 
+        "Methods" => "methods.md"]],
 )
     # strict = true,
     # clean = true,

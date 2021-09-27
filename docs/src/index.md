@@ -85,7 +85,3 @@ More examples and documentation to come.
 This is my PhD topic. I'll provide a link to a write up when I've done one...
 
 
-```@autodocs
-Modules = [DiscretisedFluidQueues]
-Order   = [:function, :type]
-```
