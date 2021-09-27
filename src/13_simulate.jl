@@ -1,5 +1,19 @@
 import Random
 
+"""
+    Simulation
+
+A container to hold simulations. 
+
+All arguments are arrays of the same ength + a model from which the simulations came
+
+# Arguments:
+- `t::Array{Float64, 1}`: 
+- `φ::Array{Int, 1}`: 
+- `X::Array{Float64, 1}`: 
+- `n::Array{Int, 1}`: 
+- `model::Model`: 
+"""
 struct Simulation
     # t, times at which SFM is observed (realisations of stopping times)
     # X, array of X(t) values
@@ -31,10 +45,11 @@ given the `InitialCondition` on (φ(0),X(0)).
 
 # Arguments
 - `model`: A Model object 
+- `lwr` and `upr` upper an lower regulated boundaries for the fluid level.
 - `StoppingTime`: A function which takes the value of the process at the current
     time and at the time of the last jump of the phase process, as well as the
     `model` object.
-    i.e. `StoppingTime(;model,SFM,SFM0)` where `SFM` and `SFM0` are tuples with
+    i.e. `StoppingTime(;model,SFM,SFM0,lwer,upr)` where `SFM` and `SFM0` are tuples with
     keys `(:t::Float64, :φ::Int, :X::Float64, :n::Int)` which are the value of
     the SFM at the current time, and time of the previous jump of the phase
     process, repsectively. The `StoppingTime` must return a
@@ -48,15 +63,7 @@ given the `InitialCondition` on (φ(0),X(0)).
     of simulations to be done.
 
 # Output
-- a tuple with keys
-    - `t::Array{Float64,1}` a vector of length `M` containing the values of
-        `t` at the `StoppingTime`.
-    - `φ::Array{Float64,1}` a vector of length `M` containing the values of
-        `φ` at the `StoppingTime`.
-    - `X::Array{Float64,1}` a vector of length `M` containing the values of
-        `X` at the `StoppingTime`.
-    - `n::Array{Float64,1}` a vector of length `M` containing the number of
-        transitions of `φ` at the `StoppingTime`
+- A `Simulation` object.
 """
 function simulate(
     model::FluidQueue,
@@ -102,6 +109,14 @@ function pdf(s::Simulation)
         either do it yourself, or construct the cdf, see cdf() function"))
 end
 
+"""
+    cdf(s::Simulation)
+
+Return a empirical cdf of the fluid queue given a simulation. 
+
+Output is a function of two variables (x,i) and gives the empirical distribution 
+    function ``P(X(τ)≤x,φ(τ)=i)``
+"""
 function cdf(s::Simulation)
     n_sims = length(s.t)
     function F(x::Float64,i::Int)
@@ -121,6 +136,8 @@ on the process.
         model::Model,
         SFM0::NamedTuple,
         S::Real,
+        lwr::Float64,
+        upr::Float64,
     )
 
 # Arguments
@@ -129,6 +146,8 @@ on the process.
     ``X(t)`` at the current time, and `:φ` giving the value of
     ``φ(t)`` at the current time.
 - `S::Real`: an elapsed amount of time to evaluate ``X`` at, i.e. ``X(t+S)``.
+- `lwr::Float64`: lower regulated boundary for the fluid level
+- `upr::Float64`: upper regulated boundary for the fluid level
 """
 function UpdateXt(
     model::Model,
@@ -157,6 +176,8 @@ Constructs the `StoppingTime` ``1(t>T)``
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
+        lwr::Float64,
+        upr::Float64,
     )`: a stopping time for a SFM.
 """
 function fixed_time(T::Float64)
@@ -195,6 +216,8 @@ jumps of ``φ`` by time ``t``.
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
+        lwr::Float64,
+        upr::Float64,
     )`: a stopping time for a SFM.
 """
 function n_jumps( N::Int)
@@ -204,6 +227,8 @@ function n_jumps( N::Int)
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
+        lwr::Float64,
+        upr::Float64,
     )
         Ind = SFM.n >= N
         return (Ind = Ind, SFM = SFM)
@@ -227,6 +252,8 @@ from the interval ``[u,v]``.
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
+        lwr::Float64,
+        upr::Float64,
     )`: a stopping time for a SFM.
 """
 function first_exit_x( u::Real, v::Real)
@@ -235,6 +262,8 @@ function first_exit_x( u::Real, v::Real)
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
+        lwr::Float64,
+        upr::Float64,
     )
         Ind = ((SFM.X > v) || (SFM.X < u))
         if Ind

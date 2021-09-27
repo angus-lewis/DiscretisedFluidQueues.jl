@@ -33,7 +33,7 @@ Construct and evaluate ``Ψ(s)`` for a triditional SFM.
 Uses newtons method to solve the Ricatti equation
 ``D⁺⁻(s) + Ψ(s)D⁻⁺(s)Ψ(s) + Ψ(s)D⁻⁻(s) + D⁺⁺(s)Ψ(s) = 0.``
 
-    PsiFun( model::Model; s = 0, MaxIters = 1000, err = 1e-8)
+    psi_fun_x( model::Model; s = 0, MaxIters = 1000, err = 1e-8)
 
 # Arguments
 - `model`: a Model object

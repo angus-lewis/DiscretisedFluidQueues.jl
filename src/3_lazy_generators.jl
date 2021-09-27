@@ -1,7 +1,37 @@
+"""
+    Generator
+
+Abstract type representing a discretised infinitesimal generator of a FLuidQueue.
+"""
 abstract type Generator <: AbstractArray{Real,2} end 
 
 const BoundaryFluxTupleType = NamedTuple{(:upper,:lower),Tuple{NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}},NamedTuple{(:in,:out),Tuple{Vector{Float64},Vector{Float64}}}}}
 
+"""
+    LazyGenerator <: Generator
+
+A lazy representation of a block matrix with is a generator of a DiscretisedFluidQueue.
+
+Lower memory requirements than FullGenerator but aritmetic operations and indexing may be slower.
+
+# Arguments:
+- `dq::DiscretisedFluidQueue`: 
+- `blocks::Tuple{Array{Float64, 2}, Array{Float64, 2}, Array{Float64, 2}, Array{Float64, 2}}`: 
+    Block matrices describing the flow of mass within and between cells. `blocks[1]` is the lower 
+    diagonal block describing the flow of mass from cell k+1 to cell (k for phases 
+    with negative rate only). `blocks[2] (blocks[3])` is the 
+    diagonal block describing the flow of mass within a cell for a phase with positive (negative) rate.
+    `blocks[4]` is the upper diagonal block describing the flow of mass from cell k to k+1 (for phases 
+    with positive rate only).  
+- `boundary_flux::BoundaryFluxTupleType`: A named tuple structure such that 
+        - `boundary_flux.lower.in`: describes flow of density into lower boundary
+        - `boundary_flux.lower.out`: describes flow of density out of lower boundary
+        - `boundary_flux.upper.in`: describes flow of density into upper boundary
+        - `boundary_flux.upper.out`: describes flow of density out of upper boundary
+- `D::Union{Array{Float64, 2}, LinearAlgebra.Diagonal{Bool, Array{Bool, 1}}}`: An array describing 
+    how the flow of density changes when the phase process jumps between phases with different memberships.
+    This is the identity for FV and DG schemes. 
+"""
 struct LazyGenerator  <: Generator
     dq::DiscretisedFluidQueue
     blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2},Array{Float64,2}}
@@ -47,10 +77,18 @@ end
 #     return LazyGenerator(blocks, boundary_flux, D)
 # end
 
+"""
+    build_lazy_generator(dq::DiscretisedFluidQueue; v::Bool = false)
+
+Build a lazy representation of the generator of a discretised fluid queue.
+"""
 function build_lazy_generator(dq::DiscretisedFluidQueue; v::Bool=false)
     throw(DomainError("Can construct LazyGenerator for DGMesh, FRAPMesh, only"))
 end
 
+"""
+    size(B::LazyGenerator)
+"""
 function size(B::LazyGenerator)
     sz = total_n_bases(B.dq) + N₋(B.dq) + N₊(B.dq)
     return (sz,sz)

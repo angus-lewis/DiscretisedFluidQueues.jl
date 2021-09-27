@@ -19,7 +19,7 @@ This package implements finite element and finite volume numerical solvers to ap
 pkg> add https://github.com/angus-lewis/DiscretisedFluidQueues
 ```
 ```jl
-julia> import DiscretisedFluidQueues
+julia> using DiscretisedFluidQueues
 ```
 
 Create a model with (for example)
@@ -27,31 +27,31 @@ Create a model with (for example)
 T = [-2.5 2 0.5; 1 -2 1; 1 2 -3] # generator of the phase
 C = [0.0; 2.0; -3.0]    # rates dX/dt
 
-S = DiscretisedFluidQueues.PhaseSet(C) 
+S = PhaseSet(C) 
 
-model = DiscretisedFluidQueues.FluidQueue(T,S) 
+model = FluidQueue(T,S) 
 ```
 
 Create a discretisation mesh (a grid + method with which to approximate the solution) with any of (e.g.)
 ```jl
 nbases = 3
-mesh = DiscretisedFluidQueues.DGMesh(nodes,nbases)
+mesh = DGMesh(nodes,nbases)
 
 fv_order = 3
-fvmesh = DiscretisedFluidQueues.FVMesh(nodes,fv_order)
+fvmesh = FVMesh(nodes,fv_order)
 
 order = 3
-frapmesh = DiscretisedFluidQueues.FRAPMesh(nodes,order)
+frapmesh = FRAPMesh(nodes,order)
 ```
 
 Combine the model and the discretisation scheme (mesh) to form a discretised fluid queue
 ```
-dq = DiscretisedFluidQueues.DiscretisedFluidQueue(model,mesh)
+dq = DiscretisedFluidQueue(model,mesh)
 ```
 
 Construct an approximation to the generator with 
 ```jl
-B = DiscretisedFluidQueues.MakeFullGenerator(dq)
+B = build_full_generator(dq)
 ```
 `B` is essentially a matrix which we can think of as describing the ODE
 \begin{equation}
@@ -62,18 +62,18 @@ where $ \mathbf a(t)$ is a row vector of coefficients and $  \mathbf a(t)  \math
 Construct an initial distribution with (e.g.)
 ```jl
 f(x,i) = (i-1)/12.0./sum(1:3) # the initial distribution
-d = DiscretisedFluidQueues.SFMDistribution(f,dq)
+d = SFMDistribution(f,dq)
 ```
 
 Integrate over time with 
 ```jl
 t = 3.2
-dt = DiscretisedFluidQueues.integrate_time(d,B,t)
+dt = integrate_time(d,B,t)
 ```
 
 Reconstruct approximate solution with 
 ```jl
-u = DiscretisedFluidQueues.cdf(d)
+u = cdf(d)
 ```
 Evaluate solution as a function 
 ```jl

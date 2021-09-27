@@ -1,22 +1,17 @@
 # yuck. there were less fucks given making this
 """
+    FVMesh <: Mesh
 
-    FVMesh(
-        model::Model,
-        nodes::Array{Float64,1};
-        Fil::IndexDict=IndexDict(),
-    ) 
+A finite volume discretisation scheme for a DiscretisedFluidQueue. 
 
-Constructor for a mesh for a finite volume scheme. 
-    Inputs: 
-     - `model::Model` a Model object
-     - `nodes::Array{Float64,1}` a vector specifying the cell edges
-     - `Fil::IndexDict` an optional dictionary allocating the cells to the sets Fᵢᵐ
+# Arguments
+ - `nodes`: the cell edges (the nodes are at the center of the cell)
+ - `order`: the order of the polynomial interpolation used to approximate the flux at the 
+ cell edges.
 """
 struct FVMesh <: Mesh 
     nodes::Array{Float64,1}
     order::Int
-    # Fil::IndexDict
 end 
 
 """

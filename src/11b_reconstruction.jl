@@ -58,6 +58,13 @@ function _get_coeffs_index(x::Float64,i::Int,dq::DiscretisedFluidQueue)
     return cell_idx, cellnodes, coeff_idx
 end
 
+"""
+    pdf(d::SFMDistribution)
+
+Return a function of two variables (x::Float64,i::Int) which is the 
+probability distribution function defined by `d`. Approximates the density function of 
+a fluid queue.
+"""
 function pdf(d::SFMDistribution) 
     throw(DomainError("unknown <:Mesh}"))
 end
@@ -92,6 +99,11 @@ function pdf(d::SFMDistribution{DGMesh})
     end
     return f
 end
+"""
+    pdf(d::SFMDistribution, x, i) 
+
+Evaluate pdf(d::SFMDistribution) at (x,i).
+"""
 pdf(d::SFMDistribution,x,i) = 
     throw(DomainError("x must be Float64/Int/Array{Float64/Int,1}, i must be Int/Array{Int,1}"))
 pdf(d::SFMDistribution,x::Float64,i::Int) = pdf(d)(x,i)
@@ -162,7 +174,13 @@ end
 ############
 ### CDFs ###
 ############
+"""
+    cdf(d::SFMDistribution)
 
+Return a function of two variables (x::Float64,i::Int) which is the 
+cumulative distribution distribution function defined by `d`. Approximates the distribution function of 
+a fluid queue.
+"""
 function cdf(d::SFMDistribution) 
     throw(DomainError("unknown <:Mesh"))
 end
@@ -229,6 +247,11 @@ function cdf(d::SFMDistribution{DGMesh})
     end
     return F
 end
+"""
+    cdf(d::SFMDistribution, x, i) 
+
+Evaluate cdf(d::SFMDistribution) at (x,i).
+"""
 cdf(d::SFMDistribution,x,i) = 
     throw(DomainError("x must be Float64/Int/Array{Float64/Int,1}, i must be Int/Array{Int,1}"))
 cdf(d::SFMDistribution,x::Float64,i::Int) = cdf(d)(x,i)

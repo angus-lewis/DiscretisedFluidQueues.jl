@@ -1,3 +1,8 @@
+"""
+    lagrange_polynomials(nodes::Array{Float64, 1}, evalPt::Float64)
+
+Evaluate the lagrange polynomials defied by `nodes` at the point `evalPt`.
+"""
 function lagrange_polynomials(nodes::Array{Float64,1}, evalPt::Float64)
     order = length(nodes)
     poly_coefs = zeros(order)
@@ -8,6 +13,11 @@ function lagrange_polynomials(nodes::Array{Float64,1}, evalPt::Float64)
     return poly_coefs
 end
 
+"""
+    gauss_lobatto_points(a::Float64, b::Float64, n_evals::Int)
+
+Return array containing `n_evals` gauss lobatto points in the interval `[a,b]`.
+"""
 function gauss_lobatto_points(a::Float64,b::Float64,n_evals::Int)
     (b<a)&&throw(DomainError("must have a<b"))
     (n_evals<1)&&throw(DomainError("n_evals must be > 0"))
@@ -23,6 +33,13 @@ function gauss_lobatto_points(a::Float64,b::Float64,n_evals::Int)
     end
     return nodes
 end
+"""
+    gauss_lobatto_weights(a::Float64, b::Float64, n_evals::Int)
+
+Return array containing `n_evals` weights of the polynomials associated with the
+gauss lobatto points in the interval `[a,b]`. i.e. the itegrals over the interval `[a,b]` 
+of the lagrange polynomials defined by the nodes given by `nodes = gauss_lobatto_points(a,b,n_evals)`
+"""
 function gauss_lobatto_weights(a::Float64,b::Float64,n_evals::Int)
     (b<a)&&throw(DomainError("must have a<b"))
     (n_evals<1)&&throw(DomainError("n_evals must be > 0"))
@@ -35,6 +52,12 @@ function gauss_lobatto_weights(a::Float64,b::Float64,n_evals::Int)
     return weights
 end
 
+"""
+    lagrange_interpolation(fun::Function, a::Float64, b::Float64, n_evals::Int)
+
+Return a polynomial approximation to `fun` of order `n_evals-1` on the interval `[a,b]` using 
+the `gauss_lobatto_points` as the nodes of the lagrange polynomials.
+"""
 function lagrange_interpolation(fun::Function,a::Float64,b::Float64,n_evals::Int)
     nodes = gauss_lobatto_points(a,b,n_evals)
     
@@ -42,6 +65,12 @@ function lagrange_interpolation(fun::Function,a::Float64,b::Float64,n_evals::Int
     interpolant(x) = LinearAlgebra.dot(fun_vals,lagrange_polynomials(nodes,x))
     return interpolant
 end
+"""
+    gauss_lobatto_quadrature(fun::Function, a::Float64, b::Float64, n_evals::Int)
+
+Compute a quadrature approximation of `fun` on the interval `[a,b]` with `n_evals` function 
+evaluations using the `gauss_lobatto_points`
+"""
 function gauss_lobatto_quadrature(fun::Function,a::Float64,b::Float64,n_evals::Int)
     nodes = gauss_lobatto_points(a,b,n_evals)
     weights = gauss_lobatto_weights(a,b,n_evals)

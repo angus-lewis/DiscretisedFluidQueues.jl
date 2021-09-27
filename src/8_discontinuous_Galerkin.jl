@@ -1,47 +1,11 @@
 """
-Constructs a DGMesh composite type, a subtype of the abstract type Mesh.
+    DGMesh <: Mesh
 
-    DGMesh(
-        model::Model,
-        nodes::Array{Float64,1},
-        n_bases::Int;
-        Fil::IndexDict=IndexDict(),
-        basis::String = "legendre",
-    )
+A structure representing a discretisation scheme to be used for a DiscretisedFluidQueue. 
 
-# Arguments
-- `model`: a Model object
-- `nodes::Array{Float64,1}`: (K+1)×1 array, specifying the edges of the cells
-- `n_bases::Int`: specifying the number of bases within each cell (same for all
-    cells)
-- `Fil::IndexDict`: (optional) A dictionary of the sets Fᵢᵐ, they
-    keys are Strings specifying i and m, i.e. `"2+"`, the values are BitArrays of
-    boolean values which specify which cells of the stencil correspond to Fᵢᵐ. If no
-    value specified then `Fil` is generated automatically evaluating ``r_i(x)`` at
-    the modpoint of each cell.
-- `basis::String`: a string specifying whether to use the `"lagrange"` basis or
-    the `"legendre"` basis
-
-# Output
-- a Mesh object with fieldnames:
-    - `:n_bases`: the number of bases in each cell
-    - `:cell_nodes`: Array of nodal points (cell edges + GLL points)
-    - `:Fil`: As described in the arguments
-    - `:Δ`:A vector of mesh widths, Δ[k] = x_{k+1} - x_k
-    - `:NIntervals`: The number of cells
-    - `:nodes`: the cell edges
-    - `:n_bases_per_phase`: `NIntervals*n_bases`
-    - `:basis`: a string specifying whether the
-
-# Examples
-TBC
-
-#
-A blank initialiser for a DGMesh.
-
-    DGMesh()
-
-Used for initialising a blank plot only. There is no reason to call this, ever. 
+# Arguments:
+- `nodes::Array{<:Real, 1}`: The edges of the cells.
+- `n_bases::Int`: The number of basis functions used to represent the solution on each cell
 """
 struct DGMesh <: Mesh 
     nodes::Array{<:Real,1}
@@ -69,7 +33,7 @@ n_bases_per_cell(mesh::DGMesh) = mesh.n_bases
 
     cell_nodes(mesh::DGMesh)
 
-The positions of the GLJ nodes within each cell
+The positions of the GLJ nodes within each cell of a mesh.
 """
 function cell_nodes(mesh::DGMesh)
     cellnodes = zeros(Float64, n_bases_per_cell(mesh), n_intervals(mesh))
@@ -97,6 +61,12 @@ Returns mesh.basis; either "lagrange" or "legendre"
 """
 basis(mesh::DGMesh) = mesh.basis
 
+"""
+    local_dg_operators(mesh::DGMesh; v::Bool = false)
+
+Construct the block matrices and vectors which define the discretised
+generator (i.e. the `blocks`, and `boundary_flux` in `LazyGenerator`).
+"""
 function local_dg_operators(
     mesh::DGMesh;
     v::Bool = false,
@@ -140,31 +110,6 @@ function local_dg_operators(
     return out 
 end
 
-"""
-Creates the DG approximation to the generator `B`.
-
-    build_lazy_generator(
-        model::Model,
-        mesh::DGMesh,
-        Matrices::NamedTuple;
-    )
-
-# Arguments
-- `model`: A Model object
-- `mesh`: A Mesh object
-- `Matrices`: A Matrices tuple from `MakeMatrices`
-
-# Output
-- A Generator with fields `:BDict, :B, :QBDidx`
-    - `:BDict::Dict{String,Array{Float64,2}}`: a dictionary storing Bᵢⱼˡᵐ with
-        keys string(i,j,ℓ,m), and values Bᵢⱼˡᵐ, i.e. `B.BDict["12+-"]` = B₁₂⁺⁻
-    - `:B::SparseArrays.SparseMatrixCSC{Float64,Int64}`:
-        `NPhases(model)*n_bases_per_phase(mesh)×NPhases(model)*n_bases_per_phase(mesh)`, the
-        global approximation to `B`
-    - `:QBDidx::Array{Int64,1}`: `NPhases(model)*n_bases_per_phase(mesh)×1` vector of
-        integers such such that `:B[QBDidx,QBDidx]` puts all the blocks relating
-        to cell `k` next to each other
-"""
 function build_lazy_generator(dq::DiscretisedFluidQueue{DGMesh}; v::Bool = false)
 
     m = local_dg_operators(dq.mesh; v=v)

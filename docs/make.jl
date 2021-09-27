@@ -1,15 +1,15 @@
-using Documenter, 
+using Documenter
 
 makedocs(
-    modules = [],
+    modules = DiscretisedFluidQueues,
     format = Documenter.HTML(; prettyurls = get(ENV, "CI", nothing) == "true"),
     authors = "angus-lewis",
-    sitename = ".jl",
-    pages = Any["index.md"]
+    sitename = "DiscretisedFluidQueues.jl",
+    pages = Any["index.md"],
+)
     # strict = true,
     # clean = true,
     # checkdocs = :exports,
-)
 
 deploydocs(
     repo = "github.com/angus-lewis/DiscretisedFluidQueues.jl.git",

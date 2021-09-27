@@ -1,29 +1,30 @@
 abstract type TimeIntegrationScheme end
 
+"""
+    Euler <: TimeIntegrationScheme
+
+Defines an Euler integration scheme to be used in `integrate_time`.
+
+# Arguments 
+-  `step_size::Float64`: the step size of the integration scheme.
+"""
 struct Euler <: TimeIntegrationScheme
     step_size::Float64
 end
 
 """
-Uses Eulers method to integrate the matrix DE ``f'(x) = f(x)D`` to
-approxiamte ``f(y)``.
+Given `x0` apprximate `x0 exp(Dy)`.
 
-    EulerDG(
-        D::Union{Array{<:Real,2},SparseArrays.SparseMatrixCSC{Float64,Int64}},
-        y::Real,
-        x0::Array{<:Real};
-        h::Float64 = 0.0001,
-    )
+    integrate_time(x0::AbstractArray{<:Real, 2}, D::Generator, y::Real, h::TimeIntegrationScheme = Euler(y ./ 1000))
 
 # Arguments
-- `D::Union{Array{<:Real,2},SparseArrays.SparseMatrixCSC{Float64,Int64}}`:
-    the matrix ``D`` in the system of ODEs ``f'(x) = f(x)D``.
-- `y::Real`: the value where we want to evaluate ``f(y)``.
-- `x0::Array{<:Real}`: a row-vector initial condition.
-- `h::Float64`: a stepsize for theEuler scheme.
+- `x0`: An initial row vector
+- `D`: A square matrix
+- `y`: time to integrate up to
+- `h`: TimeIntegrationScheme.
 
 # Output
-- `f(y)::Array`: a row-vector approximation to ``f(y)``
+- 
 """
 function integrate_time(
     x0::AbstractArray{<:Real,2},

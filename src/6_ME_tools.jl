@@ -58,6 +58,9 @@ end
 
 _order(ME::AbstractMatrixExponential) = length(ME.a)
 
+"""
+Similar to MatrixExponential but has a neater implementation of `orbit()` due to nice structure.
+"""
 struct ConcentratedMatrixExponential <: AbstractMatrixExponential
     a::Array{Float64,2}
     S::Array{Float64,2}
@@ -93,31 +96,77 @@ struct ConcentratedMatrixExponential <: AbstractMatrixExponential
 end
 
 pdf(me::AbstractMatrixExponential) = x->(me.a*exp(me.S*x)*me.s)[1]
+"""
+    pdf([a::Array{Float64, 2},] me::AbstractMatrixExponential)
+
+Return a the probability density function of a matrix exponential as a function.
+
+If `a` is not specified then the initial vector of the `me` is `me.a`
+
+# Arguments:
+- `a`: a row vector with length `size(me.S,1)`
+"""
 pdf(a::Array{Float64,2}, me::AbstractMatrixExponential) = 
     (length(a)==size(me.S,1)) ? (x->(a*exp(me.S*x)*me.s)[1]) : throw(
         DomainError("a and me.S must have compatible size"))
 
 pdf(me::AbstractMatrixExponential, x::Real) = pdf(me)(x)
+"""
+    pdf(a::Array{Float64, 2}, me::AbstractMatrixExponential, x::Real)  
+
+Return a the probability density function of a matrix exponential evaluated at `x`.
+"""
 pdf(a::Array{Float64,2}, me::AbstractMatrixExponential, x::Real) = pdf(a,me)(x)
 
 pdf(me::AbstractMatrixExponential, x::Array{Float64}) = pdf(me).(x)
 pdf(a::Array{Float64,2}, me::AbstractMatrixExponential, x::Array{Float64}) = pdf(a,me).(x)
 
 ccdf(me::AbstractMatrixExponential) = x->sum(me.a*exp(me.S*x))
+"""
+    ccdf(a::Array{Float64, 2}, me::AbstractMatrixExponential)  
+
+Return a the complimentary cumulative distribution function (1-cdf) of a matrix exponential as a function.
+
+If `a` is not specified then the initial vector of the `me` is `me.a`
+
+# Arguments:
+- `a`: a row vector with length `size(me.S,1)`
+"""
 ccdf(a::Array{Float64,2}, me::AbstractMatrixExponential) = (length(a)==size(me.S,1)) ? (x->sum(a*exp(me.S*x))) : throw(
     DomainError("a and me.S must have compatible size"))
 
 ccdf(me::AbstractMatrixExponential, x::Real) = ccdf(me)(x)
+"""
+    ccdf(a::Array{Float64, 2}, me::AbstractMatrixExponential, x::Real) 
+
+Return a the complimentary cumulative distribution function (1-cdf) of a matrix exponential evaluated at `x`.
+"""
 ccdf(a::Array{Float64,2}, me::AbstractMatrixExponential, x::Real) = ccdf(a,me)(x)
 
 ccdf(me::AbstractMatrixExponential, x::Array{Float64}) = ccdf(me).(x)
 ccdf(a::Array{Float64,2}, me::AbstractMatrixExponential, x::Array{Float64}) = ccdf(a,me).(x)
 
 cdf(me::AbstractMatrixExponential) = x->1-ccdf(me,x)
+"""
+    cdf(a::Array{Float64, 2}, me::AbstractMatrixExponential) = begin
+
+
+Return a the cumulative distribution function of a matrix exponential as a function.
+
+If `a` is not specified then the initial vector of the `me` is `me.a`
+
+# Arguments:
+- `a`: a row vector with length `size(me.S,1)`
+"""
 cdf(a::Array{Float64,2}, me::AbstractMatrixExponential) = (length(a)==size(me.S,1)) ? (x->1-ccdf(a,me)(x)) : throw(
     DomainError("a and me.S must have compatible size"))
 
 cdf(me::AbstractMatrixExponential, x::Real) = cdf(me)(x)
+"""
+    cdf(a::Array{Float64, 2}, me::AbstractMatrixExponential, x::Real)
+
+Return a the cumulative distribution function of a matrix exponential evaluated at `x`.
+"""
 cdf(a::Array{Float64,2}, me::AbstractMatrixExponential, x::Real) = cdf(a,me)(x)
 
 cdf(me::AbstractMatrixExponential, x::Array{Float64}) = cdf(me).(x)
@@ -125,7 +174,10 @@ cdf(a::Array{Float64,2}, me::AbstractMatrixExponential, x::Array{Float64}) = cdf
 
 
 """
+    build_me(params; mean::Real = 1)
 
+Return a ConcentratedMatrixExponential as defined by the dictionary params. i.e. see CMEParams[3]
+for an order 3 CME. 
 """
 function build_me(params; mean::Real = 1)
     N = 2*params["n"]+1
