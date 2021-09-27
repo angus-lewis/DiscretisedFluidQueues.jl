@@ -1,4 +1,4 @@
-using Documenter
+using Documenter, DiscretisedFluidQueues
 
 makedocs(
     modules = DiscretisedFluidQueues,
