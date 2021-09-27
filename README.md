@@ -1,6 +1,8 @@
 # DiscretisedFluidQueues
 ### Numerical approximation schemes for stochastic fluid queues.
 
+[Docs](https://angus-lewis.github.io/DiscretisedFluidQueues.jl/stable/)
+
 The evolution of a stochastic fluid queue with generator <img src="https://render.githubusercontent.com/render/math?math=T=[T_{ij}]_{i,j\in S}"> and associated diagonal matrix of rates <img src="https://render.githubusercontent.com/render/math?math=C = diag(c_i,i\in S)"> can be described by the PDE (when it exists)
 
 <img src="https://render.githubusercontent.com/render/math?math=\cfrac{\partial}{\partial t}  \mathbf f(x,i,t) =  \mathbf f(x,i,t) T - \cfrac{\partial}{\partial x}  \mathbf f(x,i,t) C">
