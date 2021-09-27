@@ -1,11 +1,13 @@
 # DiscretisedFluidQueues
 ### Numerical approximation schemes for stochastic fluid queues.
 
-The evolution of a stochastic fluid queue with generator <img src="https://render.githubusercontent.com/render/math?math=T=[T_{ij}]_{i,j\in S}"> and associated diagonal matrix of rates <img src="https://render.githubusercontent.com/render/math?math=C = diag(c_i,i\in S)"> can be described by the PDE (when it exists)
+The evolution of a stochastic fluid queue with generator $[T_{ij}]_{i,j\in S}$ and associated diagonal matrix of rates $C = diag(c_i,i\in S)$ can be described by the PDE (when it exists)
 
-<img src="https://render.githubusercontent.com/render/math?math=\cfrac{\partial}{\partial t}  \mathbf f(x,i,t) =  \mathbf f(x,i,t) T - \cfrac{\partial}{\partial x}  \mathbf f(x,i,t) C">
+\begin{equation}
+    \cfrac{\partial}{\partial t}  \mathbf f(x,i,t) =  \mathbf f(x,i,t) T - \cfrac{\partial}{\partial x}  \mathbf f(x,i,t) C
+\end{equation}
 
-where <img src="https://render.githubusercontent.com/render/math?math=\mathbf f(x,i,t) dx = (f(x,i,t))_{i\in S} = (P(X(t)\in dx, \varphi(t)=i))_{i\in S}"> the time-dependent joint density/mass function. 
+where $\mathbf f(x,i,t) dx = (f(x,i,t))_{i\in S} = (P(X(t)\in dx, \varphi(t)=i))_{i\in S}$ the time-dependent joint density/mass function. 
 
 This package implements finite element and finite volume numerical solvers to approximate the right-hand side of this PDE; 
 
