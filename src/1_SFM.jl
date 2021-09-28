@@ -116,13 +116,13 @@ checksquare(A::AbstractArray{<:Any,2}) = !(size(A,1)==size(A,2)) ? throw(DomainE
 Constructor for a fluid queue model.
 
 # Arguments:
-- `T::Array{<:Real, 2}`: Generator of the phase process
+- `T::Array{Float64, 2}`: Generator of the phase process
 - `S::PhaseSet`: An array of phases describing the evolution of the fluid level in each phase.
 """
 struct FluidQueue <: Model
-    T::Array{<:Real,2}
+    T::Array{Float64,2}
     S::PhaseSet
-    function FluidQueue(T::Array{<:Real,2}, S::PhaseSet)
+    function FluidQueue(T::Array{Float64,2}, S::PhaseSet)
         checksquare(T)
         !all(isapprox.(sum(T,dims=2),0, atol=1e-5))&&throw(DomainError(T, "row sums must be 0 (tol=1e-5)"))
         !all(sum(T,dims=2).==0)&&@warn "row sums of T must be 0 (tol=1e-5)"
@@ -131,11 +131,11 @@ struct FluidQueue <: Model
     end
 end 
 """
-    FluidQueue(T::Array{<:Real,2},c::Array{Float64,1})
+    FluidQueue(T::Array{Float64,2},c::Array{Float64,1})
 
 Alias to `FluidQueue(T,PhaseSet(c))`.
 """
-FluidQueue(T::Array{<:Real,2},c::Array{Float64,1}) = FluidQueue(T,PhaseSet(c))
+FluidQueue(T::Array{Float64,2},c::Array{Float64,1}) = FluidQueue(T,PhaseSet(c))
 
 rates(m::FluidQueue) = rates(m.S)
 rates(m::FluidQueue,i::Int) = rates(m.S,i)
