@@ -53,13 +53,13 @@ function integrate_time(x0::SFMDistribution, D::FullGenerator, y::Float64, schem
     checksquare(D)
     !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
     
-    return SFMDistribution(_integrate(x0.coeffs,D.B,y,scheme),dq)
+    return SFMDistribution(_integrate(x0.coeffs,D.B,y,scheme),x0.dq)
 end
 function integrate_time(x0::SFMDistribution, D::LazyGenerator, y::Float64, scheme::TimeIntegrationScheme)
     checksquare(D)
     !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
     
-    return SFMDistribution(_integrate(x0.coeffs,D,y,scheme),dq)
+    return SFMDistribution(_integrate(x0.coeffs,D,y,scheme),x0.dq)
 end
 
 """
