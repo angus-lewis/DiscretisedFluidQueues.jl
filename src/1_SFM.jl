@@ -130,6 +130,12 @@ struct FluidQueue <: Model
         return new(T,S)
     end
 end 
+"""
+    FluidQueue(T::Array{<:Real,2},c::Array{Float64,1})
+
+Alias to `FluidQueue(T,PhaseSet(c))`.
+"""
+FluidQueue(T::Array{<:Real,2},c::Array{Float64,1}) = FluidQueue(T,PhaseSet(c))
 
 rates(m::FluidQueue) = rates(m.S)
 rates(m::FluidQueue,i::Int) = rates(m.S,i)

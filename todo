@@ -1,0 +1,69 @@
+#DONE Create Model constructors to replace functions/tuples
+#DONE Create Mesh constructors to replace functions/tuples
+#Efficient implementation of DGAdv (deprecated)
+#DONE Implement Dist2Coeffs for lagrange without probability transform
+#DONE Document DGAdv code
+#Compare DGAdv (deprecated) and Base
+#GoodEnough Clean up SFFMDGpi code normalisation conditions, document
+#DONE Lazy B, D for euler scheme.
+
+4) Rework file system (mainly numerical schemes)
+    + StochasticFluidModels, main module file
+        + METools, matrix exponential distributions, CMEs, Erlang
+        + SFM models, defines models and basic sfm algorithms (psi, pi, etc)
+        + SFFM models, defines fluid-fluid models
+        + sim, simulates SFM and SFFMs given a model
+        + distributions, array{Float,2} row-vector-like objects with convenient getindex functions
+        + generators, defines generators, full/lazy, promotion, getindex, multiplication
+        + numerical methods/space integration
+            + DG, mesh, make_generator
+            + FVM, mesh, make_generator
+            + FRAP, mesh, make_generator
+            + time integration, Euler, RK4
+        + SFFM_Operators, operators and functions to approximate SFFMs
+        + Plots, plot distributions
+
+#DONE 1) deprecate probTransform/Implement DGBase lagrange without probability transform
+
+Add examples to all documentations
+
+implement tests
+
+#DONE 2) implement extensible distributions, initial distributions, and plot(distribution)
+    The struct will look something like 
+        struct Distribution <: Array{Float64,1}
+            vals::Array{Float64,1}
+            Fil::IndexDict
+        end
+        getindex(d::Distribution,i) = d.vals[i]
+        *(u::Distribution,B::Generator) = Distribution(transpose(B)*u.vals,Fil)
+        *(B::Generator,u::Distribution) = throw(DimensionMismatch("Distribution behaves as a row-vector when multiplied with a generator"))
+2b) implement getindex(d::Distribution,Tuple{String,String}) = something which gets vals[+,-] par exemple
+2a) augmented state space model
+2c) deprecate old Distribtuions module
+3) time integrators will be something like 
+    abstract type IntegrationMethod end
+    struct Euler <: IntegrationMethod
+        step_size
+    end
+    struct RK4 <: IntegrationMethod
+        step_size
+        whatever_else
+    end
+    function integrate(u::Distribution,B::Generator,t,integration_method::IntegrationMethod)
+        throw(DomainError("No such integration method"))
+    end
+    function integrate(u::Distribution,B::Generator,t,integration_method::Euler)
+        blah
+    end
+    function integrate(u::Distribution,B::Generator,t,integration_method::RK4)
+        blah
+    end
+
+5) update R object to be an abstract array and define getindex(R,String,String), i.e. R["+"]
+
+6) make SFFMModel object simpler, i.e. wtf is going on with r = (r,R)??
+
+7) parametric DGMesh type; DGMesh{Lagrange}, DGMesh{Legendre}, or deprecate Legendre...
+
+8) implement \Delta(mesh,k) = \Delta(mesh)[k] efficiently
