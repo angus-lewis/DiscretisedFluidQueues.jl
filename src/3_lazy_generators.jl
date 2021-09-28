@@ -3,7 +3,7 @@
 
 Abstract type representing a discretised infinitesimal generator of a FLuidQueue.
 """
-abstract type Generator <: AbstractArray{Real,2} end 
+abstract type Generator <: AbstractArray{Float64,2} end 
 
 const UnionVectors = Union{StaticArrays.SVector,Vector{Float64}}
 const UnionArrays = Union{Array{Float64,2},StaticArrays.SMatrix}
