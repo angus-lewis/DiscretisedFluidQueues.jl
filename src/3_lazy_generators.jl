@@ -88,35 +88,36 @@ function LazyGenerator(
     return LazyGenerator(dq,blocks,boundary_flux,D)
 end
 
+"""
+    @static_generator(lz)
+
+Convert the block matrices and vectors within `lz` to `StaticArrays`.
+This is not much faster. I think all the conditionals in `*` are the main 
+bottle-neck for speed... 
+"""
 macro static_generator(lz)
-    display(lz)
-    sz = Expr(:call, size, :(lz.blocks[1]), 1)
-    ex_smatrix = Expr(:curly, :(StaticArrays.SMatrix), sz, sz)
-    ex_svector = Expr(:curly, :(StaticArrays.SVector), sz)
-    b1 = Expr(:call, ex_smatrix, :(lz.blocks[1]))
-    b2 = Expr(:call, ex_smatrix, :(lz.blocks[2]))
-    b3 = Expr(:call, ex_smatrix, :(lz.blocks[3]))
-    b4 = Expr(:call, ex_smatrix, :(lz.blocks[4]))
-    upperin = Expr(:call, ex_svector, :(lz.boundary_flux.upper.in))
-    upperout = Expr(:call, ex_svector, :(lz.boundary_flux.upper.out))
-    lowerin = Expr(:call, ex_svector, :(lz.boundary_flux.lower.in))
-    lowerout = Expr(:call, ex_svector, :(lz.boundary_flux.lower.out))
-    D = Expr(:call, ex_smatrix, :(lz.D))
-    dq = :(lz.dq)
-    display(eval(dq))
-    display(eval(b1))
-    display(eval(b2))
-    display(eval(b3))
-    display(eval(b4))
-    display(eval(upperin))
-    display(eval(upperout))
-    display(eval(lowerin))
-    display(eval(lowerout))
-    display(eval(D))
-    return Expr(:call, LazyGenerator, eval(dq), (eval(b1),eval(b2),eval(b3),eval(b4)), 
-        DiscretisedFluidQueues.BoundaryFlux(DiscretisedFluidQueues.OneBoundaryFlux(eval(upperin),eval(upperout)),
-            DiscretisedFluidQueues.OneBoundaryFlux(eval(lowerin),eval(lowerout))), 
-        eval(D))
+    out = quote 
+        tmp = $(esc(lz))
+        sz = size(tmp.blocks[1], 1)
+        ex_smatrix = StaticArrays.SMatrix{sz, sz, Float64}
+        ex_svector = StaticArrays.SVector{sz, Float64}
+        b1 = ex_smatrix(tmp.blocks[1])
+        b2 = ex_smatrix(tmp.blocks[2])
+        b3 = ex_smatrix(tmp.blocks[3])
+        b4 = ex_smatrix(tmp.blocks[4])
+        uprin = ex_svector(tmp.boundary_flux.upper.in)
+        uprout = ex_svector(tmp.boundary_flux.upper.out)
+        lwrin = ex_svector(tmp.boundary_flux.lower.in)
+        lwrout = ex_svector(tmp.boundary_flux.lower.out)
+        D = ex_smatrix(tmp.D)
+        dq = tmp.dq
+
+        # return 
+        LazyGenerator(dq,(b1,b2,b3,b4), 
+            BoundaryFlux(OneBoundaryFlux(uprin,uprout),OneBoundaryFlux(lwrin,lwrout)),
+            D)
+    end
+    return out
 end
 
 # I think this is a duplicate: delete?
