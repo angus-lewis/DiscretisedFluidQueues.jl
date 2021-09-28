@@ -43,11 +43,17 @@ Given `x0` apprximate `x0 exp(Dy)`.
 - `y`: time to integrate up to
 - `h`: TimeIntegrationScheme.
 """
-function integrate_time(x0::AbstractArray{Float64,2}, D::AbstractArray{Float64,2}, y::Float64, scheme::TimeIntegrationScheme)
+function integrate_time(x0::Array{Float64,2}, D::Array{Float64,2}, y::Float64, scheme::TimeIntegrationScheme)
     checksquare(D)
     !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
     
     return _integrate(x0,D,y,scheme)
+end
+function integrate_time(x0::SFMDistribution, D::FullGenerator, y::Float64, scheme::TimeIntegrationScheme)
+    checksquare(D)
+    !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
+    
+    return SFMDistribution(_integrate(x0.coeffs,D.B,y,scheme),dq)
 end
 
 """
@@ -55,7 +61,7 @@ end
 
 Use RungeKutta4 method.
 """
-function _integrate(x0::AbstractArray{Float64,2}, D::AbstractArray{Float64,2}, y::Float64, scheme::RungeKutta4)
+function _integrate(x0::Array{Float64,2}, D::Array{Float64,2}, y::Float64, scheme::RungeKutta4)
     x = x0
     h = scheme.step_size
     c1 = 1.0/6.0 
