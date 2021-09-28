@@ -26,7 +26,7 @@ function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{DGMesh})
         for cell in 1:n_intervals(dq)
             nodes = cellnodes[:,cell]
             if length(nodes)==1
-                weights = 1.0./Δ(dq,cell)
+                weights = Δ(dq,cell)
             else
                 weights = gauss_lobatto_weights(nodes[1],nodes[end],length(nodes))
             end
