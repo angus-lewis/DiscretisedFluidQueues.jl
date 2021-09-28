@@ -55,13 +55,19 @@ function integrate_time(x0::SFMDistribution, D::FullGenerator, y::Float64, schem
     
     return SFMDistribution(_integrate(x0.coeffs,D.B,y,scheme),dq)
 end
+function integrate_time(x0::SFMDistribution, D::LazyGenerator, y::Float64, scheme::TimeIntegrationScheme)
+    checksquare(D)
+    !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
+    
+    return SFMDistribution(_integrate(x0.coeffs,D,y,scheme),dq)
+end
 
 """
     integrate_time(x0::AbstractArray{Float64,2}, D::Generator, y::Float64, scheme::RungeKutta4)
 
 Use RungeKutta4 method.
 """
-function _integrate(x0::Array{Float64,2}, D::Array{Float64,2}, y::Float64, scheme::RungeKutta4)
+function _integrate(x0::Array{Float64,2}, D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, y::Float64, scheme::RungeKutta4)
     x = x0
     h = scheme.step_size
     c1 = 1.0/6.0 
@@ -82,7 +88,7 @@ end
 
 Use Eulers method.
 """
-function _integrate(x0::AbstractArray{Float64,2}, D::AbstractArray{Float64,2}, y::Float64, scheme::Euler)
+function _integrate(x0::Array{Float64,2}, D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, y::Float64, scheme::Euler)
     x = x0
     h = scheme.step_size
     for t = h:h:y
