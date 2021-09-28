@@ -42,7 +42,7 @@ setindex!(d::SFMDistribution,x::Float64,i::Int,j::Int) = (d.coeffs[i,j]=x)
 *(u::SFMDistribution,B::AbstractArray{Float64,2}) = SFMDistribution(*(u.coeffs,B),u.dq)
 *(B::AbstractArray{Float64,2},u::SFMDistribution) = *(u,B)
 *(u::SFMDistribution,B::Number) = SFMDistribution(*(u.coeffs,B),u.dq)
-*(B::Number,u::SFMDistribution) = *(B,u)
+*(B::Number,u::SFMDistribution) = *(u,B)
 
 include("11a_approximation.jl")
 include("11b_reconstruction.jl")
