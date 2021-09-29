@@ -3,6 +3,11 @@
 # import .DiscretisedFluidQueues 
 # using Test
 
+import Pkg
+display(pwd())
+Pkg.activate("DiscretisedFluidQueues/")
+using DiscretisedFluidQueues
+
 T = [-2.5 2 0.5; 1 -2 1; 1 2 -3]
 T_nz = T - [0.01 0 0;0 0 0;0 0 0]
 T_warn = T - [0.000001 0 0;0 0 0;0 0 0]
@@ -20,20 +25,23 @@ S_aug = DiscretisedFluidQueues.PhaseSet(C_aug)
 am = DiscretisedFluidQueues.FluidQueue(T_aug,S_aug)
 
 nodes = collect(0:0.5:10)#[0.0;3.0;4.0;12.0]
-nbases = 15
+nbases = 2
 dgmesh = DiscretisedFluidQueues.DGMesh(nodes,nbases)
 
 am = DiscretisedFluidQueues.augment_model(model)
 
-fv_order = 15
-fvmesh = DiscretisedFluidQueues.FVMesh(nodes,fv_order)
+# fv_order = 15
+# fvmesh = DiscretisedFluidQueues.FVMesh(nodes,fv_order)
 
-order = 15
-frapmesh = DiscretisedFluidQueues.FRAPMesh(nodes,order)
+# order = 3
+# frapmesh = DiscretisedFluidQueues.FRAPMesh(nodes,order)
 
-dq = DiscretisedFluidQueues.DiscretisedFluidQueue(model,frapmesh)
+dq = DiscretisedFluidQueues.DiscretisedFluidQueue(model,dgmesh)
 
 lz = DiscretisedFluidQueues.build_lazy_generator(dq)
 
-@macroexpand DiscretisedFluidQueues.@static_generator(lz)
-@static_generator(lz)
+# @macroexpand DiscretisedFluidQueues.@static_generator(lz)
+# @static_generator(lz)
+
+d0 = interior_point_mass(eps(),1,dq)
+display(d0)

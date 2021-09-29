@@ -66,7 +66,23 @@ function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{DGMesh}
     n₋ = N₋(dq)
     coeffs = zeros(1,n₊+n₋+total_n_bases(dq))
     nodes = cell_nodes(dq.mesh)[:,cell_idx]
-    coeffs[coeff_idx] = lagrange_polynomials(nodes,x)
+    V = vandermonde(n_bases_per_cell(dq))
+    # we solve a∫ψ(x)ψ(x)'dx = ∫δ(x-x₀)ψ'(x)dx where ψ(x) is a column vector of 
+    # lagrange polynomials on the current cell where each basis function integrates to 1.
+    # The right-hand integral is ψ'(x₀). Let W = diag(V.w) and note W=W' and W^-1=(W^-1)'
+    # Transform to a interpolating basis via ϕ(x) = (Δ/2×W)*ψ(x) where Δ/2V.w are the
+    # integrals of the interpolating basis functions ϕ(x).
+    # The inner product on the left-hand side 
+    # becomes (2/Δ)W^-1 * ∫ϕ(x)ϕ(x)'dx * (2/Δ)W^-1. 
+    # Maths tells us that ∫ϕ(x)ϕ(x)'dx = (V*V')^-1 Δ/2. 
+    # Thus a∫ψ(x)ψ(x)'dx = ∫δ(x-x₀)ψ'(x)dx
+    # becomes a(2/Δ)W^-1 * ∫ϕ(x)ϕ(x)'dx * (2/Δ)W^-1 = ϕ'(x₀)(2/Δ)W^-1
+    # solving for a 
+    # a = ϕ'(x₀) (2/Δ)W^-1 * ((2/Δ)W^-1*∫ϕ(x)ϕ(x)'dx*(2/Δ)W^-1)^-1
+    #   = ϕ'(x₀) (∫ϕ(x)ϕ(x)'dx)^-1 * (Δ/2)W
+    #   = ϕ'(x₀) (V.V*V.V')2/Δ * (Δ/2)W
+    #   = ϕ'(x₀) (V.V*V.V') W
+    coeffs[coeff_idx] = lagrange_polynomials(nodes,x)'*(V.V*V.V').*V.w'
     return SFMDistribution(coeffs,dq)
 end
 

@@ -87,9 +87,13 @@ function pdf(d::SFMDistribution{DGMesh})
                     coeffs = legendre_to_lagrange(coeffs)
                 else
                     V = vandermonde(n_bases_per_cell(mesh))
-                    coeffs = (2/(Δ(mesh)[cell_idx]))*(1.0./V.w).*coeffs
+                    coeffs = coeffs
                 end
-                basis_values = lagrange_polynomials(cellnodes, x)
+                lp = lagrange_polynomials(cellnodes, x) # interpolating basis
+                # transform to lagrange basis where each basis function integrates to 1,
+                # i.e. divide the basis functions by their integrals.
+                # their integrals are V.w*Δ/2
+                basis_values = (lp./V.w)*2/Δ(d.dq,cell_idx) 
                 fxi = LinearAlgebra.dot(basis_values,coeffs)
             # else 
             #     fxi = coeffs
