@@ -81,6 +81,19 @@ function gauss_lobatto_quadrature(fun::Function,a::Float64,b::Float64,n_evals::I
     
     return quad
 end
+"""
+    gauss_lobatto_quadrature(fun::Function, nodes::Array{Float64,1})
+
+Compute a quadrature approximation of `fun` on the interval `nodes[1]` to `nodes[end]`
+evaluating the function `fun` at `nodes`
+"""
+function gauss_lobatto_quadrature(fun::Function,nodes::Array{Float64,1})
+    weights = gauss_lobatto_weights(a,b,length(nodes))
+    fun_vals = fun.(nodes)
+    quad = LinearAlgebra.dot(fun_vals,weights)
+    
+    return quad
+end
 
 """
 Construct a generalised vandermonde matrix.

@@ -1,5 +1,5 @@
 """
-    SFMDistribution{T <: Mesh} <: AbstractArray{Float64, 2}
+    SFMDistribution{T <: Mesh} 
 
 Representation of the distribution of a DiscretisedFluidQueue. 
 
@@ -11,7 +11,7 @@ arithmetic operations on a distribution act on this vector.
     DiscretisedFluidQueue and can be used to reconstruct a solution.
 - `dq::DiscretisedFluidQueue{T}`: 
 """
-struct SFMDistribution{T<:Mesh} <: AbstractArray{Float64,2} 
+struct SFMDistribution{T<:Mesh} 
     coeffs::Array{Float64,2}
     dq::DiscretisedFluidQueue{T}
     SFMDistribution{T}(coeffs::Array{Float64,2},dq::DiscretisedFluidQueue{T}) where T<:Mesh = 

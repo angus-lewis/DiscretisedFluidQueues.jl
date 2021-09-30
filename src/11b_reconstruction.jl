@@ -76,7 +76,7 @@ function pdf(d::SFMDistribution{DGMesh})
         # if x is not in the support return 0.0
         mesh = d.dq.mesh
         fxi = 0.0
-        if ((x<=mesh.nodes[1])||(x>=mesh.nodes[end]))
+        if ((x<mesh.nodes[1])||(x>mesh.nodes[end]))
             #fxi = 0.0
         else
             cell_idx, cellnodes, coeff_idx = _get_coeffs_index(x,i,d.dq)
@@ -120,7 +120,7 @@ function pdf(d::SFMDistribution{FRAPMesh})
         # if x is not in the support return 0.0
         mesh = d.dq.mesh
         fxi = 0.0
-        if ((x<=mesh.nodes[1])||(x>=mesh.nodes[end]))
+        if ((x<mesh.nodes[1])||(x>mesh.nodes[end]))
             # fxi = 0.0
         else
             cell_idx, cellnodes, coeff_idx = _get_coeffs_index(x,i,d.dq)
@@ -148,7 +148,7 @@ function pdf(d::SFMDistribution{FVMesh})
         # if x is not in the support return 0.0
         mesh = d.dq.mesh
         fxi = 0.0
-        if ((x<=mesh.nodes[1])||(x>=mesh.nodes[end]))
+        if ((x<mesh.nodes[1])||(x>mesh.nodes[end]))
             # fxi = 0.0
         else
             cell_idx, cellnodes, coeff_idx = _get_coeffs_index(x,i,d.dq)
@@ -231,7 +231,7 @@ function cdf(d::SFMDistribution{DGMesh})
             # integral over density
             (x.>=mesh.nodes[end]) ? (xd=mesh.nodes[end]-sqrt(eps())) : xd = x
             cell_idx, ~, ~ = _get_coeffs_index(xd,i,d.dq)
-            if !(cell_idx=="point mass")
+            if !(cell_idx=="point mass") && (x<=xd)
                 # add all mass from cells to the left
                 Fxi += _sum_cells_left(d, i, cell_idx)
 
@@ -239,6 +239,8 @@ function cdf(d::SFMDistribution{DGMesh})
                 temp_pdf(y) = pdf(d)(y,i)
                 quad = gauss_lobatto_quadrature(temp_pdf,mesh.nodes[cell_idx],xd,n_bases_per_cell(mesh))
                 Fxi += quad
+            else !(cell_idx=="point mass")
+                Fxi += _sum_cells_left(d, i, cell_idx+1)
             end
             # add the RH point mass if  required
             if (x>=mesh.nodes[end])&&_has_right_boundary(d.dq.model.S,i)
