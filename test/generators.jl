@@ -7,12 +7,11 @@
             B = build_lazy_generator(dq)
             # types
             @test typeof(B)==LazyGenerator
-            @test typeof(B)<:AbstractArray
             @test all(isapprox.(B,B_data,atol=1e-4))
             # multiplcation (values)
-            @test B*Matrix(I(size(B,1))) == B
-            @test Matrix(I(size(B,1)))*B == B
-            @test Matrix(I(size(B,1)))*B == B
+            @test all(B*Matrix{Float64}(I(size(B,1))) .== B)
+            @test all(Matrix{Float64}(I(size(B,1)))*B .== B)
+            @test all(Matrix{Float64}(I(size(B,1)))*B .== B)
             # row sums
             @test all(isapprox.(sum(B,dims=2),0,atol=√eps()))
             @test all(isapprox.(B*B,B_data*B_data,atol=1e-3))
@@ -40,7 +39,7 @@
                 @test ind
             end
             # subtration
-            @test all(isapprox.(B-B*Matrix(I(size(B,1))),0,atol=sqrt(eps())))
+            @test all(isapprox.(B-B*Matrix{Float64}(I(size(B,1))),0,atol=sqrt(eps())))
         end
     end
     

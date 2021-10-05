@@ -213,6 +213,57 @@ function _sum_cells_left(d::SFMDistribution, i::Int, cell_idx::Int)
 end
 
 function cdf(d::SFMDistribution{DGMesh})
+    # First, get the coeffs and project in to higher dimensional space
+    # get coeffs without boundary masses
+    coeffs = d.coeffs[N₋(d.dq)+1:end-N₊(d.dq)] 
+    coeffs = reshape(coeffs,n_bases_per_cell(d.dq),n_intervals(d.dq),n_phases(d.dq))
+    # reweight basis to get it into the typicall lagrange interpolating basis
+    v = vandermonde(n_bases_per_cell(d.dq))
+    for i in 1:n_phases(d.dq)
+        coeffs[:,:,i] = (coeffs[:,:,i] ./ Δ(d.dq)') ./ (v.w ./ 2.0)
+    end
+    # coeffs = lagrange_to_legendre(coeffs) # do this later to save computation power
+    # project to higher space (in lagrange this is equiv. to adding a 0 coeff)
+    # coeffs = cat(coeffs,zeros(1,n_intervals(d.dq),n_phases(d.dq)),dims=1)# do this later
+    V = vandermonde(n_bases_per_cell(d.dq)+1)
+    # differentiation operator in legendre basis of degree n+1
+    # i.e. ϕ(x) a legendre basis for polynomials of degree n+1
+    # p(x) = ϕ(x)a, where a is a vector of coeffs, a polynomial
+    # p'(x) = ϕ'(x)a = ϕ(x)Ga
+    G = V.inv*V.D 
+    # We have p'(x) = ϕ(x)a, we want to recover p(x).
+    # p(x) is a polynomial of order n+1 so has a representation ϕ(x)b
+    # and therefore p'(x)=ϕ'(x)b. To recover p(x) we want to find b.
+    # We have, p'(x) = ϕ'(x)b = ϕ(x)a
+    # multiplty by ϕᵀ(x) and integrate 
+    # ⟹ ∫ϕᵀ(x)ϕ'(x)b dx = ∫ϕᵀ(x)ϕ(x)a dx
+    # ⟹ Gb=Ma=a (as M=I)
+    # but G is not invertible (which makes sense as integrals are only
+    # known up to an additive constant). If we have the additional condition that 
+    # p(-1)=0, then we can invert. i.e. ϕ(-1)b = 0.
+    # First, evaluate ϕ(-1)
+    ϕ₋₁ = V.V[1,:] 
+    # add condition to G
+    G[end,:] .= ϕ₋₁
+    # now G is invertible. We also need to add the constraint to the right-hand side 
+    # of the system. The system is 
+    # G⋅b = coeffs, with the additional constraint begin G[end,:]⋅b = 0, i.e. 
+    # we should set coeffs[:,end,:].=0, but this is already the case (the cat() command above) 
+    # coeffs[:,end,:] .= 0.0
+    # 
+    # now solve it! 
+    # Ginv = G\I # = G^-1
+    # also, transform back to lagrange basis for easy evaluation, 
+    # In summary multiply by V(n+1) G⁻¹(n+1) [I(n); zeros(n)] V⁻¹(n)
+    # where the order of the operator is in ()
+    # precompute transform
+    transform = (V.V/G)*[LinearAlgebra.I(n_bases_per_cell(d.dq)); zeros(1,n_bases_per_cell(d.dq))]*v.inv
+    integral_coeffs = zeros(n_bases_per_cell(d.dq)+1,n_intervals(d.dq),n_phases(d.dq))
+    for i in 1:n_phases(d.dq)
+        integral_coeffs[:,:,i] = (transform*coeffs[:,:,i]).*Δ(d.dq)'./2.0 # the factor at the end
+        # is actually part of the integral operator G^-1. i.e. we should have Δ(d.dq,cell)G^-1 
+        # for each cell. 
+    end
     function F(x::Float64,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq.model)) && throw(DomainError("phase i must be in the support of the model"))
@@ -220,7 +271,7 @@ function cdf(d::SFMDistribution{DGMesh})
         Fxi = 0.0
         if (x<mesh.nodes[1])
             # Fxi = 0.0
-        else
+        else # x>= mesh.nodes[1]
             # Fxi = 0.0
             # left pm
             if (x>=mesh.nodes[1])&&_has_left_boundary(d.dq.model.S,i)
@@ -229,24 +280,24 @@ function cdf(d::SFMDistribution{DGMesh})
                 Fxi += left_pm
             end
             # integral over density
-            (x.>=mesh.nodes[end]) ? (xd=mesh.nodes[end]-sqrt(eps())) : xd = x
-            cell_idx, ~, ~ = _get_coeffs_index(xd,i,d.dq)
-            if !(cell_idx=="point mass") && (x<=xd)
+            if (x>mesh.nodes[1])&&(x<mesh.nodes[end])
+                cell_idx, ~, ~ = _get_coeffs_index(x,i,d.dq)
                 # add all mass from cells to the left
                 Fxi += _sum_cells_left(d, i, cell_idx)
 
                 # integrate up to x in the cell which contains x
-                temp_pdf(y) = pdf(d)(y,i)
-                quad = gauss_lobatto_quadrature(temp_pdf,mesh.nodes[cell_idx],xd,n_bases_per_cell(mesh))
-                Fxi += quad
-            else !(cell_idx=="point mass")
-                Fxi += _sum_cells_left(d, i, cell_idx+1)
-            end
-            # add the RH point mass if  required
-            if (x>=mesh.nodes[end])&&_has_right_boundary(d.dq.model.S,i)
-                ~, right_pm_idx = _get_point_mass_data_pos(i,d.dq)
-                right_pm = d.coeffs[right_pm_idx]
-                Fxi += right_pm
+                # i.e. evaluate p(x) from above
+                cellnodes = gauss_lobatto_points(mesh.nodes[cell_idx],
+                    mesh.nodes[cell_idx+1], n_bases_per_cell(d.dq)+1)
+                basis_values = lagrange_polynomials(cellnodes, x) # interpolating basis
+                Fxi += LinearAlgebra.dot(basis_values,integral_coeffs[:,cell_idx,i])
+            elseif x>=mesh.nodes[end] # integrate over the whole space
+                Fxi += _sum_cells_left(d, i, n_intervals(d.dq)+1)
+                if _has_right_boundary(d.dq.model.S,i)
+                    ~, right_pm_idx = _get_point_mass_data_pos(i,d.dq)
+                    right_pm = d.coeffs[right_pm_idx]
+                    Fxi += right_pm
+                end
             end
         end
         return Fxi

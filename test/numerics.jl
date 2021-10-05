@@ -24,7 +24,7 @@
             b = zeros(1,size(generator,1))
             b[1] = 1.0
             if mtype==FVMesh
-                generator[:,1] = [
+                generator[:,1] .= [
                     ones(N₋(model.S));
                     repeat(Δ(msh),n_phases(model));
                     ones(N₊(model.S))]
@@ -50,7 +50,7 @@
             b_am = zeros(1,size(generator_am,1))
             b_am[1] = 1.0
             if mtype==FVMesh
-                generator_am[:,1] = [
+                generator_am[:,1] .= [
                     ones(N₋(am.S));
                     repeat(Δ(msh),n_phases(am));
                     ones(N₊(am.S))]

@@ -6,9 +6,13 @@ Evaluate the lagrange polynomials defied by `nodes` at the point `evalPt`.
 function lagrange_polynomials(nodes::Array{Float64,1}, evalPt::Float64)
     order = length(nodes)
     poly_coefs = zeros(order)
-    for n in 1:order
-        notn = [1:n-1;n+1:order]
-        poly_coefs[n] = prod(evalPt.-nodes[notn])./prod(nodes[n].-nodes[notn])
+    if order > 1
+        for n in 1:order
+            notn = [1:n-1;n+1:order]
+            poly_coefs[n] = prod(evalPt.-nodes[notn])./prod(nodes[n].-nodes[notn])
+        end
+    else 
+        poly_coefs = [1.0]
     end
     return poly_coefs
 end
@@ -135,15 +139,39 @@ function vandermonde(nBases::Int)
                 Jacobi.legendre.(Jacobi.zglj(nBases, 0, 0), nBases - 1) .^ 2
             )
     elseif nBases == 1
-        V .= [1/sqrt(2)]
-        DV .= [0]
-        w = [2]
+        V .= [1.0/sqrt(2)]
+        DV .= [0.0]
+        w = [2.0]
     end
     return (V = V, inv = inv(V), D = DV, w = w)
 end
 
-function legendre_to_lagrange(coeffs)
+function legendre_to_lagrange(coeffs::Vector{Float64})
     order = length(coeffs)
     V = vandermonde(order)
     return V.V*coeffs
+end
+
+function lagrange_to_legendre(coeffs::Vector{Float64})
+    order = length(coeffs)
+    V = vandermonde(order)
+    return V.inv*coeffs
+end
+
+function legendre_to_lagrange(coeffs::Array{Float64,3})
+    order = size(coeffs,1)
+    V = vandermonde(order)
+    for  i in 1:size(coeffs,3)
+        coeffs[:,:,i] = V.V*coeffs[:,:,i]
+    end
+    return coeffs
+end
+
+function lagrange_to_legendre(coeffs::Array{Float64,3})
+    order = size(coeffs,1)
+    V = vandermonde(order)
+    for  i in 1:size(coeffs,3)
+        coeffs[:,:,i] = V.inv*coeffs[:,:,i]
+    end
+    return coeffs
 end

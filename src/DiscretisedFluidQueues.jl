@@ -1,7 +1,7 @@
 module DiscretisedFluidQueues
 
 import Jacobi, LinearAlgebra, SparseArrays, StaticArrays
-import Base: *, size, show, getindex, +, -, setindex!
+import Base: *, size, show, getindex, +, -, setindex!, length, sum, iterate, BroadcastStyle
 
 # Types
 export Model, DiscretisedFluidQueue, FluidQueue, Phase, PhaseSet # Queues are <:Model

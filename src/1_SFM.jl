@@ -109,7 +109,6 @@ Return the number of right/upper point masses of a PhaseSet, FluidQueue or Discr
 N₊(S::PhaseSet) = sum(_has_right_boundary(S))
 
 checksquare(A::AbstractArray{<:Any,2}) = !(size(A,1)==size(A,2)) ? throw(DomainError(A," must be square")) : nothing
-checksquare(A::Generator) = !(size(A,1)==size(A,2)) ? throw(DomainError(A," must be square")) : nothing
 
 """
     FluidQueue <: Model

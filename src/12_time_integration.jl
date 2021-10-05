@@ -63,11 +63,17 @@ function integrate_time(x0::SFMDistribution, D::LazyGenerator, y::Float64, schem
 end
 
 """
-    integrate_time(x0::AbstractArray{Float64,2}, D::Generator, y::Float64, scheme::RungeKutta4)
+
+    _integrate(x0::Array{Float64,2}, 
+        D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, 
+        y::Float64, scheme::RungeKutta4)
 
 Use RungeKutta4 method.
 """
-function _integrate(x0::Array{Float64,2}, D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, y::Float64, scheme::RungeKutta4)
+function _integrate(x0::Array{Float64,2}, 
+    D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, 
+    y::Float64, 
+    scheme::RungeKutta4)
     x = x0
     h = scheme.step_size
     c1 = 1.0/6.0 
@@ -84,11 +90,15 @@ function _integrate(x0::Array{Float64,2}, D::Union{Array{Float64,2},SparseArrays
 end
 
 """
-    integrate_time(x0::AbstractArray{Float64,2}, D::Generator, y::Float64, scheme::Euler)
+    _integrate(x0::Array{Float64,2}, 
+        D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, 
+        y::Float64, scheme::Euler)
 
 Use Eulers method.
 """
-function _integrate(x0::Array{Float64,2}, D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, y::Float64, scheme::Euler)
+function _integrate(x0::Array{Float64,2}, 
+    D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, 
+    y::Float64, scheme::Euler)
     x = x0
     h = scheme.step_size
     for t = h:h:y

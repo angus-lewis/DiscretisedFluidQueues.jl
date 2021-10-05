@@ -1,9 +1,11 @@
 """
     Generator
 
-Abstract type representing a discretised infinitesimal generator of a FLuidQueue.
+Abstract type representing a discretised infinitesimal generator of a FLuidQueue. 
+Behaves much like a square matrix. 
 """
 abstract type Generator end 
+checksquare(A::Generator) = !(size(A,1)==size(A,2)) ? throw(DomainError(A," must be square")) : nothing
 
 const UnionVectors = Union{StaticArrays.SVector,Vector{Float64}}
 const UnionArrays = Union{Array{Float64,2},StaticArrays.SMatrix}
@@ -148,10 +150,16 @@ function size(B::LazyGenerator)
     sz = total_n_bases(B.dq) + N₋(B.dq) + N₊(B.dq)
     return (sz,sz)
 end
-size(B::LazyGenerator, n::Int) = size(B)[n]
+size(B::LazyGenerator, n::Int) = 
+    (n∈[1,2]) ? size(B)[n] : throw(DomainError("Lazy generator is a matrix, index must be 1 or 2"))
+length(B::LazyGenerator) = prod(size(B))
+iterate(v::LazyGenerator, i=1) = (length(v) < i ? nothing : (v[i], i + 1))
+Base.BroadcastStyle(::Type{<:LazyGenerator}) = Broadcast.ArrayStyle{LazyGenerator}()
 
-_check_phase_index(i::Int,model::Model) = (i∉phases(model)) && throw(DomainError("i is not a valid phase in model"))
-_check_mesh_index(k::Int,mesh::Mesh) = !(1<=k<=n_intervals(mesh)) && throw(DomainError("k in not a valid cell"))
+_check_phase_index(i::Int,model::Model) = 
+    (i∉phases(model)) && throw(DomainError("i is not a valid phase in model"))
+_check_mesh_index(k::Int,mesh::Mesh) = 
+    !(1<=k<=n_intervals(mesh)) && throw(DomainError("k in not a valid cell"))
 _check_basis_index(p::Int,mesh::Mesh) = !(1<=p<=n_bases_per_cell(mesh))
 
 function _map_to_index_interior(i::Int,k::Int,p::Int,dq::DiscretisedFluidQueue)
@@ -392,7 +400,13 @@ function *(B::LazyGenerator, u::AbstractArray{Float64,2})
     return v
 end
 
-*(B::LazyGenerator, u::LazyGenerator) = SparseArrays.SparseMatrixCSC{Float64,Int}(B)*u
+*(B::LazyGenerator, u::LazyGenerator) = 
+    (SparseArrays.SparseMatrixCSC{Float64,Int}(LinearAlgebra.I(size(B,1)))*B)*u
+
+for f in (:+,:-), t in (Matrix{Float64},SparseArrays.SparseMatrixCSC{Float64,Int})
+    @eval $f(B::LazyGenerator,A::$t) = [$f(B[i,j],A[i,j]) for i in 1:size(B,1), j in 1:size(B,2)]
+    @eval $f(A::$t,B::LazyGenerator) = $f(B,A)
+end
 
 function show(io::IO, mime::MIME"text/plain", B::LazyGenerator)
     if VERSION >= v"1.6"
@@ -463,8 +477,9 @@ function getindex_in_boundary(B::LazyGenerator,row::Int,col::Int)
 end
 
 function getindex(B::LazyGenerator,row::Int,col::Int)
-    checkbounds(B,row,col)
-
+    sz = size(B)
+    !((0<row<=sz[1])&&(0<col<=sz[2]))&&throw(BoundsError(B,(row,col)))
+    
     if _is_boundary_index(row,B) && _is_boundary_index(col,B)
         i = _map_from_index_boundary(row,B)
         j = _map_from_index_boundary(col,B)
@@ -479,3 +494,15 @@ function getindex(B::LazyGenerator,row::Int,col::Int)
     return v
 end
 
+function getindex(B::LazyGenerator,i::Int) 
+    !(0<i<=length(B))&&throw(BoundsError(B,i))
+    sz = size(B)
+    col = (i-1)÷sz[1] 
+    row = i-col*sz[1]
+    col += 1
+    return B[row,col]
+end
+
+function getindex(B::LazyGenerator,c::Colon) 
+    return [B[i] for i in 1:length(B)]
+end

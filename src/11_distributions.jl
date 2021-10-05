@@ -29,20 +29,32 @@ A blank initialiser for a fluid queue distribution a distribution with `coeffs=z
 SFMDistribution(dq::DiscretisedFluidQueue{T}) where T = 
     SFMDistribution{T}(zeros(1,n_bases_per_phase(dq)*n_phases(dq)+N₊(dq))+N₋(dq))
 
-+(f::SFMDistribution,g::SFMDistribution) = throw(DomainError("cannot add SFMDistributions with differen mesh types"))
++(f::SFMDistribution,g::SFMDistribution) = 
+    throw(DomainError("cannot add SFMDistributions with differen mesh types"))
 function +(f::SFMDistribution{T},g::SFMDistribution{T}) where T<:Mesh
     !((f.dq.model==g.model)&&(f.dq.mesh==g.dq.mesh))&&throw(DomainError("SFMDistributions need the same model & mesh"))
     return SFMDistribution{T}(f.d+g.d,f.dq)
 end
 
 size(d::SFMDistribution) = size(d.coeffs)
-getindex(d::SFMDistribution,i::Int,j::Int) = d.coeffs[i,j]
-setindex!(d::SFMDistribution,x,i::Int,j::Int) = throw(DomainError("inserted value(s) must be Float64"))
-setindex!(d::SFMDistribution,x::Float64,i::Int,j::Int) = (d.coeffs[i,j]=x)
-*(u::SFMDistribution,B::AbstractArray{Float64,2}) = SFMDistribution(*(u.coeffs,B),u.dq)
-*(B::AbstractArray{Float64,2},u::SFMDistribution) = *(u,B)
-*(u::SFMDistribution,B::Number) = SFMDistribution(*(u.coeffs,B),u.dq)
-*(B::Number,u::SFMDistribution) = *(u,B)
+size(d::SFMDistribution,dim::Int) = size(d.coeffs,dim)
+getindex(d::SFMDistribution,i,j) = d.coeffs[i,j]
+setindex!(d::SFMDistribution,x,i,j) = throw(DomainError("inserted value(s) must be Float64"))
+setindex!(d::SFMDistribution,x::Float64,i,j) = (d.coeffs[i,j]=x)
+setindex!(d::SFMDistribution,x,i) = throw(DomainError("inserted value(s) must be Float64"))
+setindex!(d::SFMDistribution,x::Float64,i) = (d.coeffs[i]=x)
+length(d::SFMDistribution) = prod(size(d.coeffs))
+itertate(d::SFMDistribution, i=1, args...;kwargs...) = iterate(d.coeffs, i, args...; kwargs...)
+lastindex(d::SFMDistribution) = d.coeffs[length(d)]
+Base.BroadcastStyle(::Type{<:SFMDistribution}) = Broadcast.ArrayStyle{SFMDistribution}()
+
+show(io::IO, mime::MIME"text/plain", d::SFMDistribution) = show(io, mime, d.coeffs)
+
+*(u::SFMDistribution,B::Generator) = SFMDistribution(*(u.coeffs,B),u.dq)
+*(B::Generator,u::SFMDistribution) = 
+    throw(DomainError("you can only premultiply a Generator by a SFMDistribution"))
+*(u::SFMDistribution,x::Float64) = SFMDistribution(*(u.coeffs,x),u.dq)
+*(x::Float64,u::SFMDistribution) = *(u,x)
 
 include("11a_approximation.jl")
 include("11b_reconstruction.jl")
