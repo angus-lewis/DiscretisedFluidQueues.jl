@@ -28,14 +28,10 @@ struct RungeKutta4 <: TimeIntegrationScheme
 end
 
 """
-
-"""
-
-
-"""
 Given `x0` apprximate `x0 exp(Dy)`.
 
-    integrate_time(x0::AbstractArray{Float64, 2}, D::Generator, y::Float64, scheme::TimeIntegrationScheme)
+    integrate_time(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
+        y::Float64, scheme::TimeIntegrationScheme)
 
 # Arguments
 - `x0`: An initial row vector
@@ -43,7 +39,8 @@ Given `x0` apprximate `x0 exp(Dy)`.
 - `y`: time to integrate up to
 - `h`: TimeIntegrationScheme.
 """
-function integrate_time(x0::Array{Float64,2}, D::Array{Float64,2}, y::Float64, scheme::TimeIntegrationScheme)
+function integrate_time(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
+    y::Float64, scheme::TimeIntegrationScheme)
     checksquare(D)
     !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
     
@@ -72,8 +69,7 @@ Use RungeKutta4 method.
 """
 function _integrate(x0::Array{Float64,2}, 
     D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, 
-    y::Float64, 
-    scheme::RungeKutta4)
+    y::Float64, scheme::RungeKutta4)
     x = x0
     h = scheme.step_size
     c1 = 1.0/6.0 
@@ -83,6 +79,22 @@ function _integrate(x0::Array{Float64,2},
         xD = x*D
         xD² = xD*D
         xD³ = xD²*D
+        dx = c1 * (c2*xD + xD² + xD³)
+        x = x + dx
+    end
+    return x
+end
+function _integrate(x0::Array{Float64,2}, D::LazyGenerator, 
+    y::Float64, scheme::RungeKutta4)
+    x = x0
+    h = scheme.step_size
+    c1 = 1.0/6.0 
+    c2 = 6.0 + 3.0*h
+    D = D*h
+    for t = h:h:y
+        xD = fast_mul(x,D)
+        xD² = fast_mul(xD,D)
+        xD³ = fast_mul(xD²,D)
         dx = c1 * (c2*xD + xD² + xD³)
         x = x + dx
     end
@@ -103,6 +115,16 @@ function _integrate(x0::Array{Float64,2},
     h = scheme.step_size
     for t = h:h:y
         dx = h * (x * D)
+        x = x + dx
+    end
+    return x
+end
+function _integrate(x0::Array{Float64,2}, D::LazyGenerator, 
+    y::Float64, scheme::Euler)
+    x = x0
+    h = scheme.step_size
+    for t = h:h:y
+        dx = h * (fast_mul(x, D))
         x = x + dx
     end
     return x

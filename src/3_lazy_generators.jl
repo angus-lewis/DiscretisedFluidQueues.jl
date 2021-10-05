@@ -4,8 +4,8 @@
 Abstract type representing a discretised infinitesimal generator of a FLuidQueue. 
 Behaves much like a square matrix. 
 """
-abstract type Generator end 
-checksquare(A::Generator) = !(size(A,1)==size(A,2)) ? throw(DomainError(A," must be square")) : nothing
+abstract type Generator <: AbstractMatrix{Float64} end 
+# checksquare(A::Generator) = !(size(A,1)==size(A,2)) ? throw(DomainError(A," must be square")) : nothing
 
 const UnionVectors = Union{StaticArrays.SVector,Vector{Float64}}
 const UnionArrays = Union{Array{Float64,2},StaticArrays.SMatrix}
@@ -152,9 +152,9 @@ function size(B::LazyGenerator)
 end
 size(B::LazyGenerator, n::Int) = 
     (n∈[1,2]) ? size(B)[n] : throw(DomainError("Lazy generator is a matrix, index must be 1 or 2"))
-length(B::LazyGenerator) = prod(size(B))
-iterate(v::LazyGenerator, i=1) = (length(v) < i ? nothing : (v[i], i + 1))
-Base.BroadcastStyle(::Type{<:LazyGenerator}) = Broadcast.ArrayStyle{LazyGenerator}()
+# length(B::LazyGenerator) = prod(size(B))
+# iterate(v::LazyGenerator, i=1) = (length(v) < i ? nothing : (v[i], i + 1))
+# Base.BroadcastStyle(::Type{<:LazyGenerator}) = Broadcast.ArrayStyle{LazyGenerator}()
 
 _check_phase_index(i::Int,model::Model) = 
     (i∉phases(model)) && throw(DomainError("i is not a valid phase in model"))
@@ -228,7 +228,7 @@ function _map_from_index_boundary(n::Int,B::LazyGenerator)
     return i
 end
 
-function *(u::AbstractArray{Float64,2}, B::LazyGenerator)
+function fast_mul(u::AbstractMatrix{Float64}, B::LazyGenerator)
     output_type = typeof(u)
     
     sz_u_1 = size(u,1)
@@ -314,7 +314,7 @@ function *(u::AbstractArray{Float64,2}, B::LazyGenerator)
     return v
 end
 
-function *(B::LazyGenerator, u::AbstractArray{Float64,2})
+function fast_mul(B::LazyGenerator, u::AbstractMatrix{Float64})
     output_type = typeof(u)
 
     sz_u_1 = size(u,1)
@@ -400,13 +400,13 @@ function *(B::LazyGenerator, u::AbstractArray{Float64,2})
     return v
 end
 
-*(B::LazyGenerator, u::LazyGenerator) = 
-    (SparseArrays.SparseMatrixCSC{Float64,Int}(LinearAlgebra.I(size(B,1)))*B)*u
+# *(B::LazyGenerator, u::LazyGenerator) = 
+#     (SparseArrays.SparseMatrixCSC{Float64,Int}(LinearAlgebra.I(size(B,1)))*B)*u
 
-for f in (:+,:-), t in (Matrix{Float64},SparseArrays.SparseMatrixCSC{Float64,Int})
-    @eval $f(B::LazyGenerator,A::$t) = [$f(B[i,j],A[i,j]) for i in 1:size(B,1), j in 1:size(B,2)]
-    @eval $f(A::$t,B::LazyGenerator) = $f(B,A)
-end
+# for f in (:+,:-), t in (Matrix{Float64},SparseArrays.SparseMatrixCSC{Float64,Int})
+#     @eval $f(B::LazyGenerator,A::$t) = [$f(B[i,j],A[i,j]) for i in 1:size(B,1), j in 1:size(B,2)]
+#     @eval $f(A::$t,B::LazyGenerator) = $f(B,A)
+# end
 
 function show(io::IO, mime::MIME"text/plain", B::LazyGenerator)
     if VERSION >= v"1.6"
