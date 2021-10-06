@@ -1,7 +1,7 @@
 module DiscretisedFluidQueues
 
 import Jacobi, LinearAlgebra, SparseArrays, StaticArrays
-import Base: *, size, show, getindex, +, -, setindex!, length, sum, iterate, BroadcastStyle
+import Base: *, +, size, show, getindex, setindex!, sum
 
 # Types
 export Model, DiscretisedFluidQueue, FluidQueue, Phase, PhaseSet # Queues are <:Model
@@ -21,6 +21,8 @@ export build_lazy_generator, build_full_generator, @static_generator, fast_mul
 export psi_fun_x, xi_x, stationary_distribution_x
 export cme_params, pdf, ccdf, cdf, build_me
 
+array_types = (:(SparseArrays.SparseMatrixCSC{Float64,Int}),:(Matrix{Float64}))
+
 # model
 include("1_SFM.jl")
 
@@ -39,6 +41,7 @@ include("9_finite_volume_method.jl")
 include("10_FRAP_approximation.jl")
 
 include("11_distributions.jl")
+include("11c_extend_Base_operations.jl")
 
 include("12_time_integration.jl")
 

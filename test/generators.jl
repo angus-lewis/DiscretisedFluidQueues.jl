@@ -11,7 +11,6 @@
             # multiplcation (values)
             @test all(fast_mul(B,Matrix{Float64}(I(size(B,1)))) .== B)
             @test all(fast_mul(Matrix{Float64}(I(size(B,1))),B) .== B)
-            @test all(fast_mul(Matrix{Float64}(I(size(B,1))),B) .== B)
             # row sums
             @test all(isapprox.(sum(B,dims=2),0,atol=√eps()))
             @test all(isapprox.(B*B,B_data*B_data,atol=1e-3))

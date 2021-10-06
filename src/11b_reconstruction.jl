@@ -76,7 +76,7 @@ function pdf(d::SFMDistribution{DGMesh})
         # if x is not in the support return 0.0
         mesh = d.dq.mesh
         fxi = 0.0
-        if ((x<mesh.nodes[1])||(x>mesh.nodes[end]))
+        if ((x<=mesh.nodes[1])||(x>=mesh.nodes[end]))
             #fxi = 0.0
         else
             cell_idx, cellnodes, coeff_idx = _get_coeffs_index(x,i,d.dq)
@@ -120,7 +120,7 @@ function pdf(d::SFMDistribution{FRAPMesh})
         # if x is not in the support return 0.0
         mesh = d.dq.mesh
         fxi = 0.0
-        if ((x<mesh.nodes[1])||(x>mesh.nodes[end]))
+        if ((x<=mesh.nodes[1])||(x>=mesh.nodes[end]))
             # fxi = 0.0
         else
             cell_idx, cellnodes, coeff_idx = _get_coeffs_index(x,i,d.dq)
@@ -148,7 +148,7 @@ function pdf(d::SFMDistribution{FVMesh})
         # if x is not in the support return 0.0
         mesh = d.dq.mesh
         fxi = 0.0
-        if ((x<mesh.nodes[1])||(x>mesh.nodes[end]))
+        if ((x<=mesh.nodes[1])||(x>=mesh.nodes[end]))
             # fxi = 0.0
         else
             cell_idx, cellnodes, coeff_idx = _get_coeffs_index(x,i,d.dq)

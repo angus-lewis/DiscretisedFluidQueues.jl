@@ -46,18 +46,18 @@ function integrate_time(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
     
     return _integrate(x0,D,y,scheme)
 end
-function integrate_time(x0::SFMDistribution, D::FullGenerator, y::Float64, scheme::TimeIntegrationScheme)
-    checksquare(D)
-    !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
+# function integrate_time(x0::SFMDistribution, D::FullGenerator, y::Float64, scheme::TimeIntegrationScheme)
+#     checksquare(D)
+#     !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
     
-    return SFMDistribution(_integrate(x0.coeffs,D.B,y,scheme),x0.dq)
-end
-function integrate_time(x0::SFMDistribution, D::LazyGenerator, y::Float64, scheme::TimeIntegrationScheme)
-    checksquare(D)
-    !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
+#     return SFMDistribution(_integrate(x0.coeffs,D.B,y,scheme),x0.dq)
+# end
+# function integrate_time(x0::SFMDistribution, D::LazyGenerator, y::Float64, scheme::TimeIntegrationScheme)
+#     checksquare(D)
+#     !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
     
-    return SFMDistribution(_integrate(x0.coeffs,D,y,scheme),x0.dq)
-end
+#     return SFMDistribution(_integrate(x0.coeffs,D,y,scheme),x0.dq)
+# end
 
 """
 
@@ -68,7 +68,7 @@ end
 Use RungeKutta4 method.
 """
 function _integrate(x0::Array{Float64,2}, 
-    D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, 
+    D::AbstractArray{Float64,2},#SparseArrays.SparseMatrixCSC{Float64,Int}}, 
     y::Float64, scheme::RungeKutta4)
     x = x0
     h = scheme.step_size
@@ -84,22 +84,22 @@ function _integrate(x0::Array{Float64,2},
     end
     return x
 end
-function _integrate(x0::Array{Float64,2}, D::LazyGenerator, 
-    y::Float64, scheme::RungeKutta4)
-    x = x0
-    h = scheme.step_size
-    c1 = 1.0/6.0 
-    c2 = 6.0 + 3.0*h
-    D = D*h
-    for t = h:h:y
-        xD = fast_mul(x,D)
-        xD² = fast_mul(xD,D)
-        xD³ = fast_mul(xD²,D)
-        dx = c1 * (c2*xD + xD² + xD³)
-        x = x + dx
-    end
-    return x
-end
+# function _integrate(x0::Array{Float64,2}, D::LazyGenerator, 
+#     y::Float64, scheme::RungeKutta4)
+#     x = x0
+#     h = scheme.step_size
+#     c1 = 1.0/6.0 
+#     c2 = 6.0 + 3.0*h
+#     D = D*h
+#     for t = h:h:y
+#         xD = fast_mul(x,D)
+#         xD² = fast_mul(xD,D)
+#         xD³ = fast_mul(xD²,D)
+#         dx = c1 * (c2*xD + xD² + xD³)
+#         x = x + dx
+#     end
+#     return x
+# end
 
 """
     _integrate(x0::Array{Float64,2}, 
@@ -109,7 +109,7 @@ end
 Use Eulers method.
 """
 function _integrate(x0::Array{Float64,2}, 
-    D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, 
+    D::AbstractArray{Float64,2},#SparseArrays.SparseMatrixCSC{Float64,Int}}, 
     y::Float64, scheme::Euler)
     x = x0
     h = scheme.step_size
@@ -119,13 +119,13 @@ function _integrate(x0::Array{Float64,2},
     end
     return x
 end
-function _integrate(x0::Array{Float64,2}, D::LazyGenerator, 
-    y::Float64, scheme::Euler)
-    x = x0
-    h = scheme.step_size
-    for t = h:h:y
-        dx = h * (fast_mul(x, D))
-        x = x + dx
-    end
-    return x
-end
+# function _integrate(x0::Array{Float64,2}, D::LazyGenerator, 
+#     y::Float64, scheme::Euler)
+#     x = x0
+#     h = scheme.step_size
+#     for t = h:h:y
+#         dx = h * (fast_mul(x, D))
+#         x = x + dx
+#     end
+#     return x
+# end

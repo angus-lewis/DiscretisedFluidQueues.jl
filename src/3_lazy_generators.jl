@@ -400,8 +400,17 @@ function fast_mul(B::LazyGenerator, u::AbstractMatrix{Float64})
     return v
 end
 
-# *(B::LazyGenerator, u::LazyGenerator) = 
-#     (SparseArrays.SparseMatrixCSC{Float64,Int}(LinearAlgebra.I(size(B,1)))*B)*u
+fast_mul(A::LazyGenerator, B::LazyGenerator) = fast_mul(build_full_generator(A).B,B)
+function fast_mul(A::LazyGenerator,x::Real) 
+    blocks = (x*A.blocks[i] for i in 1:4)
+    boundary_flux = BoundaryFlux(
+        OneBoundaryFlux(A.boundary_flux.upper.in*x,A.boundary_flux.upper.out*x),# upper 
+        OneBoundaryFlux(A.boundary_flux.lower.in*x,A.boundary_flux.lower.out*x) # lower
+    )
+    D = x*A.D
+    return LazyGenerator(A.dq,blocks,boundary_flux,D)
+end
+fast_mul(x::Real,A::LazyGenerator) = fast_mul(A,x)
 
 # for f in (:+,:-), t in (Matrix{Float64},SparseArrays.SparseMatrixCSC{Float64,Int})
 #     @eval $f(B::LazyGenerator,A::$t) = [$f(B[i,j],A[i,j]) for i in 1:size(B,1), j in 1:size(B,2)]
@@ -410,9 +419,9 @@ end
 
 function show(io::IO, mime::MIME"text/plain", B::LazyGenerator)
     if VERSION >= v"1.6"
-        show(io, mime, SparseArrays.SparseMatrixCSC(Matrix{Float64}(LinearAlgebra.I(size(B,1)))*B))
+        show(io, mime, fast_mul(SparseArrays.SparseMatrixCSC{Float64,Int}(LinearAlgebra.I(size(B,1))),B))
     else
-        show(io, mime, Matrix{Float64}(LinearAlgebra.I(size(B,1)))*B)
+        show(io, mime, fast_mul(Matrix{Float64}(LinearAlgebra.I(size(B,1))),B))
     end
 end
 # show(B::LazyGenerator) = show(stdout, B)
@@ -503,6 +512,6 @@ function getindex(B::LazyGenerator,i::Int)
     return B[row,col]
 end
 
-function getindex(B::LazyGenerator,c::Colon) 
-    return [B[i] for i in 1:length(B)]
-end
+# function getindex(B::LazyGenerator,c::Colon) 
+#     return [B[i] for i in 1:length(B)]
+# end

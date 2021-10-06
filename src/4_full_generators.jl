@@ -13,6 +13,7 @@ size(B::FullGenerator) = size(B.B)
 # size(B::FullGenerator,dim::Int) = size(B.B,dim)
 # length(B::FullGenerator) = prod(size(B))
 getindex(B::FullGenerator,i) = B.B[i]
+getindex(B::FullGenerator,i,j) = B.B[i,j]
 # setindex!(B::FullGenerator,x,i,j) = 
     # throw(DomainError("number to insert must be Float64"))
 setindex!(B::FullGenerator,x::Float64,i,j) = (B.B[i,j]=x)
@@ -32,9 +33,11 @@ sum(B::FullGenerator; kwargs...) = sum(B.B; kwargs...)
 # -(A::AbstractArray{<:Real,2}, B::FullGenerator) = A-B.B
 # -(B::FullGenerator, A::AbstractArray{<:Real,2}) = B.B-A
 # -(A::FullGenerator, B::FullGenerator) = A.B-B.B
-# *(A::AbstractArray{<:Real,2}, B::FullGenerator) = A*B.B
-# *(B::FullGenerator, A::AbstractArray{<:Real,2}) = B.B*A
-# *(A::FullGenerator, B::FullGenerator) = A.B*B.B
+fast_mul(A::AbstractArray{<:Real,2}, B::FullGenerator) = A*B.B
+fast_mul(B::FullGenerator, A::AbstractArray{<:Real,2}) = fast_mul(A,B)
+fast_mul(A::FullGenerator, B::FullGenerator) = A.B*B.B
+fast_mul(A::FullGenerator, x::Real) = A.B*x
+fast_mul(x::Real,A::FullGenerator) = fast_mul(A, x)
 
 
 function show(io::IO, mime::MIME"text/plain", B::FullGenerator)
@@ -61,7 +64,7 @@ end
 Returns a SparseMatrixCSC representation of a LazyGenerator.
 """
 function build_full_generator(lzB::LazyGenerator)
-    B = SparseArrays.SparseMatrixCSC{Float64,Int}(LinearAlgebra.I(size(lzB,1)))*lzB
+    B = fast_mul(SparseArrays.SparseMatrixCSC{Float64,Int}(LinearAlgebra.I(size(lzB,1))),lzB)
     return FullGenerator(B)
 end
 

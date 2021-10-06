@@ -29,13 +29,6 @@ A blank initialiser for a fluid queue distribution a distribution with `coeffs=z
 SFMDistribution(dq::DiscretisedFluidQueue{T}) where T = 
     SFMDistribution{T}(zeros(1,n_bases_per_phase(dq)*n_phases(dq)+N₊(dq))+N₋(dq))
 
-+(f::SFMDistribution,g::SFMDistribution) = 
-    throw(DomainError("cannot add SFMDistributions with differen mesh types"))
-function +(f::SFMDistribution{T},g::SFMDistribution{T}) where T<:Mesh
-    !(f.dq==g.dq)&&throw(DomainError("SFMDistributions need the same model & mesh"))
-    return SFMDistribution{T}(f.d+g.d,f.dq)
-end
-
 size(d::SFMDistribution) = size(d.coeffs)
 size(d::SFMDistribution,dim::Int) = size(d.coeffs,dim)
 getindex(d::SFMDistribution,i,j) = d.coeffs[i,j]
@@ -51,11 +44,11 @@ setindex!(d::SFMDistribution,x,i) = (d.coeffs[i]=x)
 
 show(io::IO, mime::MIME"text/plain", d::SFMDistribution) = show(io, mime, d.coeffs)
 
-*(u::SFMDistribution,B::Generator) = SFMDistribution(*(u.coeffs,B),u.dq)
-*(B::Generator,u::SFMDistribution) = 
+fast_mul(u::SFMDistribution,B::Generator) = SFMDistribution(fast_mul(u.coeffs,B),u.dq)
+fast_mul(B::Generator,u::SFMDistribution) = 
     throw(DomainError("you can only premultiply a Generator by a SFMDistribution"))
-*(u::SFMDistribution,x::Real) = SFMDistribution(*(u.coeffs,x),u.dq)
-*(x::Real,u::SFMDistribution) = *(u,x)
+fast_mul(u::SFMDistribution,x::Real) = SFMDistribution(u.coeffs*x,u.dq)
+fast_mul(x::Real,u::SFMDistribution) = fast_mul(u,x)
 
 include("11a_approximation.jl")
 include("11b_reconstruction.jl")
