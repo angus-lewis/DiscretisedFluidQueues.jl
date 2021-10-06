@@ -46,6 +46,14 @@ function integrate_time(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
     
     return _integrate(x0,D,y,scheme)
 end
+
+function integrate_time(x0::SFMDistribution, D::AbstractArray{Float64,2},
+    y::Float64, scheme::TimeIntegrationScheme)
+    checksquare(D)
+    !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
+    
+    return SFMDistribution(_integrate(x0.coeffs,D,y,scheme),x0.dq)
+end
 # function integrate_time(x0::SFMDistribution, D::FullGenerator, y::Float64, scheme::TimeIntegrationScheme)
 #     checksquare(D)
 #     !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
@@ -67,8 +75,7 @@ end
 
 Use RungeKutta4 method.
 """
-function _integrate(x0::Array{Float64,2}, 
-    D::AbstractArray{Float64,2},#SparseArrays.SparseMatrixCSC{Float64,Int}}, 
+function _integrate(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
     y::Float64, scheme::RungeKutta4)
     x = x0
     h = scheme.step_size
@@ -108,8 +115,7 @@ end
 
 Use Eulers method.
 """
-function _integrate(x0::Array{Float64,2}, 
-    D::AbstractArray{Float64,2},#SparseArrays.SparseMatrixCSC{Float64,Int}}, 
+function _integrate(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
     y::Float64, scheme::Euler)
     x = x0
     h = scheme.step_size

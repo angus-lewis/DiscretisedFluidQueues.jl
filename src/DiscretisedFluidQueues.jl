@@ -19,7 +19,7 @@ export interior_point_mass, left_point_mass, right_point_mass, integrate_time # 
 export simulate, fixed_time, n_jumps, first_exit_x # Simulation methods
 export build_lazy_generator, build_full_generator, @static_generator, fast_mul
 export psi_fun_x, xi_x, stationary_distribution_x
-export cme_params, pdf, ccdf, cdf, build_me
+export cme_params, pdf, ccdf, cdf, build_me, cell_probs
 
 array_types = (:(SparseArrays.SparseMatrixCSC{Float64,Int}),:(Matrix{Float64}))
 

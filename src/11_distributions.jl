@@ -44,9 +44,9 @@ setindex!(d::SFMDistribution,x,i) = (d.coeffs[i]=x)
 
 show(io::IO, mime::MIME"text/plain", d::SFMDistribution) = show(io, mime, d.coeffs)
 
-fast_mul(u::SFMDistribution,B::Generator) = SFMDistribution(fast_mul(u.coeffs,B),u.dq)
-fast_mul(B::Generator,u::SFMDistribution) = 
-    throw(DomainError("you can only premultiply a Generator by a SFMDistribution"))
+fast_mul(u::SFMDistribution,B::AbstractMatrix{Float64}) = SFMDistribution(u.coeffs*B,u.dq)
+fast_mul(B::AbstractMatrix{Float64},u::SFMDistribution) = 
+    throw(DomainError("you can only premultiply a SFMDistribution"))
 fast_mul(u::SFMDistribution,x::Real) = SFMDistribution(u.coeffs*x,u.dq)
 fast_mul(x::Real,u::SFMDistribution) = fast_mul(u,x)
 

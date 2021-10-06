@@ -423,3 +423,32 @@ function cdf(d::SFMDistribution{FVMesh})
     end
     return F
 end
+
+function cell_probs(d::SFMDistribution{T}) where T<:Mesh 
+    function p(x::Float64,i::Int)
+        mesh = d.dq.mesh
+        _x_in_bounds = (x>mesh.nodes[1])&&(x<mesh.nodes[end])
+        if _x_in_bounds
+            cell_idx, ~, coeff_idx = _get_coeff_index_pos(x,i,d.dq)
+            return sum(d.coeffs[coeff_idx])
+        else 
+            return 0.0
+        end
+    end
+    return p
+end
+
+function cell_probs(d::SFMDistribution{FVMesh})
+    function p(x::Float64,i::Int)
+        mesh = d.dq.mesh
+        _x_in_bounds = (x>mesh.nodes[1])&&(x<mesh.nodes[end])
+        if _x_in_bounds
+            cell_idx, ~, coeff_idx = _get_coeff_index_pos(x,i,d.dq)
+            cell_average = d.coeffs[coeff_idx]
+            return (cell_average*Δ(d.dq,cell_idx))[1]
+        else 
+            return 0.0
+        end
+    end
+    return p
+end
