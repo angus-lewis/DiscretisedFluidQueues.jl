@@ -113,7 +113,32 @@ pdf(d::SFMDistribution,x,i) =
 pdf(d::SFMDistribution,x::Float64,i::Int) = pdf(d)(x,i)
 pdf(d::SFMDistribution,x::Int,i::Int) = pdf(d)(convert(Float64,x),i)
 
-function pdf(d::SFMDistribution{FRAPMesh})
+# abstract type ClosingOperator end
+
+# struct UnnormalisedClosingOperator <: ClosingOperator 
+#     pdf::Function
+#     cdf::Function
+# end
+# struct NaiveNormalisedClosingOperator <: ClosingOperator 
+#     cdf::Function
+# end
+# struct NormalisedClosingOperator <: ClosingOperator end
+
+unnormalised_closing_pdf(a::Array{Float64,2},me::MatrixExponential) = x->pdf(a,me,x)
+unnormalised_closing_cdf(a::Array{Float64,2}me::MatrixExponential) = x->cdf(a,me,x)
+
+naive_normalised_closing_pdf(a::Array{Float64,2},me::MatrixExponential) = 
+    x -> (pdf(a,me,x) + pdf(a,me,2.0-x))./cdf(a,me,2.0)
+# naive_normalised_closing_cdf(a::Array{Float64,2},me::MatrixExponential) = 
+    # throw(DomainError("think about this and implement"))
+
+# TO DO 
+# normalised_closing_pdf(a::Array{Float64,2},me::MatrixExponential) = 
+#    x -> some function
+# normalised_closing_cdf(a::Array{Float64,2},me::MatrixExponential) = 
+    # throw(DomainError("think about this and implement"))
+
+function pdf(d::SFMDistribution{FRAPMesh}, closing_pdf::Function=normalised_closing_pdf)
     function f(x::Float64,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq)) && throw(DomainError("phase i must be in the support of the model"))
@@ -128,13 +153,13 @@ function pdf(d::SFMDistribution{FRAPMesh})
             # if not a point mass, then reconstruct solution
             if _has_right_boundary(d.dq.model.S,i)
                 yₖ₊₁ = mesh.nodes[cell_idx+1]
-                to_go = yₖ₊₁-x
+                to_go = (yₖ₊₁-x)./Δ(mesh,cell_idx)
             elseif _has_left_boundary(d.dq.model.S,i)
                 yₖ = mesh.nodes[cell_idx]
-                to_go = x-yₖ
+                to_go = (x-yₖ)./Δ(mesh,cell_idx)
             end
-            me = build_me(cme_params[n_bases_per_cell(mesh)], mean = Δ(mesh)[cell_idx])
-            fxi = (pdf(Array(coeffs'),me,to_go) + pdf(Array(coeffs'),me,2*Δ(mesh)[cell_idx]-to_go))./cdf(Array(coeffs'),me,2*Δ(mesh)[cell_idx])
+            me = mesh.me
+            fxi = closing_pdf(Array(coeffs'),me,to_go)#(pdf(Array(coeffs'),me,to_go) + pdf(Array(coeffs'),me,2.0-to_go))./cdf(Array(coeffs'),me,2.0)
         end
         return fxi
     end
