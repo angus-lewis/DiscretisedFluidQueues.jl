@@ -125,7 +125,7 @@ pdf(d::SFMDistribution,x::Int,i::Int) = pdf(d)(convert(Float64,x),i)
 # struct NormalisedClosingOperator <: ClosingOperator end
 
 unnormalised_closing_pdf(a::Array{Float64,2},me::MatrixExponential) = x->pdf(a,me,x)
-unnormalised_closing_cdf(a::Array{Float64,2}me::MatrixExponential) = x->cdf(a,me,x)
+unnormalised_closing_cdf(a::Array{Float64,2},me::MatrixExponential) = x->cdf(a,me,x)
 
 naive_normalised_closing_pdf(a::Array{Float64,2},me::MatrixExponential) = 
     x -> (pdf(a,me,x) + pdf(a,me,2.0-x))./cdf(a,me,2.0)
@@ -138,7 +138,7 @@ naive_normalised_closing_pdf(a::Array{Float64,2},me::MatrixExponential) =
 # normalised_closing_cdf(a::Array{Float64,2},me::MatrixExponential) = 
     # throw(DomainError("think about this and implement"))
 
-function pdf(d::SFMDistribution{FRAPMesh}, closing_pdf::Function=normalised_closing_pdf)
+function pdf(d::SFMDistribution{FRAPMesh}, closing_pdf::Function=unnormalised_closing_pdf)
     function f(x::Float64,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq)) && throw(DomainError("phase i must be in the support of the model"))

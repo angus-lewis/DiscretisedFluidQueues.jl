@@ -9,7 +9,7 @@ export AbstractMatrixExponential, ConcentratedMatrixExponential, MatrixExponenti
 export Mesh, DGMesh, FRAPMesh, FVMesh # are <:Mesh
 export Generator, FullGenerator, LazyGenerator # are <:Generator
 export SFMDistribution
-export TimeIntegrationScheme, Euler, RungeKutta4 # Euler, RungeKutta4 <: TimeIntegrationScheme
+export ExplicitRungeKuttaScheme, ForwardEuler, Heuns, StableRK3 # Euler, RungeKutta4 <: TimeIntegrationScheme
 export Simulation
 
 # Functions 
