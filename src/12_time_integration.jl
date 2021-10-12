@@ -167,10 +167,10 @@ function _integrate(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
     x = x0
     h = scheme.step_size
     l = length(scheme.weights)
-    v = zeros(l,size(x0,2))
     matrix = scheme.matrix*h
-    v[1,:] = x0*D
     for t = h:h:y
+        v = zeros(l,size(x0,2))
+        v[1,:] = x*D
         for i in 1:l-1
             for j in 1:i-1
                 if matrix[i,j]!=0.0
