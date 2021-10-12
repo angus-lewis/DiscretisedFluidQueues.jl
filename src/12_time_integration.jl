@@ -168,6 +168,7 @@ function _integrate(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
     h = scheme.step_size
     l = length(scheme.weights)
     matrix = scheme.matrix*h
+    v = Array{Float64,2}(undef,l,size(x0,2))
     for t = h:h:y
         v[:,:] .= x
         v[1,:] = transpose(v[1,:])*D
