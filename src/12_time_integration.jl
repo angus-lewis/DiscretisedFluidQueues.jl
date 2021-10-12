@@ -169,15 +169,15 @@ function _integrate(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
     l = length(scheme.weights)
     matrix = scheme.matrix*h
     for t = h:h:y
-        v = zeros(l,size(x0,2))
-        v[1,:] = x*D
+        v[:,:] .= x
+        v[1,:] = transpose(v[1,:])*D
         for i in 1:l-1
             for j in 1:i-1
                 if matrix[i,j]!=0.0
                     v[i+1,:] += v[j,:]*matrix[i,j]
                 end                
             end
-            v[i+1,:] = v[i+1,:]'*D
+            v[i+1,:] = transpose(v[i+1,:])*D
         end
         x += h * sum(scheme.weights.*v, dims=1)
     end
