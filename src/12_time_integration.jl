@@ -8,9 +8,9 @@ Defines an Euler integration scheme to be used in `integrate_time`.
 """
 ForwardEuler(step_size::Float64) = 
     ExplicitRungeKuttaScheme(step_size,LinearAlgebra.LowerTriangular([0.0][:,:]),[0.0],[1.0])
+
 _heuns_coeff_matrix = LinearAlgebra.LowerTriangular([0.0 0.0;
                                                      1.0 0.0])
-
 Heuns(step_size::Float64) = 
     ExplicitRungeKuttaScheme(step_size,_heuns_coeff_matrix,[0.0;1.0],[0.5;0.5])
 
@@ -18,6 +18,25 @@ _ssprk3_coeff_matrix = LinearAlgebra.LowerTriangular([0.0 0.0 0.0;
                                                       1.0 0.0 0.0;
                                                       1/4 1/4 0.0])
 StableRK3(step_size::Float64) = 
+    ExplicitRungeKuttaScheme(step_size,_ssprk3_coeff_matrix,[0.0;1.0;1/2],[1/6;1/6;2/3])
+                
+alpha = [1.0                0.0                 0.0                 0.0                 0.0                 ;
+         0.44437049406734   0.55562950593266    0.0                 0.0                 0.0                 ;
+         0.62010185138540   0.0                 0.37989814861460    0.0                 0.0                 ;
+         0.17807995410773   0.0                 0.0                 0.8219200458922     0.0                 ;
+         0.00683325884039   0.0                 0.51723167208978    0.12759831133288    0.34833675773694    ]
+beta = [0.39175222700392    0.0                 0.0                 0.0                 0.0                 ;
+        0.0                 0.36841059262959    0.0                 0.0                 0.0                 ;
+        0.0                 0.0                 0.25189177424738    0.0                 0.0                 ;
+        0.0                 0.0                 0.0                 0.54497475021237    0.0                 ;
+        0.0                 0.0                 0.0                 0.08460416338212    0.22600748319395    ]
+# https://ntrs.nasa.gov/api/citations/19870013797/downloads/19870013797.pdf
+# pg 159 (168) Nodal DG book
+# Sec 1.1.2 https://personal.math.ubc.ca/~cbm/mscthesis/cbm-mscthesis.pdf
+# _ssprk45_coeff_matrix = LinearAlgebra.LowerTriangular([0.0 0.0 0.0;
+#     1.0 0.0 0.0;
+#     1/4 1/4 0.0])
+StableRK45(step_size::Float64) = 
     ExplicitRungeKuttaScheme(step_size,_ssprk3_coeff_matrix,[0.0;1.0;1/2],[1/6;1/6;2/3])
 
 struct ExplicitRungeKuttaScheme

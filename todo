@@ -64,6 +64,6 @@ implement tests
 
 6) make SFFMModel object simpler, i.e. wtf is going on with r = (r,R)??
 
-7) parametric DGMesh type; DGMesh{Lagrange}, DGMesh{Legendre}, or deprecate Legendre...
+7) deprecate Legendre...
 
 8) implement \Delta(mesh,k) = \Delta(mesh)[k] efficiently
