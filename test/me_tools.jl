@@ -1,9 +1,9 @@
 @testset "ME tools" begin 
     @test MatrixExponential <: AbstractMatrixExponential
-    @test_throws DimensionMismatch MatrixExponential(ones(1,2),-ones(1,1),ones(1,1))
-    @test_throws DomainError MatrixExponential(ones(1,1),-[1.0 1.0],ones(1,1))
-    @test_throws DomainError MatrixExponential(ones(1,1),-[1.0 1.0],ones(1,2))
-    exp_rv = MatrixExponential(ones(1,1),-ones(1,1),ones(1,1))
+    @test_throws DimensionMismatch MatrixExponential(ones(1,2),-ones(1,1),ones(1))
+    @test_throws DomainError MatrixExponential(ones(1,1),-[1.0 1.0],ones(1))
+    @test_throws DomainError MatrixExponential(ones(1,1),-[1.0 1.0],ones(2))
+    exp_rv = MatrixExponential(ones(1,1),-ones(1,1),ones(1))
     # pdf 
     @test DiscretisedFluidQueues._order(exp_rv)==1
     exp_pdf = pdf(exp_rv)
@@ -64,11 +64,11 @@
     me_3_mean_2 = ConcentratedMatrixExponential(3; mean=2.0)
     me_3_mean_2_orbit_fun = DiscretisedFluidQueues.orbit(me_3_mean_2)
     @test me_3_mean_2_orbit_fun.(r)≈me_3_orbit_fun.(0.5*r)
-    me_3_not_CME_Type = MatrixExponential(me_3.a,me_3.S,me_3.s,me_3.D)
+    me_3_not_CME_Type = MatrixExponential(me_3.a,Matrix(me_3.S),me_3.s,me_3.D)
     me_3_not_CME_Type_orbit_fun = DiscretisedFluidQueues.orbit(me_3_not_CME_Type)
     @test me_3_orbit_fun.(r)≈me_3_not_CME_Type_orbit_fun.(r)
     me_3_mean_2_not_CME_Type = 
-        MatrixExponential(me_3_mean_2.a,me_3_mean_2.S,me_3_mean_2.s,me_3_mean_2.D)
+        MatrixExponential(me_3_mean_2.a,Matrix(me_3_mean_2.S),me_3_mean_2.s,me_3_mean_2.D)
     me_3_mean_2_not_CME_Type_orbit_fun = DiscretisedFluidQueues.orbit(me_3_mean_2_not_CME_Type)
     @test me_3_mean_2_not_CME_Type_orbit_fun.(r)≈me_3_not_CME_Type_orbit_fun.(0.5*r)
     # Expected orbits

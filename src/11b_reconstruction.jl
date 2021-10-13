@@ -124,21 +124,48 @@ pdf(d::SFMDistribution,x::Int,i::Int) = pdf(d)(convert(Float64,x),i)
 # end
 # struct NormalisedClosingOperator <: ClosingOperator end
 
-unnormalised_closing_pdf(a::Array{Float64,2},me::MatrixExponential) = x->pdf(a,me,x)
-unnormalised_closing_cdf(a::Array{Float64,2},me::MatrixExponential) = x->cdf(a,me,x)
+function unnormalised_closing_operator_pdf(a::AbstractArray{Float64,2},
+    me::AbstractMatrixExponential) 
+    #
+    return x->pdf(a,me,x)
+end
+function unnormalised_closing_operator_cdf(a::AbstractArray{Float64,2},
+    me::AbstractMatrixExponential) 
+    return x->ccdf(a,me,x)
+end
 
-naive_normalised_closing_pdf(a::Array{Float64,2},me::MatrixExponential) = 
-    x -> (pdf(a,me,x) + pdf(a,me,2.0-x))./cdf(a,me,2.0)
-# naive_normalised_closing_cdf(a::Array{Float64,2},me::MatrixExponential) = 
-    # throw(DomainError("think about this and implement"))
+function naive_normalised_closing_operator_pdf(a::AbstractArray{Float64,2},
+    me::AbstractMatrixExponential) 
+    #
+    return x->(pdf(a,me,x) + pdf(a,me,2.0-x))./cdf(a,me,2.0)
+end
+function naive_normalised_closing_operator_cdf(a::AbstractArray{Float64,2},
+    me::AbstractMatrixExponential)
+    #
+    return x->(ccdf(a,me,x)-ccdf(a,me,2.0-x))/cdf(a,me,2.0)
+end
 
-# TO DO 
-# normalised_closing_pdf(a::Array{Float64,2},me::MatrixExponential) = 
-#    x -> some function
-# normalised_closing_cdf(a::Array{Float64,2},me::MatrixExponential) = 
-    # throw(DomainError("think about this and implement"))
+function normalised_closing_operator_pdf(a::AbstractArray{Float64,2},
+    me::AbstractMatrixExponential) 
+    # a [exp(Sx) + exp(S(2m-x))][I-exp(S2m)]^-1 s
+    tmp = LinearAlgebra.I(size(me.S,1)) - exp(me.S*2.0)
+    inv_factor = inv(tmp)
 
-function pdf(d::SFMDistribution{FRAPMesh}, closing_pdf::Function=unnormalised_closing_pdf)
+    return x->only(a*(exp(me.S*x)+exp(me.S*(2.0-x)))*inv_factor*me.s)
+end
+function normalised_closing_operator_cdf(a::AbstractArray{Float64,2},
+    me::AbstractMatrixExponential)
+    # 
+    tmp = LinearAlgebra.I(size(me.S,1)) - exp(me.S*2.0)
+    inv_factor = inv(tmp)
+
+    exp_factor(x) = LinearAlgebra.I(size(me.S,1))-(exp(me.S*x)-exp(me.S*(2.0-x))+exp(me.S*2.0))
+    return x->only(1.0.-sum(a*exp_factor(x)*inv_factor,dims=2))
+end
+
+function pdf(d::SFMDistribution{FRAPMesh}, 
+    closing_operator::Function=normalised_closing_operator_pdf)
+
     function f(x::Float64,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq)) && throw(DomainError("phase i must be in the support of the model"))
@@ -159,7 +186,7 @@ function pdf(d::SFMDistribution{FRAPMesh}, closing_pdf::Function=unnormalised_cl
                 to_go = (x-yₖ)./Δ(mesh,cell_idx)
             end
             me = mesh.me
-            fxi = closing_pdf(Array(coeffs'),me,to_go)#(pdf(Array(coeffs'),me,to_go) + pdf(Array(coeffs'),me,2.0-to_go))./cdf(Array(coeffs'),me,2.0)
+            fxi = closing_operator(transpose(coeffs),me)(to_go)
         end
         return fxi
     end
@@ -339,7 +366,9 @@ cdf(d::SFMDistribution,x,i) =
 cdf(d::SFMDistribution,x::Float64,i::Int) = cdf(d)(x,i)
 cdf(d::SFMDistribution,x::Int,i::Int) = cdf(d)(convert(Float64,x),i)
 
-function cdf(d::SFMDistribution{FRAPMesh})
+function cdf(d::SFMDistribution{FRAPMesh}, 
+    closing_operator::Function=normalised_closing_operator_cdf)
+
     function F(x::Float64,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq)) && throw(DomainError("phase i must be in the support of the model"))
@@ -375,7 +404,7 @@ function cdf(d::SFMDistribution{FRAPMesh})
                     if mass > 0
                         a = a./mass
                         to_go = (yₖ₊₁-xd)/Δ(mesh,cell_idx)
-                        Fxi += mass*(ccdf(a,me,to_go)-ccdf(a,me,2.0-to_go))/cdf(a,me,2.0)
+                        Fxi += mass*closing_operator(a,me)(to_go)
                     end
                 elseif _has_left_boundary(d.dq.model.S,i)
                     yₖ = mesh.nodes[cell_idx]
@@ -383,7 +412,7 @@ function cdf(d::SFMDistribution{FRAPMesh})
                     if mass > 0
                         a = a./mass
                         to_go = (xd-yₖ)/Δ(mesh,cell_idx)
-                        Fxi += mass*(1-(ccdf(a,me,to_go)-ccdf(a,me,2.0-to_go))/cdf(a,me,2.0))#sum(a) - (ccdf(a,me,to_go) - ccdf(a,me,2.0-to_go))/cdf(a,me,2.0)
+                        Fxi += mass*(1-closing_operator(a,me)(to_go)) # sum(a) - (ccdf(a,me,to_go) - ccdf(a,me,2.0-to_go))/cdf(a,me,2.0)
                     end
                 end
             end

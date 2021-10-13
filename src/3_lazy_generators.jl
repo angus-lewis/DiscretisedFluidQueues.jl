@@ -59,14 +59,14 @@ Lower memory requirements than FullGenerator but aritmetic operations and indexi
 """
 struct LazyGenerator  <: Generator
     dq::DiscretisedFluidQueue
-    blocks::NTuple{4,UnionArrays}
+    blocks::NTuple{4,AbstractMatrix{Float64}}
     boundary_flux::BoundaryFlux
-    D::Union{UnionArrays,LinearAlgebra.Diagonal{Bool,Array{Bool,1}}}
+    D::AbstractMatrix{Float64}
     function LazyGenerator(
         dq::DiscretisedFluidQueue,
-        blocks::NTuple{4,UnionArrays},
+        blocks::NTuple{4,AbstractMatrix{Float64}},
         boundary_flux::BoundaryFlux,
-        D::Union{UnionArrays,LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
+        D::AbstractMatrix{Float64},
     )
         s = size(blocks[1])
         for b in 1:4
@@ -81,9 +81,9 @@ struct LazyGenerator  <: Generator
 end
 function LazyGenerator(
     dq::DiscretisedFluidQueue,
-    blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2}},
+    blocks::NTuple{3,AbstractMatrix{Float64}},
     boundary_flux::OneBoundaryFlux,
-    D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
+    D::AbstractMatrix{Float64},
 )
     blocks = (blocks[1],blocks[2],blocks[2],blocks[3])
     boundary_flux = BoundaryFlux(boundary_flux, boundary_flux)

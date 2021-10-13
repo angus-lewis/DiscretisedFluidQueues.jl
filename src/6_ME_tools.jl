@@ -36,18 +36,15 @@ Inputs:
 struct MatrixExponential <:AbstractMatrixExponential
     a::Array{Float64,2}
     S::Array{Float64,2}
-    s::Union{Array{Float64,1},Array{Float64,2}}
+    s::Array{Float64,1}
     D::Array{Float64,2}
     function MatrixExponential(
         a::Array{Float64,2},
         S::Array{Float64,2},
-        s::Union{Array{Float64,1},Array{Float64,2}},
-        D::Array{Float64,2}=zeros(1,1),
+        s::Array{Float64,1},
+        D::Array{Float64,2},
     )
     
-        if D==zeros(1,1)
-            D = Array{Float64}(LinearAlgebra.I(size(S,1)))
-        end
         s1 = size(a,1)
         s2 = size(a,2)
         s3 = size(S,1)
@@ -63,6 +60,64 @@ struct MatrixExponential <:AbstractMatrixExponential
         return new(a,S,s,D)
     end
 end
+MatrixExponential(a::Array{Float64,2},S::Array{Float64,2},s::Array{Float64,1}) = 
+    MatrixExponential(a,S,s,Matrix{Float64}(LinearAlgebra.I(size(S,1))))
+
+struct CMEOperator <: AbstractArray{Float64,2}
+    S::Array{Float64,2}
+end 
+Base.size(S::CMEOperator) = size(S.S)
+Base.size(S::CMEOperator,i) = size(S.S,i)
+Base.getindex(S::CMEOperator,i) = S.S[i]
+Base.getindex(S::CMEOperator,i,j) = S.S[i,j]
+Base.setindex!(S::CMEOperator,x,i) = (S.S[i]=x)
+Base.setindex!(S::CMEOperator,x,i,j) = (S.S[i,j]=x)
+Base.:*(S::CMEOperator,x::Real) = CMEOperator(S.S*x)
+Base.:*(x::Real,S::CMEOperator) = CMEOperator(x*S.S)
+function Base.:-(D::LinearAlgebra.Diagonal{Bool, Vector{Bool}},S::CMEOperator) 
+    !(size(D)==size(S))&&throw(DimensionMismatch("matrices must be same size"))
+    S[1,1] = 1.0-S[1,1]
+    two_n_blocks = (size(S,1)-1)
+    for n in 2:2:two_n_blocks 
+        S[n,n]      = 1.0-S[n,n]
+        S[n+1,n]    = -S[n+1,n]
+        S[n+1,n+1]  = 1.0-S[n+1,n+1]
+        S[n,n+1]    = -S[n,n+1]
+    end
+    return S
+end
+
+function LinearAlgebra.exp(Q::CMEOperator)
+    S = Q.S
+    expS = zeros(size(S))
+    tmp = exp(S[1,1])
+    expS[1,1] = tmp
+    two_n_blocks = (size(S,1)-1)
+    for n in 2:2:two_n_blocks 
+        kωt = S[n+1,n]
+        expS[n,n]       =  tmp*cos(kωt)    # 1,1 top-left
+        expS[n,n+1]     = -tmp*sin(kωt)    # 1,2 top-right
+        expS[n+1,n]     =  tmp*sin(kωt)    # 2,1 bottom-left
+        expS[n+1,n+1]   =  tmp*cos(kωt)    # 2,2 bottom-right
+    end
+    return CMEOperator(expS)
+end
+
+function LinearAlgebra.inv(Q::CMEOperator)
+    S = Q.S
+    invS = zeros(size(S))
+    invS[1,1] = 1.0./S[1,1]
+
+    two_n_blocks = (size(S,1)-1)
+    for n in 2:2:two_n_blocks 
+        det_block = S[n,n]*S[n+1,n+1] - S[n+1,n]*S[n,n+1]
+        invS[n,n]       =  S[n+1,n+1]/det_block # 1,1 top-left
+        invS[n,n+1]     = -S[n,n+1]/det_block   # 1,2 top-right
+        invS[n+1,n]     = -S[n+1,n]/det_block   # 2,1 bottom-left
+        invS[n+1,n+1]   =  S[n,n]/det_block     # 2,2 bottom-right
+    end
+    return invS
+end
 
 _order(ME::AbstractMatrixExponential) = length(ME.a)
 
@@ -71,19 +126,15 @@ Similar to MatrixExponential but has a neater implementation of `orbit()` due to
 """
 struct ConcentratedMatrixExponential <: AbstractMatrixExponential
     a::Array{Float64,2}
-    S::Array{Float64,2}
-    s::Union{Array{Float64,1},Array{Float64,2}}
+    S::CMEOperator
+    s::Array{Float64,1}
     D::Array{Float64,2}
     function ConcentratedMatrixExponential(
         a::Array{Float64,2},
-        S::Array{Float64,2},
-        s::Union{Array{Float64,1},Array{Float64,2}},
-        D::Array{Float64,2}=zeros(1,1),
+        S::CMEOperator,
+        s::Array{Float64,1},
+        D::Array{Float64,2},
     )
-    
-        if D==zeros(1,1)
-            D = Array{Float64}(LinearAlgebra.I(size(S,1)))
-        end
         s1 = size(a,1)
         s2 = size(a,2)
         s3 = size(S,1)
@@ -103,7 +154,12 @@ struct ConcentratedMatrixExponential <: AbstractMatrixExponential
     end
 end
 
-pdf(me::AbstractMatrixExponential) = x->(me.a*exp(me.S*x)*me.s)[1]
+function ConcentratedMatrixExponential(a::Array{Float64,2},S::CMEOperator,
+    s::Array{Float64,1})
+    return ConcentratedMatrixExponential(a,S,s,Matrix{Float64}(LinearAlgebra.I(size(S,1))))
+end
+
+pdf(me::AbstractMatrixExponential) = x->only(me.a*exp(me.S*x)*me.s)
 """
     pdf([a::Array{Float64, 2},] me::AbstractMatrixExponential)
 
@@ -115,7 +171,7 @@ If `a` is not specified then the initial vector of the `me` is `me.a`
 - `a`: a row vector with length `size(me.S,1)`
 """
 pdf(a::Array{Float64,2}, me::AbstractMatrixExponential) = 
-    (length(a)==size(me.S,1)) ? (x->(a*exp(me.S*x)*me.s)[1]) : throw(
+    (length(a)==size(me.S,1)) ? (x->only(a*exp(me.S*x)*me.s)) : throw(
         DomainError("a and me.S must have compatible size"))
 
 pdf(me::AbstractMatrixExponential, x::Real) = pdf(me)(x)
@@ -207,12 +263,17 @@ function build_me(params; mean::Real = 1)
         idx = 2*k:(2*k+1)
         Q[idx,idx] = [-1 -kω; kω -1]
     end
-    Q = Q.*-sum(α/Q)./mean
-    q = -sum(Q,dims=2)
+    Q = CMEOperator(Q.*-sum(α/Q)./mean)
+    q = -sum(Q,dims=2)[:]
     return ConcentratedMatrixExponential(α,Q,q,params["D"])
 end
 
-ConcentratedMatrixExponential(order::Int; mean::Float64 = 1.0) = build_me(cme_params[order], mean=mean)
+ConcentratedMatrixExponential(order::Int; mean::Float64 = 1.0) = 
+    build_me(cme_params[order], mean=mean)
+
+function fast_exp(S::Matrix)
+
+end
 
 function build_erlang(order; mean::Float64 = 1.0)
     α = zeros(1,order) # inital distribution
@@ -220,7 +281,7 @@ function build_erlang(order; mean::Float64 = 1.0)
     λ = order/mean
     Q = zeros(order,order)
     Q = Q + LinearAlgebra.diagm(0=>repeat(-[λ],order), 1=>repeat([λ],order-1))
-    q = -sum(Q,dims=2)
+    q = -sum(Q,dims=2)[:]
     D = Array{Float64}(LinearAlgebra.I(order))[end:-1:1,:]
     return MatrixExponential(α,Q,q,D)
 end

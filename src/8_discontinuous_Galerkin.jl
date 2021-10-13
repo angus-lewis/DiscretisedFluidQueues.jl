@@ -123,7 +123,7 @@ function build_lazy_generator(dq::DiscretisedFluidQueue{DGMesh}; v::Bool = false
             (m.Phi[1, :]' * m.Dw.Dw * m.MInv)[:])
     )
 
-    D = LinearAlgebra.I(n_bases_per_cell(dq))
+    D = Matrix{Float64}(LinearAlgebra.I(n_bases_per_cell(dq)))
 
     out = LazyGenerator(dq,blocks,boundary_flux,D)
     v && println("UPDATE: LazyGenerator object created with keys ", keys(out))
