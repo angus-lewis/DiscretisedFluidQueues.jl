@@ -9,7 +9,7 @@ export AbstractMatrixExponential, ConcentratedMatrixExponential, MatrixExponenti
 export Mesh, DGMesh, FRAPMesh, FVMesh # are <:Mesh
 export Generator, FullGenerator, LazyGenerator # are <:Generator
 export SFMDistribution
-export ExplicitRungeKuttaScheme, ForwardEuler, Heuns, StableRK3 # Euler, RungeKutta4 <: TimeIntegrationScheme
+export ExplicitRungeKuttaScheme, ForwardEuler, Heuns, StableRK3, StableRK4 # Euler, RungeKutta4 <: TimeIntegrationScheme
 export Simulation
 
 # Functions 
@@ -20,6 +20,9 @@ export simulate, fixed_time, n_jumps, first_exit_x # Simulation methods
 export build_lazy_generator, build_full_generator, @static_generator, fast_mul
 export psi_fun_x, xi_x, stationary_distribution_x
 export cme_params, pdf, ccdf, cdf, build_me, cell_probs
+export normalised_closing_operator_cdf, normalised_closing_operator_pdf
+export naive_normalised_closing_operator_cdf, naive_normalised_closing_operator_pdf 
+export unnormalised_closing_operator_cdf, unnormalised_closing_operator_pdf
 
 array_types = (:(SparseArrays.SparseMatrixCSC{Float64,Int}),:(Matrix{Float64}))
 
