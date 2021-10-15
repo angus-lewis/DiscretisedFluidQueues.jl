@@ -33,14 +33,16 @@
             end
             stationary_coeffs = b/generator.B
             d = SFMDistribution(stationary_coeffs,dq)
-            stationary_cdf_estimate = cdf(d)
+            stationary_cdf_estimate = (mtype!=FRAPMesh) ? cdf(d) : cdf(d, normalised_closing_operator_cdf)
+            (mtype==FRAPMesh) && (stationary_cdf_estimate_naive = cdf(d, naive_normalised_closing_operator_cdf))
             analytical_cdf = stationary_distribution_x(model)[3]
             x_vec = nodes[1]:0.23:nodes[end]
-            pass = true
-            for x in x_vec
-                (!isapprox(analytical_cdf(x),stationary_cdf_estimate.(x,1:3), rtol=1e-2)) && (pass = false)
+            @testset "numerics - cdf" begin 
+                for x in x_vec
+                    @test isapprox(analytical_cdf(x),stationary_cdf_estimate.(x,1:3), rtol=1e-2)
+                    (mtype==FRAPMesh) && (@test isapprox(analytical_cdf(x),stationary_cdf_estimate_naive.(x,1:3), rtol=1e-2))
+                end
             end
-            @test pass
 
             ####
             # augmented model
@@ -59,21 +61,25 @@
             end
             stationary_coeffs_am = b_am/generator_am.B
             d_am = SFMDistribution(stationary_coeffs_am,dq_am)
-            stationary_cdf_estimate_am = cdf(d_am)
+            stationary_cdf_estimate_am = (mtype!=FRAPMesh) ? cdf(d_am) : (stationary_cdf_estimate_am_naive = cdf(d_am, normalised_closing_operator_cdf))
+            (mtype==FRAPMesh) && (stationary_cdf_estimate_am_naive = cdf(d_am, naive_normalised_closing_operator_cdf))
             analytical_cdf_am = stationary_distribution_x(am)[3]
             x_vec = nodes[1]:0.23:nodes[end]
-            pass = true
-            for x in x_vec
-                (!isapprox(analytical_cdf_am(x),stationary_cdf_estimate_am.(x,1:4), rtol=1e-2)) && (pass = false)
+            @testset "numerics - augmented model - cdf" begin
+                for x in x_vec
+                    @test isapprox(analytical_cdf_am(x),stationary_cdf_estimate_am.(x,1:4), rtol=1e-2)
+                    (mtype==FRAPMesh) && (@test isapprox(analytical_cdf_am(x),stationary_cdf_estimate_am_naive.(x,1:4), rtol=1e-2))
+                end
             end
-            @test pass
 
-            pass = true
-            for x in x_vec
-                (!isapprox(stationary_cdf_estimate.(x,2:3),stationary_cdf_estimate_am.(x,3:4), rtol=1e-2 )) && (pass=false)
-                (!isapprox(stationary_cdf_estimate.(x,1),sum(stationary_cdf_estimate_am.(x,1:2)), rtol=1e-2 )) && (pass=false)
+            @testset "numerics - augmented model vs vanilla cdf" begin
+                for x in x_vec
+                    @test isapprox(stationary_cdf_estimate.(x,2:3),stationary_cdf_estimate_am.(x,3:4), rtol=1e-2 )
+                    @test isapprox(stationary_cdf_estimate.(x,1),sum(stationary_cdf_estimate_am.(x,1:2)), rtol=1e-2 )
+                    (mtype==FRAPMesh) && (@test isapprox(stationary_cdf_estimate_naive.(x,2:3),stationary_cdf_estimate_am_naive.(x,3:4), rtol=1e-2 ))
+                    (mtype==FRAPMesh) && (@test isapprox(stationary_cdf_estimate_naive.(x,1),sum(stationary_cdf_estimate_am_naive.(x,1:2)), rtol=1e-2 ))
+                end
             end
-            @test pass
         end
     end
 end
