@@ -50,7 +50,7 @@ function gauss_lobatto_weights(a::Float64,b::Float64,n_evals::Int)
     (n_evals<1)&&throw(DomainError("n_evals must be > 0"))
     if n_evals > 1
         nodes = Jacobi.zglj(n_evals, 0, 0)
-        weights = Jacobi.wglj(nodes,0,0)*(b-a)/2
+        weights = Jacobi.wglj(nodes,0,0)*(b-a)/2.0
     else
         weights = [(b-a)]
     end

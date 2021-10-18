@@ -23,6 +23,7 @@ export cme_params, pdf, ccdf, cdf, build_me, cell_probs
 export normalised_closing_operator_cdf, normalised_closing_operator_pdf
 export naive_normalised_closing_operator_cdf, naive_normalised_closing_operator_pdf 
 export unnormalised_closing_operator_cdf, unnormalised_closing_operator_pdf
+export limit, Limiter, NoLimiter, GeneralisedMUSCL
 
 array_types = (:(SparseArrays.SparseMatrixCSC{Float64,Int}),:(Matrix{Float64}))
 
@@ -45,6 +46,7 @@ include("10_FRAP_approximation.jl")
 
 include("11_distributions.jl")
 include("11c_extend_Base_operations.jl")
+include("11d_limiters.jl")
 
 include("12_time_integration.jl")
 

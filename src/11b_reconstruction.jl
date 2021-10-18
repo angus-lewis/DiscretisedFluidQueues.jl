@@ -307,7 +307,7 @@ function cdf(d::SFMDistribution{DGMesh})
     # Ginv = G\I # = G^-1
     # also, transform back to lagrange basis for easy evaluation, 
     # In summary multiply by V(n+1) G⁻¹(n+1) [I(n); zeros(n)] V⁻¹(n)
-    # where the order of the operator is in ()
+    # where the order of each operator is in ()
     # precompute transform
     transform = (V.V/G)*[LinearAlgebra.I(n_bases_per_cell(d.dq)); zeros(1,n_bases_per_cell(d.dq))]*v.inv
     integral_coeffs = zeros(n_bases_per_cell(d.dq)+1,n_intervals(d.dq),n_phases(d.dq))

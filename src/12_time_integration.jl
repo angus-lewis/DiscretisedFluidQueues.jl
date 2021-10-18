@@ -1,25 +1,18 @@
 struct ExplicitRungeKuttaScheme
     step_size::Float64
-    matrix::LinearAlgebra.LowerTriangular{Float64} # a
-    nodes::Vector{Float64}           # c
-    weights::Vector{Float64}         # b
-    # butcher tableau 
-    #   
-    # c | a
-    #   +---
-    #     b
+    alpha::LinearAlgebra.LowerTriangular{Float64}
+    beta::LinearAlgebra.LowerTriangular{Float64}
     function ExplicitRungeKuttaScheme(step_size::Float64,
-        matrix::LinearAlgebra.LowerTriangular{Float64},
-        nodes::Vector{Float64},weights::Vector{Float64})
+        alpha::LinearAlgebra.LowerTriangular{Float64},
+        beta::LinearAlgebra.LowerTriangular{Float64})
 
         t1 = (step_size > 0)
-        l1 = length(weights)
-        l2 = length(nodes)
-        l3, l4 = size(matrix)
+        checksquare(alpha)
+        l1 = size(alpha)
+        l2 = size(beta)
         (!t1)&&throw(DomainError("step_size must be positive"))
-        !(l1==l2)&&throw(DimensionMismatch("weights and nodes must have same length"))
-        !(l1==l3==l4)&&throw(DimensionMismatch("matrix must be square and have size=length(nodes)"))
-        return new(step_size,matrix,nodes,weights)
+        !(l1==l2)&&throw(DimensionMismatch("alpha, beta must have same size"))
+        return new(step_size,alpha,beta)
     end
 end
 
@@ -31,53 +24,43 @@ Defines an Euler integration scheme to be used in `integrate_time`.
 # Arguments 
 -  `step_size::Float64`: the step size of the integration scheme.
 """
-ForwardEuler(step_size::Float64) = 
-    ExplicitRungeKuttaScheme(step_size,LinearAlgebra.LowerTriangular([0.0][:,:]),[0.0],[1.0])
+ForwardEuler(step_size::Float64) = ExplicitRungeKuttaScheme(
+        step_size,
+        LinearAlgebra.LowerTriangular([1.0][:,:]),
+        LinearAlgebra.LowerTriangular([1.0][:,:])
+    )
 
-_heuns_coeff_matrix = LinearAlgebra.LowerTriangular([0.0 0.0;
-                                                     1.0 0.0])
-Heuns(step_size::Float64) = 
-    ExplicitRungeKuttaScheme(step_size,_heuns_coeff_matrix,[0.0;1.0],[0.5;0.5])
+Heuns(step_size::Float64) = ExplicitRungeKuttaScheme(
+        step_size,
+        LinearAlgebra.LowerTriangular([1.0 0.0; 0.5 0.5]),
+        LinearAlgebra.LowerTriangular([1.0 0.0; 0.0 0.5])
+    )
 
-_ssprk3_coeff_matrix = LinearAlgebra.LowerTriangular([0.0 0.0 0.0;
-                                                      1.0 0.0 0.0;
-                                                      1/4 1/4 0.0])
-StableRK3(step_size::Float64) = 
-    ExplicitRungeKuttaScheme(step_size,_ssprk3_coeff_matrix,[0.0;1.0;1/2],[1/6;1/6;2/3])
+StableRK3(step_size::Float64) = ExplicitRungeKuttaScheme(
+        step_size,
+        LinearAlgebra.LowerTriangular([1.0 0.0 0.0; 0.75 0.25 0.0; 1/3 0.0 2/3]),
+        LinearAlgebra.LowerTriangular([1.0 0.0 0.0; 0.0 0.25 0.0; 0.0 0.0 2/3])
+    )
                 
 _α = [  1.0                0.0                 0.0                 0.0                 0.0                 ;
         0.44437049406734   0.55562950593266    0.0                 0.0                 0.0                 ;
         0.62010185138540   0.0                 0.37989814861460    0.0                 0.0                 ;
-        0.17807995410773   0.0                 0.0                 0.8219200458922     0.0                 ;
+        0.17807995410773   0.0                 0.0                 0.82192004589227    0.0                 ;
         0.00683325884039   0.0                 0.51723167208978    0.12759831133288    0.34833675773694    ]
 _β = [  0.39175222700392    0.0                 0.0                 0.0                 0.0                 ;
         0.0                 0.36841059262959    0.0                 0.0                 0.0                 ;
         0.0                 0.0                 0.25189177424738    0.0                 0.0                 ;
         0.0                 0.0                 0.0                 0.54497475021237    0.0                 ;
         0.0                 0.0                 0.0                 0.08460416338212    0.22600748319395    ]
-_κ = fill(NaN,size(_β))
-for i in 1:size(_β,1)
-    for k in size(_β,2):-1:1
-        s = 0 
-        for j in k+1:i-1
-            s += _α[i,j]*_κ[j,k]
-        end
-        _κ[i,k] = _β[i,k] + s
-    end
-end
-_a = fill(0.0,size(_β))
-_b = _κ[end,:]
-for i in 1:size(_β,2) 
-    for k in 1:i
-        _a[i,k] = _κ[i,k]
-    end
-end
-_c = [0.0;0.39175222700392;0.58607968896780;0.47454236302687;0.93501063100924]
-# https://ntrs.nasa.gov/api/citations/19870013797/downloads/19870013797.pdf
-# pg 159 (168) Nodal DG book
-# Sec 1.1.2 https://personal.math.ubc.ca/~cbm/mscthesis/cbm-mscthesis.pdf
-StableRK4(step_size::Float64) = 
-    ExplicitRungeKuttaScheme(step_size,LinearAlgebra.LowerTriangular(_a),_c,_b)
+
+# Raymond J. Spiteri and Steven J. Ruuth. A new class of optimal high-order
+# strong-stability-preserving time discretization methods. SIAM J. Numer. Anal.,
+# 40(2):469–491, 2002.
+StableRK4(step_size::Float64) = ExplicitRungeKuttaScheme(
+        step_size,
+        LinearAlgebra.LowerTriangular(_α),
+        LinearAlgebra.LowerTriangular(_β)
+    )
 
 """
 Given `x0` apprximate `x0 exp(Dy)`.
@@ -99,94 +82,15 @@ function integrate_time(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
     return _integrate(x0,D,y,scheme)
 end
 
-function integrate_time(x0::SFMDistribution, D::AbstractArray{Float64,2},
-    y::Float64, scheme::ExplicitRungeKuttaScheme)
+function integrate_time(x0::SFMDistribution{DGMesh}, D::AbstractArray{Float64,2},
+    y::Float64, scheme::ExplicitRungeKuttaScheme; limiter::Limiter=NoLimiter)
     checksquare(D)
     !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
     
-    return SFMDistribution(_integrate(x0.coeffs,D,y,scheme),x0.dq)
+    limiter_params = limiter.generate_params(x0.dq)
+    limiter_function = x->limiter.fun(x,limiter_params...)
+    return SFMDistribution(_integrate(x0.coeffs,D,y,scheme,limiter_function),x0.dq)
 end
-# function integrate_time(x0::SFMDistribution, D::FullGenerator, y::Float64, scheme::AbstractExplicitRungeKuttaScheme)
-#     checksquare(D)
-#     !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
-    
-#     return SFMDistribution(_integrate(x0.coeffs,D.B,y,scheme),x0.dq)
-# end
-# function integrate_time(x0::SFMDistribution, D::LazyGenerator, y::Float64, scheme::AbstractExplicitRungeKuttaScheme)
-#     checksquare(D)
-#     !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
-    
-#     return SFMDistribution(_integrate(x0.coeffs,D,y,scheme),x0.dq)
-# end
-
-# """
-
-#     _integrate(x0::Array{Float64,2}, 
-#         D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, 
-#         y::Float64, scheme::RungeKutta4)
-
-# Use RungeKutta4 method.
-# """
-# function _integrate(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
-#     y::Float64, scheme::RungeKutta4)
-#     x = x0
-#     h = scheme.step_size
-#     c1 = 1.0/6.0 
-#     c2 = 6.0 + 3.0*h
-#     D = D*h
-#     for t = h:h:y
-#         xD = x*D
-#         xD² = xD*D
-#         xD³ = xD²*D
-#         dx = c1 * (c2*xD + xD² + xD³)
-#         x = x + dx
-#     end
-#     return x
-# end
-# function _integrate(x0::Array{Float64,2}, D::LazyGenerator, 
-#     y::Float64, scheme::RungeKutta4)
-#     x = x0
-#     h = scheme.step_size
-#     c1 = 1.0/6.0 
-#     c2 = 6.0 + 3.0*h
-#     D = D*h
-#     for t = h:h:y
-#         xD = fast_mul(x,D)
-#         xD² = fast_mul(xD,D)
-#         xD³ = fast_mul(xD²,D)
-#         dx = c1 * (c2*xD + xD² + xD³)
-#         x = x + dx
-#     end
-#     return x
-# end
-
-# """
-#     _integrate(x0::Array{Float64,2}, 
-#         D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, 
-#         y::Float64, scheme::Euler)
-
-# Use Eulers method.
-# """
-# function _integrate(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
-#     y::Float64, scheme::Euler)
-#     x = x0
-#     h = scheme.step_size
-#     for t = h:h:y
-#         dx = h * (x * D)
-#         x = x + dx
-#     end
-#     return x
-# end
-# function _integrate(x0::Array{Float64,2}, D::LazyGenerator, 
-#     y::Float64, scheme::Euler)
-#     x = x0
-#     h = scheme.step_size
-#     for t = h:h:y
-#         dx = h * (fast_mul(x, D))
-#         x = x + dx
-#     end
-#     return x
-# end
 
 """
     _integrate(x0::Array{Float64,2}, 
@@ -198,23 +102,35 @@ Use ExplicitRungeKuttaScheme method.
 function _integrate(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
     y::Float64, scheme::ExplicitRungeKuttaScheme)
 
-    x = x0
+    return _integrate(x0, D, y, scheme, identity)
+end
+
+function _integrate(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
+    y::Float64, scheme::ExplicitRungeKuttaScheme, limit_function::Function)
+
+    x = limit_function(x0[:])
     h = scheme.step_size
-    l = length(scheme.weights)
-    matrix = scheme.matrix*h
-    v = Array{Float64,2}(undef,l,size(x0,2))
+    l = size(scheme.alpha,1)
+    α = scheme.alpha
+    βh = scheme.beta*h
+    v = Array{Float64,2}(undef,l+1,size(x0,2))
+    vD = Array{Float64,2}(undef,l+1,size(x0,2))
     for t = h:h:y
-        v[:,:] .= x
-        v[1,:] = transpose(v[1,:])*D
-        for i in 1:l-1
-            for j in 1:i-1
-                if matrix[i,j]!=0.0
-                    v[i+1,:] += v[j,:]*matrix[i,j]
-                end                
+        v[1,:] = x
+        for i in 1:l
+            vD[i,:] = transpose(v[i,:])*D
+            initialised = false 
+            for j in 1:i
+                if α[i,j]!=0.0
+                    initialised ? (v[i+1,:]+=v[j,:]*α[i,j]) : (v[i+1,:]=v[j,:]*α[i,j]; initialised=true)
+                end
+                if βh[i,j]!=0.0
+                    initialised ? (v[i+1,:]+=vD[j,:]*βh[i,j]) : (v[i+1,:]=vD[j,:]*βh[i,j]; initialised=true)
+                end
             end
-            v[i+1,:] = transpose(v[i+1,:])*D
+            v[i+1,:] = limit_function(v[i+1,:])
         end
-        x += h * sum(scheme.weights.*v, dims=1)
+        x = v[end,:]
     end
-    return x
+    return Array(transpose(x))
 end

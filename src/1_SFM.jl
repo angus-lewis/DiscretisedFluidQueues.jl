@@ -126,7 +126,7 @@ struct FluidQueue <: Model
         checksquare(T)
         !all(isapprox.(sum(T,dims=2),0, atol=1e-5))&&throw(DomainError(T, "row sums must be 0 (tol=1e-5)"))
         !all(sum(T,dims=2).==0)&&@warn "row sums of T must be 0 (tol=1e-5)"
-        !(size(T,1)==length(S))&&throw(DomainError("PhaseSet must have length the dimension of T"))
+        !(size(T,1)==length(S))&&throw(DomainError("PhaseSet must have length the size(T,1)"))
         return new(T,S)
     end
 end 
