@@ -12,7 +12,7 @@
     @test test_data≈integrate_time(x0,D,1.0,ssprk3) atol=ssprk4.step_size*10.0
 
     @testset "limiter -- MUSCL" begin 
-        using DiscretisedFluidQueues, Plots
+        using DiscretisedFluidQueues
         one_D_T = [0.0][:,:]
         one_D_c = [1.0]
         one_D_model = FluidQueue(one_D_T,one_D_c)
@@ -28,10 +28,10 @@
         d0 = SFMDistribution(f,dq)
         dt = integrate_time(d0,B,1.0,StableRK4(0.01); limiter=GeneralisedMUSCL)
         dt_no_limit = integrate_time(d0,B,1.0,StableRK4(0.01); limiter=NoLimiter)
-        plot(x->pdf(d0)(x,1),0,5)
-        plot!(x->pdf(limit(d0))(x,1),0,5)
-        plot!(x->pdf(dt)(x,1),0,5)
-        plot!(x->pdf(dt_no_limit)(x,1),0,5)
+        # plot(x->pdf(d0)(x,1),0,5)
+        # plot!(x->pdf(limit(d0))(x,1),0,5)
+        # plot!(x->pdf(dt)(x,1),0,5)
+        # plot!(x->pdf(dt_no_limit)(x,1),0,5)
 
     end
 end
