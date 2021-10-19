@@ -51,6 +51,8 @@ frapmesh = FRAPMesh(nodes,order)
 
     include("numerics.jl")
 
+    include("limiters.jl")
+
 # more testing for lazy_generators now with new modularised code
 # testing for DiscretisedFluidQueue
 # etc...

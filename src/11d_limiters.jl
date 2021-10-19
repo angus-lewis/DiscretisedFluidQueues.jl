@@ -36,12 +36,12 @@ function linear(cell_coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{F
     cell_coeffs = Vinv*(cell_coeffs*2.0./(Δ*w))
     # project to order 1 
     if length(cell_coeffs)>2
-        cell_coeffs[3:end] .= 0
+        cell_coeffs[3:end] .= 0.0
     end
     # while we're here, also get the slope of the linear function
     slope = (D*cell_coeffs)[1]*2.0/Δ
     # convert back to original basis
-    cell_coeffs = V*(cell_coeffs./(2.0./(Δ*w)))
+    cell_coeffs = (V*cell_coeffs)./(2.0./(Δ*w))
 
     return cell_coeffs, slope
 end
