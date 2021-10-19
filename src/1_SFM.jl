@@ -144,7 +144,7 @@ phases(m::FluidQueue) = 1:n_phases(m.S)
 N₋(m::FluidQueue) = N₋(m.S)
 N₊(m::FluidQueue) = N₊(m.S)
 
-function _duplicate_zero_states(T::Array{<:Real,2},C::Array{<:Real,1})
+function _duplicate_zero_states(T::Array{Float64,2},C::Array{Float64,1})
     n_0 = sum(C.==0)
     
     # assign rates for the augmented model

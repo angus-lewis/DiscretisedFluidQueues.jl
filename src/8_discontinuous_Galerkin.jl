@@ -4,16 +4,16 @@
 A structure representing a discretisation scheme to be used for a DiscretisedFluidQueue. 
 
 # Arguments:
-- `nodes::Array{<:Real, 1}`: The edges of the cells.
+- `nodes::Array{Float64, 1}`: The edges of the cells.
 - `n_bases::Int`: The number of basis functions used to represent the solution on each cell
 """
 struct DGMesh <: Mesh 
-    nodes::Array{<:Real,1}
+    nodes::Array{Float64,1}
     n_bases::Int
     basis::String
 end 
 # Convenience constructors
-function DGMesh(nodes::Array{<:Real,1},n_bases::Int)
+function DGMesh(nodes::Array{Float64,1},n_bases::Int)
     basis = "lagrange"
     mesh = DGMesh(nodes, n_bases,basis)
     return mesh
