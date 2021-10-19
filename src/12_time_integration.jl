@@ -82,6 +82,11 @@ function integrate_time(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
     return _integrate(x0,D,y,scheme)
 end
 
+function integrate_time(x0::SFMDistribution, D::AbstractArray{Float64,2},
+    y::Float64, scheme::ExplicitRungeKuttaScheme)   
+    return SFMDistribution(integrate_time(x0.coeffs,D,y,scheme),x0.dq)
+end
+
 function integrate_time(x0::SFMDistribution{DGMesh}, D::AbstractArray{Float64,2},
     y::Float64, scheme::ExplicitRungeKuttaScheme; limiter::Limiter=NoLimiter)
     checksquare(D)

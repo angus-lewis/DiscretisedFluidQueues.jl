@@ -17,26 +17,36 @@
         one_D_c = [1.0]
         one_D_model = FluidQueue(one_D_T,one_D_c)
 
-        nodes = collect(-1.0:2.0/49.0:1.0)
+        nodes = collect(-1.0:2.0/50.0:1.0)
 
-        mesh = DGMesh(nodes,2)
+        mesh = DGMesh(nodes,7)#FRAPMesh(nodes,7)#
 
         dq = DiscretisedFluidQueue(one_D_model,mesh)
         B = build_full_generator(dq)
-        B[end-1,1:n_bases_per_cell(mesh)] = 
-            B[n_bases_per_cell(mesh),n_bases_per_cell(mesh)+1:2*n_bases_per_cell(mesh)] 
-        B[end-1,end] = 0.0
-        t = 10.0
-        f(x,i) = sin(π*x)
-        d0 = SFMDistribution(f,dq)
-        dt = integrate_time(d0,B,t,StableRK4(0.001); limiter=GeneralisedMUSCL)
-        dt_no_limit = integrate_time(d0,B,t,StableRK4(0.001); limiter=NoLimiter)
+        # B[2,(end-n_bases_per_cell(mesh)+1):end] = 
+        #     B[n_bases_per_cell(mesh)+2,2:n_bases_per_cell(mesh)+1] 
+        # B[2,1] = 0.0
+        t = 1.0
+        f(x,i) = (x<-0.5)#sin(π*x)#
+        d0 = SFMDistribution(f,dq)# interior_point_mass(-0.5,1,dq)#
 
-        # plot(x->pdf(d0)(x,1),nodes[1],nodes[end])
-        # plot!(x->pdf(limit(d0))(x,1),nodes[1],nodes[end])
-        plot(x->pdf(dt)(x,1),nodes[1],nodes[end])
-        plot!(x->pdf(dt_no_limit)(x,1),nodes[1],nodes[end])
-        plot!(x->sin(π*(x+t)),nodes[1],nodes[end])
+        pdf0 = pdf(d0)
+        pdf0_limit = pdf(limit(d0))
+        x_vals = -0.55:0.001:-0.45
+        @test any(pdf0.(x_vals,1).>1.01)
+        @test !any(pdf0_limit.(x_vals,1).>1.01)
+        @test any(pdf0.(x_vals,1).<-0.01)
+        @test !any(pdf0_limit.(x_vals,1).<-0.01)
 
+        dt = integrate_time(d0,B,t,StableRK4(0.01); limiter=GeneralisedMUSCL)
+        dt_no_limit = integrate_time(d0,B,t,StableRK4(0.01))
+
+        pdft = pdf(dt)
+        pdft_no_limit = pdf(limit(dt_no_limit))
+        x_vals = -0.05:0.001:0.55
+        @test !any(pdft.(x_vals,1).>1.01)
+        @test any(pdft_no_limit.(x_vals,1).>1.01)
+        @test !any(pdft.(x_vals,1).<-0.01)
+        @test any(pdft_no_limit.(x_vals,1).<-0.01)
     end
 end

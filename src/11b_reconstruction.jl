@@ -186,7 +186,7 @@ function pdf(d::SFMDistribution{FRAPMesh},
                 to_go = (x-yₖ)./Δ(mesh,cell_idx)
             end
             me = mesh.me
-            fxi = closing_operator(transpose(coeffs),me)(to_go)
+            fxi = closing_operator(transpose(coeffs),me)(to_go)./Δ(mesh,cell_idx)
         end
         return fxi
     end
