@@ -122,6 +122,28 @@ macro static_generator(lz)
     return out
 end
 
+function static_generator(lz) 
+    sz = size(lz.blocks[1], 1)
+    ex_smatrix = StaticArrays.SMatrix{sz, sz, Float64}
+    ex_svector = StaticArrays.SVector{sz, Float64}
+    b1 = ex_smatrix(lz.blocks[1])
+    b2 = ex_smatrix(lz.blocks[2])
+    b3 = ex_smatrix(lz.blocks[3])
+    b4 = ex_smatrix(lz.blocks[4])
+    uprin = ex_svector(lz.boundary_flux.upper.in)
+    uprout = ex_svector(lz.boundary_flux.upper.out)
+    lwrin = ex_svector(lz.boundary_flux.lower.in)
+    lwrout = ex_svector(lz.boundary_flux.lower.out)
+    D = ex_smatrix(lz.D)
+    dq = lz.dq
+
+    # return 
+    out = LazyGenerator(dq,(b1,b2,b3,b4), 
+        BoundaryFlux(OneBoundaryFlux(uprin,uprout),OneBoundaryFlux(lwrin,lwrout)),
+        D)
+    return out
+end
+
 # I think this is a duplicate: delete?
 
 # function LazyGenerator(
