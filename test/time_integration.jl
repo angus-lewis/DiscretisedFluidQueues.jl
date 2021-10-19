@@ -17,21 +17,26 @@
         one_D_c = [1.0]
         one_D_model = FluidQueue(one_D_T,one_D_c)
 
-        nodes = collect(0.0:0.1:5.0);
+        nodes = collect(-1.0:2.0/49.0:1.0)
 
-        mesh = DGMesh(nodes,5)
+        mesh = DGMesh(nodes,2)
 
         dq = DiscretisedFluidQueue(one_D_model,mesh)
         B = build_full_generator(dq)
-
-        f(x,i) = 1(x>1.1)#sin(2*π*x)
+        B[end-1,1:n_bases_per_cell(mesh)] = 
+            B[n_bases_per_cell(mesh),n_bases_per_cell(mesh)+1:2*n_bases_per_cell(mesh)] 
+        B[end-1,end] = 0.0
+        t = 10.0
+        f(x,i) = sin(π*x)
         d0 = SFMDistribution(f,dq)
-        dt = integrate_time(d0,B,1.0,StableRK4(0.01); limiter=GeneralisedMUSCL)
-        dt_no_limit = integrate_time(d0,B,1.0,StableRK4(0.01); limiter=NoLimiter)
-        # plot(x->pdf(d0)(x,1),0,5)
-        # plot!(x->pdf(limit(d0))(x,1),0,5)
-        # plot!(x->pdf(dt)(x,1),0,5)
-        # plot!(x->pdf(dt_no_limit)(x,1),0,5)
+        dt = integrate_time(d0,B,t,StableRK4(0.001); limiter=GeneralisedMUSCL)
+        dt_no_limit = integrate_time(d0,B,t,StableRK4(0.001); limiter=NoLimiter)
+
+        # plot(x->pdf(d0)(x,1),nodes[1],nodes[end])
+        # plot!(x->pdf(limit(d0))(x,1),nodes[1],nodes[end])
+        plot(x->pdf(dt)(x,1),nodes[1],nodes[end])
+        plot!(x->pdf(dt_no_limit)(x,1),nodes[1],nodes[end])
+        plot!(x->sin(π*(x+t)),nodes[1],nodes[end])
 
     end
 end

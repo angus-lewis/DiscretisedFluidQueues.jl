@@ -15,6 +15,13 @@ function minmod(a::Float64,b::Float64,c::Float64)
     end
 end
 
+function minmodB(a::Float64,b::Float64,c::Float64,M,h)
+    b = b+M*h^2*sign(b)
+    c = c+M*h^2*sign(c)
+    
+    return minmod(a,b,c)
+end
+
 """
 linear(cell_coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{Float64},
 w::Float64, Δ::Float64)
@@ -22,7 +29,7 @@ w::Float64, Δ::Float64)
 Take coefficients legendre basis polynomials and project them down to a linear polynomial.
 """
 function linear(cell_coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{Float64},
-    Dr::Matrix{Float64}, w::Vector{Float64}, Δ::Float64)
+    D::Matrix{Float64}, w::Vector{Float64}, Δ::Float64)
 
     # reweight to canonical legendre basis
     # convert to lagrange basis
@@ -32,7 +39,7 @@ function linear(cell_coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{F
         cell_coeffs[3:end] .= 0
     end
     # while we're here, also get the slope of the linear function
-    slope = (V*Dr*cell_coeffs)[1]
+    slope = (D*cell_coeffs)[1]*2.0/Δ
     # convert back to original basis
     cell_coeffs = V*(cell_coeffs./(2.0./(Δ*w)))
 
@@ -40,11 +47,10 @@ function linear(cell_coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{F
 end
 
 function limit(coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{Float64},
-    Dr::Matrix{Float64}, w::Vector{Float64}, Δvec::Vector{Float64}, 
+    D::Matrix{Float64}, w::Vector{Float64}, Δvec::Vector{Float64}, 
     cell_nodes_matrix::Matrix{Float64}, num_phases::Int, n₋::Int, n₊::Int)
 
     # V, Vinv, D, w = vandermonde(n_bases_per_cell(d.dq))
-    # Dr = Vinv*D
 
     limited_coeffs = copy(coeffs)
 
@@ -75,7 +81,7 @@ function limit(coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{Float64
                 isapprox(right_limited_flux,poly_reconstruct_right[cell,phase];atol=1e-8))
             if needs_limiting
                 cell_coeffs = limited_coeffs[:,cell,phase]
-                cell_coeffs, slope = linear(cell_coeffs,V,Vinv,Dr,w,Δvec[cell])
+                cell_coeffs, slope = linear(cell_coeffs,V,Vinv,D,w,Δvec[cell])
 
                 nodes = cell_nodes_matrix[:,cell]
                 centre = (nodes[1]+nodes[end])/2.0
@@ -91,9 +97,8 @@ end
 
 function limit(d::SFMDistribution{DGMesh})
     V, Vinv, D, w = vandermonde(n_bases_per_cell(d.dq))
-    Dr = Vinv*D
     
-    limited_coeffs = limit(d.coeffs[:],V,Vinv,Dr,w,Δ(d.dq),cell_nodes(d.dq),n_phases(d.dq),N₋(d.dq),N₊(d.dq))
+    limited_coeffs = limit(d.coeffs[:],V,Vinv,D,w,Δ(d.dq),cell_nodes(d.dq),n_phases(d.dq),N₋(d.dq),N₊(d.dq))
     return SFMDistribution(Array(limited_coeffs'),d.dq) 
 end
 
@@ -105,11 +110,8 @@ struct Limiter #<: AbstractLimiter
                                 # to extra parameters for the limiter
 end
 
-function muscl_params(dq::DiscretisedFluidQueue)
-    V, Vinv, D, w = vandermonde(n_bases_per_cell(dq))
-    Dr = Vinv*D
-    return (V, Vinv, Dr, w, Δ(dq), cell_nodes(dq),n_phases(dq),N₋(dq),N₊(dq))
-end
+muscl_params(dq::DiscretisedFluidQueue) =
+    (vandermonde(n_bases_per_cell(dq))..., Δ(dq), cell_nodes(dq),n_phases(dq),N₋(dq),N₊(dq))
 
 GeneralisedMUSCL = Limiter(limit,muscl_params)
 
