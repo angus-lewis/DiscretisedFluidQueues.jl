@@ -25,12 +25,10 @@ export naive_normalised_closing_operator_cdf, naive_normalised_closing_operator_
 export unnormalised_closing_operator_cdf, unnormalised_closing_operator_pdf
 export limit, Limiter, NoLimiter, GeneralisedMUSCL
 
-array_types = (:(SparseArrays.SparseMatrixCSC{Float64,Int}),:(Matrix{Float64}))
-
 # model
 include("1_SFM.jl")
 
-include("2_abstract_mesh.jl") # things which apply to all meshs
+include("2_abstract_mesh.jl") # things which apply to all meshes
 include("2a_discretised_fluid_queue.jl")
 include("3_lazy_generators.jl")
 include("4_full_generators.jl")
