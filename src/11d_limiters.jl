@@ -88,7 +88,7 @@ function limit(coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{Float64
                 nodes = nodes .- centre
 
                 limited_coeffs[:,cell,phase] = (cell_averages[cell,phase] .+ 
-                    (nodes*minmod(slope,2.0*b/Δvec[cell],2.0*c/Δvec[cell])))./(2.0./(Δvec[cell]*w))
+                    (nodes*minmod(slope,b/Δvec[cell],c/Δvec[cell])))./(2.0./(Δvec[cell]*w))
             end
         end
     end

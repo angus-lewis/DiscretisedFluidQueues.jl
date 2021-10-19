@@ -197,9 +197,9 @@ function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{FRAPMesh}; fun_
         for cell in 1:n_intervals(dq)
             a,b = dq.mesh.nodes[cell:cell+1]
             if _has_right_boundary(dq.model.S,i)
-                o = expected_orbit_from_pdf(x->pdf(a+x*(b-a),i),dq.mesh.me,0.0,1.0,fun_evals) 
+                o = expected_orbit_from_pdf(x->(b-a)*pdf(a+x*(b-a),i),dq.mesh.me,0.0,1.0,fun_evals) 
             else
-                o = expected_orbit_from_pdf(x->pdf(b-x*(b-a),i),dq.mesh.me,0.0,1.0,fun_evals) 
+                o = expected_orbit_from_pdf(x->(b-a)*pdf(b-x*(b-a),i),dq.mesh.me,0.0,1.0,fun_evals) 
             end
             coeffs[:,cell,i] = o
         end

@@ -331,10 +331,10 @@ function expected_orbit_from_pdf(pdf::Function,me::AbstractMatrixExponential,a::
     E_orbit = zeros(size(me.a))
     for t in edges[2:end]
         orbit_RHS = orbit(me,t)
-        orbit_estimate = (orbit_LHS+orbit_RHS)./2
+        orbit_estimate = (orbit_LHS+orbit_RHS)./2.0
 
         pdf_RHS = pdf(a+t)
-        prob_estimate = (pdf_RHS+pdf_LHS)/2*h
+        prob_estimate = (pdf_RHS+pdf_LHS)/2.0*h
 
         orbit_LHS = copy(orbit_RHS)
         pdf_LHS = copy(pdf_RHS)

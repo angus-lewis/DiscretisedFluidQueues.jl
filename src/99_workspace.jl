@@ -70,3 +70,23 @@ for t in (:(Matrix{Float64}), :(SparseMatrixCSC{Float64,Int}))
 end
 
 @btime fast_mul(mt,mt.a)
+
+using DiscretisedFluidQueues, LinearAlgebra, Plots
+order = 21
+cme = ConcentratedMatrixExponential(order)
+M = sylvester(Matrix(cme.S),Matrix(cme.S),cme.s*cme.a) 
+me_rec0 = MatrixExponential(cme.a/cme.D,Matrix(cme.S),(I(order)-exp(cme.S*2))^-1*cme.s,cme.D)
+f0(x) = cdf(me_rec0,x)
+f0_rap(x) = 1-cdf(cme,1.0-x)*(x<1.0)
+
+orbit_fun = DiscretisedFluidQueues.orbit(cme)
+me_rec1 = MatrixExponential(orbit_fun(0.5)/cme.D,Matrix(cme.S),cme.s,cme.D)
+me_rap1 = MatrixExponential(orbit_fun(0.5),Matrix(cme.S),(I(order)-exp(cme.S*2))^-1*cme.s,cme.D)
+f1(x) = cdf(me_rec1,x)
+f1_rap(x) = 1-cdf(me_rap1,1.0-x)*(x<1.0)
+
+
+plot(f0,0,1.5)
+plot!(f1,0,1.5)
+plot!(f0_rap,0,1.5)
+plot!(f1_rap,0,1.5,ylim=(-1,2))

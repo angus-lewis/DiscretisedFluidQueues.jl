@@ -88,7 +88,7 @@ function integrate_time(x0::SFMDistribution, D::AbstractArray{Float64,2},
 end
 
 function integrate_time(x0::SFMDistribution{DGMesh}, D::AbstractArray{Float64,2},
-    y::Float64, scheme::ExplicitRungeKuttaScheme; limiter::Limiter=NoLimiter)
+    y::Float64, scheme::ExplicitRungeKuttaScheme; limiter::Limiter=GeneralisedMUSCL)
     checksquare(D)
     !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
     
