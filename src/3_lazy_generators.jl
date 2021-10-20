@@ -278,7 +278,7 @@ function fast_mul(u::AbstractMatrix{Float64}, B::LazyGenerator)
     _lmul_into_lwr_bndry!(v,u,model,mesh,Kp,n₋,C,B.boundary_flux.lower.in)
 
     # out of lower 
-    _lmul_out_lwr_bndry!(v,u,mesh,model.T,model.S,C,Kp,n₋,B.boundary_flux.lower.out)
+    _lmul_out_lwr_bndry!(v,u,mesh,model,Kp,n₋,B.boundary_flux.lower.in,B.boundary_flux.lower.out)
 
     # at upper
     _lmul_at_upr_bndry!(v,u,model.T,model.S,n₊) 
@@ -286,7 +286,7 @@ function fast_mul(u::AbstractMatrix{Float64}, B::LazyGenerator)
     _lmul_into_upr_bndry!(v,u,model,mesh,Kp,n₋,n₊,C,B.boundary_flux.upper.in)
     
     # out of upper 
-    _lmul_out_upr_bndry!(v,u,mesh,model.T,model.S,C,Kp,n₋,n₊,B.boundary_flux.upper.out)
+    _lmul_out_upr_bndry!(v,u,mesh,model,Kp,n₋,n₊,B.boundary_flux.upper.in,B.boundary_flux.upper.out)
     
     # innards
     for i in phases(model), j in phases(model)
@@ -332,24 +332,72 @@ function _lmul_into_lwr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,C,bndry_flux_i
     )
     return nothing
 end
+function _lmul_into_lwr_bndry!(v,u,model::BoundedFluidQueue,mesh,Kp,n₋,C,bndry_flux_in_lwr)
+    idxdown = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(negative_phases(model)) .- 1)')[:]
+    v[:,1:n₋] += u[:,idxdown]*LinearAlgebra.kron(
+        # LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(model.S)])),
+        abs.(C[negative_phases(model)]).*model.P_lwr[:,_has_left_boundary.(model.S)],
+        bndry_flux_in_lwr/Δ(mesh,1),
+    )
+    return nothing
+end
 function _lmul_into_upr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,n₊,C,bndry_flux_in_upr)
     idxup = n₋ .+ ((1:n_bases_per_cell(mesh)) .+ Kp*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
         (Kp - n_bases_per_cell(mesh))
     v[:,end-n₊+1:end] += u[:,idxup]*LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => C[_has_right_boundary.(model.S)]),
+        LinearAlgebra.diagm(0 => abs.(C[_has_right_boundary.(model.S)])),
         bndry_flux_in_upr/Δ(mesh,n_intervals(mesh)),
     )
     return nothing
 end
-function _lmul_out_lwr_bndry!(v,u,mesh,T,S,C,Kp,n₋,bndry_flux_out_lwr)
-    idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases_per_cell(mesh)))[:]
-    v[:,idxup] += u[:,1:n₋]*LinearAlgebra.kron(T[_has_left_boundary.(S),C.>0],bndry_flux_out_lwr')
+function _lmul_into_upr_bndry!(v,u,model::BoundedFluidQueue,mesh,Kp,n₋,n₊,C,bndry_flux_in_upr)
+    idxup = n₋ .+ ((1:n_bases_per_cell(mesh)) .+ Kp*(findall(positive_phases(model)) .- 1)')[:] .+
+        (Kp - n_bases_per_cell(mesh))
+    v[:,end-n₊+1:end] += u[:,idxup]*LinearAlgebra.kron(
+        # LinearAlgebra.diagm(0 => C[_has_right_boundary.(model.S)]),
+        abs.(C[positive_phases(model)]).*model.P_upr[:,_has_right_boundary.(model.S)],
+        bndry_flux_in_upr/Δ(mesh,n_intervals(mesh)),
+    )
+    return nothing
+end
+function _lmul_out_lwr_bndry_generic!(v,u,mesh,model,Kp,n₋,bndry_flux_out_lwr)
+    idxup = n₋ .+ (Kp*(findall(positive_phases(model)).-1)' .+ (1:n_bases_per_cell(mesh)))[:]
+    v[:,idxup] += u[:,1:n₋]*LinearAlgebra.kron(model.T[_has_left_boundary.(model.S),positive_phases(model)],bndry_flux_out_lwr')
+    return idxup
+end
+function _lmul_out_lwr_bndry!(v,u,mesh,model::FluidQueue,Kp,n₋,bndry_flux_in_lwr,bndry_flux_out_lwr)
+    _lmul_out_lwr_bndry_generic!(v,u,mesh,model,Kp,n₋,bndry_flux_out_lwr)
     return nothing 
 end
-function _lmul_out_upr_bndry!(v,u,mesh,T,S,C,Kp,n₋,n₊,bndry_flux_out_upr)
-    idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases_per_cell(mesh)))[:] .+
+function _lmul_out_lwr_bndry!(v,u,mesh,model::BoundedFluidQueue,Kp,n₋,bndry_flux_in_lwr,bndry_flux_out_lwr)
+    idxup = _lmul_out_lwr_bndry_generic!(v,u,mesh,model,Kp,n₋,bndry_flux_out_lwr)
+    idxdown = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(negative_phases(model)) .- 1)')[:]
+    v[:,idxup] += u[:,idxdown]*LinearAlgebra.kron(
+        # LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(model.S)])),
+        abs.(rates(model)[negative_phases(model)]).*model.P_lwr[:,positive_phases(model)],
+        bndry_flux_in_lwr*bndry_flux_out_lwr'/Δ(mesh,1),
+    )
+    return nothing 
+end
+function _lmul_out_upr_bndry_generic!(v,u,mesh,model,Kp,n₋,n₊,bndry_flux_out_upr)
+    idxdown = n₋ .+ (Kp*(findall(negative_phases(model)).-1)' .+ (1:n_bases_per_cell(mesh)))[:] .+
+    (Kp - n_bases_per_cell(mesh))
+    v[:,idxdown] += u[:,end-n₊+1:end]*LinearAlgebra.kron(model.T[_has_right_boundary.(model.S),negative_phases(model)],bndry_flux_out_upr')
+    return idxdown
+end
+function _lmul_out_upr_bndry!(v,u,mesh,model::FluidQueue,Kp,n₋,n₊,bndry_flux_in_upr,bndry_flux_out_upr)
+    _lmul_out_upr_bndry_generic!(v,u,mesh,model,Kp,n₋,n₊,bndry_flux_out_upr)
+    return nothing 
+end
+function _lmul_out_upr_bndry!(v,u,mesh,model::BoundedFluidQueue,Kp,n₋,n₊,bndry_flux_in_upr,bndry_flux_out_upr)
+    idxdown = _lmul_out_upr_bndry_generic!(v,u,mesh,model,Kp,n₋,n₊,bndry_flux_out_upr)
+    idxup = n₋ .+ ((1:n_bases_per_cell(mesh)) .+ Kp*(findall(positive_phases(model)) .- 1)')[:] .+
         (Kp - n_bases_per_cell(mesh))
-    v[:,idxdown] += u[:,end-n₊+1:end]*LinearAlgebra.kron(T[_has_right_boundary.(S),C.<0],bndry_flux_out_upr')
+    v[:,idxdown] += u[:,idxup]*LinearAlgebra.kron(
+        # LinearAlgebra.diagm(0 => C[_has_right_boundary.(model.S)]),
+        abs.(rates(model)[positive_phases(model)]).*model.P_upr[:,negative_phases(model)],
+        bndry_flux_in_upr*bndry_flux_out_upr'/Δ(mesh,n_intervals(mesh)),
+    )
     return nothing 
 end
 function _lmul_ii_pos_diag_block!(v,u,i,mesh::Mesh,n₋,diag_block,Tᵢᵢ,up_block,n_bases_per_cell_mesh,Kp)
@@ -682,9 +730,9 @@ function getindex_out_boundary(B::LazyGenerator,row::Int,col::Int)
     C = rates(model)
 
     i = _map_from_index_boundary(row,B)
-    if (l==1)&&(C[j]>0)&&_has_left_boundary(model.S,i)
+    if (l==1)&&(C[j]>0.0)&&_has_left_boundary(model.S,i)&&(row∈(1:N₊(B.dq)))
         v = model.T[i,j]*B.boundary_flux.lower.out[q]
-    elseif (l==n_intervals(B.dq))&&(C[j]<0)&&_has_right_boundary(model.S,i)
+    elseif (l==n_intervals(B.dq))&&(C[j]<0.0)&&_has_right_boundary(model.S,i)&&(row∈(size(B,2).-(N₋(B.dq)-1:-1:0)))
         v = model.T[i,j]*B.boundary_flux.upper.out[q]
     else 
         v = 0.0
@@ -717,7 +765,13 @@ function getindex(B::LazyGenerator,row::Int,col::Int)
     if _is_boundary_index(row,B) && _is_boundary_index(col,B)
         i = _map_from_index_boundary(row,B)
         j = _map_from_index_boundary(col,B)
-        (_has_left_boundary(B.dq.model.S,i)==_has_left_boundary(B.dq.model.S,j)) ? (v = B.dq.model.T[i,j]) : (v=0.0)
+        if (row∈(1:N₋(B.dq)))&&(col∈(1:N₋(B.dq)))
+            v = B.dq.model.T[i,j]
+        elseif (row∈(size(B,1).-(N₊(B.dq)-1:-1:0)))&&(col∈(size(B,2).-(N₊(B.dq)-1:-1:0)))
+            v = B.dq.model.T[i,j]
+        else 
+            v = 0.0
+        end
     elseif _is_boundary_index(col,B)
         v = getindex_in_boundary(B,row,col)
     elseif _is_boundary_index(row,B)

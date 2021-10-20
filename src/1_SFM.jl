@@ -69,6 +69,12 @@ Return the rate of the phase from a PhaseSet, FluidQueue, or DiscretisedFluidQue
 """
 rates(S::PhaseSet,i::Int) = S[i].c
 rates(S::PhaseSet) = [S[i].c for i in 1:n_phases(S)]
+
+negative_phases(S::PhaseSet,i::Int) = S[i].c.<0.0
+negative_phases(S::PhaseSet) = [S[i].c.<0.0 for i in 1:n_phases(S)]
+positive_phases(S::PhaseSet,i::Int) = S[i].c.>0.0
+positive_phases(S::PhaseSet) = [S[i].c.>0.0 for i in 1:n_phases(S)]
+
 """
     membership(S::PhaseSet, i::Int)
 
@@ -124,8 +130,8 @@ struct FluidQueue <: Model
     S::PhaseSet
     function FluidQueue(T::Array{Float64,2}, S::PhaseSet)
         checksquare(T)
-        !all(isapprox.(sum(T,dims=2),0, atol=1e-5))&&throw(DomainError(T, "row sums must be 0 (tol=1e-5)"))
-        !all(sum(T,dims=2).==0)&&@warn "row sums of T must be 0 (tol=1e-5)"
+        !all(isapprox.(sum(T,dims=2),0.0, atol=1e-5))&&throw(DomainError(T, "row sums must be 0 (tol=1e-5)"))
+        !all(sum(T,dims=2).==0.0)&&@warn "row sums of T must be 0 (tol=1e-5)"
         !(size(T,1)==length(S))&&throw(DomainError("PhaseSet must have length the size(T,1)"))
         return new(T,S)
     end
@@ -142,23 +148,31 @@ struct BoundedFluidQueue <: Model
     S::PhaseSet
     P_lwr::Matrix{Float64}
     P_upr::Matrix{Float64}
-    function BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet)
+    function BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet, P_lwr::Matrix{Float64}, P_upr::Matrix{Float64})
         checksquare(T)
-        !all(isapprox.(sum(T,dims=2),0, atol=1e-5))&&throw(DomainError(T, "row sums must be 0 (tol=1e-5)"))
-        !all(sum(T,dims=2).==0)&&@warn "row sums of T must be 0 (tol=1e-5)"
+        !all(isapprox.(sum(T,dims=2),0.0, atol=1e-5))&&throw(DomainError(T, "row sums must be 0 (tol=1e-5)"))
+        !all(sum(T,dims=2).==0.0)&&@warn "row sums of T must be 0 (tol=1e-5)"
+        !all(sum(P_lwr,dims=2).≈1.0)&&@warn "row sums of P_lwr should be 1.0"
+        !all(sum(P_upr,dims=2).≈1.0)&&@warn "row sums of P_upr should be 1.0"
         !(size(T,1)==length(S))&&throw(DomainError("PhaseSet must have length the size(T,1)"))
         !((sum(rates(S).<0.0)==size(P_lwr,1))&&(size(T,2)==size(P_lwr,2)))&&throw(DomainError("P_lwr must be |S₋| by |S|"))
         !((sum(rates(S).>0.0)==size(P_upr,1))&&(size(T,2)==size(P_upr,2)))&&throw(DomainError("P_upr must be |S₊| by |S|"))
-        return new(T,S)
+        return new(T,S,P_lwr,P_upr)
     end
 end
 
-rates(m::FluidQueue) = rates(m.S)
-rates(m::FluidQueue,i::Int) = rates(m.S,i)
-n_phases(m::FluidQueue) = n_phases(m.S)
-phases(m::FluidQueue) = 1:n_phases(m.S)
-N₋(m::FluidQueue) = N₋(m.S)
-N₊(m::FluidQueue) = N₊(m.S)
+rates(m::Model) = rates(m.S)
+rates(m::Model,i::Int) = rates(m.S,i)
+
+negative_phases(m::Model,i::Int) = negative_phases(m.S,i)
+negative_phases(m::Model) = negative_phases(m.S)
+positive_phases(m::Model,i::Int) = positive_phases(m.S,i)
+positive_phases(m::Model) = positive_phases(m.S)
+
+n_phases(m::Model) = n_phases(m.S)
+phases(m::Model) = 1:n_phases(m.S)
+N₋(m::Model) = N₋(m.S)
+N₊(m::Model) = N₊(m.S)
 
 function _duplicate_zero_states(T::Array{Float64,2},C::Array{Float64,1})
     n_0 = sum(C.==0)
@@ -203,12 +217,12 @@ function _duplicate_zero_states(T::Array{Float64,2},C::Array{Float64,1})
 end
 
 """
-    augment_model(model::FluidQueue)
+    augment_model(model::Model)
 
 Given a FluidQueue, return a FluidQueue with twice as many phases with rate 0, one set associated 
 with m=1 phases and one associated with m=-1 phases. 
 """
-function augment_model(model::FluidQueue)
+function augment_model(model::Model)
     if (any(rates(model).==0))
         T_aug, C_aug, m_aug, lpm_aug, rpm_aug = _duplicate_zero_states(model.T,rates(model))
         S_aug = PhaseSet(C_aug,m_aug,lpm_aug,rpm_aug)
