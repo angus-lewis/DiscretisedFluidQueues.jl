@@ -31,7 +31,7 @@
                 for i in 1:sz, j in 1:sz
                     ei = zeros(1,sz)
                     ei[i] = 1
-                    ej = zeros(sz)
+                    ej = zeros(sz)[:,:]
                     ej[j] = 1
                     !(B[i,j] == (ei*B*ej)[1]) && (ind = false)
                 end

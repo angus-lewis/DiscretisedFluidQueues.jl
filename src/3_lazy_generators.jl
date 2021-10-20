@@ -273,84 +273,40 @@ function fast_mul(u::AbstractMatrix{Float64}, B::LazyGenerator)
 
     # boundaries
     # at lower
-    _mul_at_lwr_bndry!(v,u,model.T,model.S,n₋) #v[:,1:n₋] += u[:,1:n₋]*model.T[_has_left_boundary.(model.S),_has_left_boundary.(model.S)]
+    _lmul_at_lwr_bndry!(v,u,model.T,model.S,n₋) 
     # in to lower 
-    _mul_into_lwr_bndry!(v,u,model,mesh,Kp,n₋,C,B.boundary_flux.lower.in)
-    # idxdown = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(_has_left_boundary.(model.S)) .- 1)')[:]
-    # v[:,1:n₋] += u[:,idxdown]*LinearAlgebra.kron(
-    #     LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(model.S)])),
-    #     B.boundary_flux.lower.in/Δ(mesh,1),
-    # )
+    _lmul_into_lwr_bndry!(v,u,model,mesh,Kp,n₋,C,B.boundary_flux.lower.in)
+
     # out of lower 
-    _mul_out_lwr_bndry!(v,u,mesh,model.T,model.S,C,Kp,n₋,B.boundary_flux.lower.out)
-    # idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases_per_cell(mesh)))[:]
-    # v[:,idxup] += u[:,1:n₋]*kron(model.T[_has_left_boundary.(model.S),C.>0],B.boundary_flux.lower.out')
+    _lmul_out_lwr_bndry!(v,u,mesh,model.T,model.S,C,Kp,n₋,B.boundary_flux.lower.out)
 
     # at upper
-    _mul_at_upr_bndry!(v,u,model.T,model.S,n₊) # v[:,end-n₊+1:end] += u[:,end-n₊+1:end]*model.T[_has_right_boundary.(model.S),_has_right_boundary.(model.S)]
+    _lmul_at_upr_bndry!(v,u,model.T,model.S,n₊) 
     # in to upper
-    _mul_into_upr_bndry!(v,u,model,mesh,Kp,n₋,n₊,C,B.boundary_flux.upper.in)
-    # idxup = n₋ .+ ((1:n_bases_per_cell(mesh)) .+ Kp*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
-    #     (Kp - n_bases_per_cell(mesh))
-    # v[:,end-n₊+1:end] += u[:,idxup]*LinearAlgebra.kron(
-    #     LinearAlgebra.diagm(0 => C[_has_right_boundary.(model.S)]),
-    #     B.boundary_flux.upper.in/Δ(mesh,n_intervals(mesh)),
-    # )
+    _lmul_into_upr_bndry!(v,u,model,mesh,Kp,n₋,n₊,C,B.boundary_flux.upper.in)
+    
     # out of upper 
-    _mul_out_upr_bndry!(v,u,mesh,model.T,model.S,C,Kp,n₋,n₊,B.boundary_flux.upper.out)
-    # idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases_per_cell(mesh)))[:] .+
-    #     (Kp - n_bases_per_cell(mesh))
-    # v[:,idxdown] += u[:,end-n₊+1:end]*LinearAlgebra.kron(model.T[_has_right_boundary.(model.S),C.<0],B.boundary_flux.upper.out')
-
+    _lmul_out_upr_bndry!(v,u,mesh,model.T,model.S,C,Kp,n₋,n₊,B.boundary_flux.upper.out)
+    
     # innards
     for i in phases(model), j in phases(model)
         if i == j 
             # mult on diagonal
             if C[i]>0.0 
-                _mul_ii_pos_diag_block!(v,u,i,mesh,n₋,
+                _lmul_ii_pos_diag_block!(v,u,i,mesh,n₋,
                     C[i]*B.blocks[2], model.T[i,i],
                     C[i]*B.blocks[4],
                     n_bases_per_cell(mesh),Kp)
             elseif C[i]<0.0
-                _mul_ii_neg_diag_block!(v,u,i,mesh,n₋,
+                _lmul_ii_neg_diag_block!(v,u,i,mesh,n₋,
                     abs(C[i])*B.blocks[3], model.T[i,i],
                     abs(C[i])*B.blocks[1],
                     n_bases_per_cell(mesh),Kp)
             else
-                _mul_ii_0_diag_block!(v,u,i,n_intervals(mesh),n₋,model.T[i,i],n_bases_per_cell(mesh),Kp)
+                _lmul_ii_0_diag_block!(v,u,i,n_intervals(mesh),n₋,model.T[i,i],n_bases_per_cell(mesh),Kp)
             end
-            # for k in 1:n_intervals(mesh)
-            #     k_idx = (i-1)*Kp .+ (k-1)*n_bases_per_cell(mesh) .+ (1:n_bases_per_cell(mesh)) .+ n₋
-            #     for ℓ in 1:n_intervals(mesh)
-            #         if (k == ℓ+1) && (C[i] > 0)
-            #             ℓ_idx = k_idx .- n_bases_per_cell(mesh) 
-            #             v[:,k_idx] += C[i]*(u[:,ℓ_idx]*B.blocks[4])/Δ(mesh,ℓ)
-            #         elseif k == ℓ
-            #             v[:,k_idx] += (u[:,k_idx]*(abs(C[i])*B.blocks[2 + (C[i].<0)]/Δ(mesh,ℓ) + model.T[i,j]*LinearAlgebra.I))
-            #         elseif (k == ℓ-1) && (C[i] < 0)
-            #             ℓ_idx = k_idx .+ n_bases_per_cell(mesh) 
-            #             v[:,k_idx] += abs(C[i])*(u[:,ℓ_idx]*B.blocks[1])/Δ(mesh,ℓ)
-            #         end
-            #     end
-            # end
         elseif typeof(mesh)<:FRAPMesh
-            _mul_ij_off_diag_blocks_FRAP!(v,u,i,j,model.S,model.T[i,j],B.D,Kp,n₋,n_intervals(mesh),n_bases_per_cell(mesh))
-            # if membership(model.S,i)!=membership(model.S,j)# B.pmidx[i,j]
-            #     # changes from S₊ to S₋ etc.
-            #     for k in 1:n_intervals(mesh)
-            #         for ℓ in 1:n_intervals(mesh)
-            #             if k == ℓ
-            #                 i_idx = (i-1)*Kp .+ (k-1)*n_bases_per_cell(mesh) .+ (1:n_bases_per_cell(mesh)) .+ n₋
-            #                 j_idx = (j-1)*Kp .+ (k-1)*n_bases_per_cell(mesh) .+ (1:n_bases_per_cell(mesh)) .+ n₋
-            #                 v[:,j_idx] += (u[:,i_idx]*(model.T[i,j]*B.D))
-            #             end
-            #         end
-            #     end
-            # else
-            #     i_idx = (i-1)*Kp .+ (1:Kp) .+ n₋
-            #     j_idx = (j-1)*Kp .+ (1:Kp) .+ n₋
-            #     v[:,j_idx] += (u[:,i_idx]*model.T[i,j])
-            # end
+            _lmul_ij_off_diag_blocks_FRAP!(v,u,i,j,model.S,model.T[i,j],B.D,Kp,n₋,n_intervals(mesh),n_bases_per_cell(mesh))
         else
             i_idx = (i-1)*Kp .+ (1:Kp) .+ n₋
             j_idx = (j-1)*Kp .+ (1:Kp) .+ n₋
@@ -360,15 +316,15 @@ function fast_mul(u::AbstractMatrix{Float64}, B::LazyGenerator)
     return v
 end
 
-function _mul_at_lwr_bndry!(v,u,T,S,n₋)
+function _lmul_at_lwr_bndry!(v,u,T,S,n₋)
     v[:,1:n₋]+=u[:,1:n₋]*T[_has_left_boundary.(S),_has_left_boundary.(S)]
     return nothing 
 end
-function _mul_at_upr_bndry!(v,u,T,S,n₊)
+function _lmul_at_upr_bndry!(v,u,T,S,n₊)
     v[:,end-n₊+1:end]+=u[:,end-n₊+1:end]*T[_has_right_boundary.(S),_has_right_boundary.(S)]
     return nothing 
 end
-function _mul_into_lwr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,C,bndry_flux_in_lwr)
+function _lmul_into_lwr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,C,bndry_flux_in_lwr)
     idxdown = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(_has_left_boundary.(model.S)) .- 1)')[:]
     v[:,1:n₋] += u[:,idxdown]*LinearAlgebra.kron(
         LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(model.S)])),
@@ -376,7 +332,7 @@ function _mul_into_lwr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,C,bndry_flux_in
     )
     return nothing
 end
-function _mul_into_upr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,n₊,C,bndry_flux_in_upr)
+function _lmul_into_upr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,n₊,C,bndry_flux_in_upr)
     idxup = n₋ .+ ((1:n_bases_per_cell(mesh)) .+ Kp*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
         (Kp - n_bases_per_cell(mesh))
     v[:,end-n₊+1:end] += u[:,idxup]*LinearAlgebra.kron(
@@ -385,18 +341,18 @@ function _mul_into_upr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,n₊,C,bndry_fl
     )
     return nothing
 end
-function _mul_out_lwr_bndry!(v,u,mesh,T,S,C,Kp,n₋,bndry_flux_out_lwr)
+function _lmul_out_lwr_bndry!(v,u,mesh,T,S,C,Kp,n₋,bndry_flux_out_lwr)
     idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases_per_cell(mesh)))[:]
     v[:,idxup] += u[:,1:n₋]*LinearAlgebra.kron(T[_has_left_boundary.(S),C.>0],bndry_flux_out_lwr')
     return nothing 
 end
-function _mul_out_upr_bndry!(v,u,mesh,T,S,C,Kp,n₋,n₊,bndry_flux_out_upr)
+function _lmul_out_upr_bndry!(v,u,mesh,T,S,C,Kp,n₋,n₊,bndry_flux_out_upr)
     idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases_per_cell(mesh)))[:] .+
         (Kp - n_bases_per_cell(mesh))
     v[:,idxdown] += u[:,end-n₊+1:end]*LinearAlgebra.kron(T[_has_right_boundary.(S),C.<0],bndry_flux_out_upr')
     return nothing 
 end
-function _mul_ii_pos_diag_block!(v,u,i,mesh::Mesh,n₋,diag_block,Tᵢᵢ,up_block,n_bases_per_cell_mesh,Kp)
+function _lmul_ii_pos_diag_block!(v,u,i,mesh::Mesh,n₋,diag_block,Tᵢᵢ,up_block,n_bases_per_cell_mesh,Kp)
     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
     v[:,block_idx] += (u[:,block_idx]*diag_block)/Δ(mesh,1) + u[:,block_idx]*Tᵢᵢ
     for k in 2:n_intervals(mesh)
@@ -406,15 +362,12 @@ function _mul_ii_pos_diag_block!(v,u,i,mesh::Mesh,n₋,diag_block,Tᵢᵢ,up_blo
         v[:,block_idx] += (u[:,ℓ_idx]*up_block)/Δ(mesh,k-1)
 
         v[:,block_idx] += (u[:,block_idx]*diag_block)/Δ(mesh,k) + u[:,block_idx]*Tᵢᵢ
-        # (u[:,k_idx]*(abs(C[i])*B.blocks[2 + (C[i].<0)]/Δ(mesh,ℓ) + model.T[i,i]*LinearAlgebra.I))
     end
     return nothing 
 end
-function _mul_ii_neg_diag_block!(v,u,i,mesh::Mesh,n₋,diag_block,Tᵢᵢ,down_block,n_bases_per_cell_mesh,Kp)
+function _lmul_ii_neg_diag_block!(v,u,i,mesh::Mesh,n₋,diag_block,Tᵢᵢ,down_block,n_bases_per_cell_mesh,Kp)
     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
     for k in 1:n_intervals(mesh)-1
-        # k_idx = (k-1)*n_bases_per_cell_mesh .+ block_idx
-
         ℓ_idx = block_idx .+ n_bases_per_cell_mesh
         v[:,block_idx] += (u[:,ℓ_idx]*down_block)/Δ(mesh,k+1)
 
@@ -425,7 +378,7 @@ function _mul_ii_neg_diag_block!(v,u,i,mesh::Mesh,n₋,diag_block,Tᵢᵢ,down_b
     v[:,block_idx] += (u[:,block_idx]*diag_block)/Δ(mesh,n_intervals(mesh)) + u[:,block_idx]*Tᵢᵢ
     return nothing 
 end
-function _mul_ii_0_diag_block!(v,u,i,n_intervals_mesh,n₋,Tᵢᵢ,n_bases_per_cell_mesh,Kp)
+function _lmul_ii_0_diag_block!(v,u,i,n_intervals_mesh,n₋,Tᵢᵢ,n_bases_per_cell_mesh,Kp)
     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
     for k in 1:n_intervals_mesh
         v[:,block_idx] += u[:,block_idx]*Tᵢᵢ
@@ -433,7 +386,7 @@ function _mul_ii_0_diag_block!(v,u,i,n_intervals_mesh,n₋,Tᵢᵢ,n_bases_per_c
     end
     return nothing 
 end
-function _mul_ii_pos_diag_block!(v,u,i,mesh::Mesh{StepRangeLen{Float64}},n₋,diag_block,Tᵢᵢ,up_block,n_bases_per_cell_mesh,Kp)
+function _lmul_ii_pos_diag_block!(v,u,i,mesh::Mesh{StepRangeLen{Float64}},n₋,diag_block,Tᵢᵢ,up_block,n_bases_per_cell_mesh,Kp)
     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
     diag_block /= Δ(mesh,1)
     diag_block += Tᵢᵢ*LinearAlgebra.I(n_bases_per_cell_mesh)
@@ -446,11 +399,10 @@ function _mul_ii_pos_diag_block!(v,u,i,mesh::Mesh{StepRangeLen{Float64}},n₋,di
         v[:,block_idx] += u[:,ℓ_idx]*up_block
 
         v[:,block_idx] += u[:,block_idx]*diag_block
-        # (u[:,k_idx]*(abs(C[i])*B.blocks[2 + (C[i].<0)]/Δ(mesh,ℓ) + model.T[i,i]*LinearAlgebra.I))
     end
     return nothing 
 end
-function _mul_ii_neg_diag_block!(v,u,i,mesh::Mesh{StepRangeLen{Float64}},n₋,diag_block,Tᵢᵢ,down_block,n_bases_per_cell_mesh,Kp)
+function _lmul_ii_neg_diag_block!(v,u,i,mesh::Mesh{StepRangeLen{Float64}},n₋,diag_block,Tᵢᵢ,down_block,n_bases_per_cell_mesh,Kp)
     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
     diag_block /= Δ(mesh,1)
     diag_block += Tᵢᵢ*LinearAlgebra.I(n_bases_per_cell_mesh)
@@ -466,8 +418,8 @@ function _mul_ii_neg_diag_block!(v,u,i,mesh::Mesh{StepRangeLen{Float64}},n₋,di
     v[:,block_idx] += u[:,block_idx]*diag_block
     return nothing 
 end
-function _mul_ij_off_diag_blocks_FRAP!(v,u,i,j,S,Tᵢⱼ,D,Kp,n₋,n_intervals_mesh,n_bases_per_cell_mesh)
-    if membership(S,i)!=membership(S,j)# B.pmidx[i,j]
+function _lmul_ij_off_diag_blocks_FRAP!(v,u,i,j,S,Tᵢⱼ,D,Kp,n₋,n_intervals_mesh,n_bases_per_cell_mesh)
+    if membership(S,i)!=membership(S,j) 
         i_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
         j_idx = (j-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
         # changes from S₊ to S₋ etc.
@@ -486,83 +438,63 @@ function _mul_ij_off_diag_blocks_FRAP!(v,u,i,j,S,Tᵢⱼ,D,Kp,n₋,n_intervals_m
 end 
 
 
-function fast_mul(B::LazyGenerator, u::AbstractMatrix{Float64})
+function fast_mul(B::LazyGenerator,u::AbstractMatrix{Float64})
     output_type = typeof(u)
-
+    
     sz_u_1 = size(u,1)
+    sz_u_2 = size(u,2)
+    sz_B_1 = size(B,1)
     sz_B_2 = size(B,2)
-
-    !(sz_u_1 == sz_B_2) && throw(DomainError("Dimension mismatch, u*B, length(u) must be size(B,2)"))
+    !(sz_B_2 == sz_u_1) && throw(DomainError("Dimension mismatch, u*B, length(u) must be size(B,1)"))
 
     if output_type <: SparseArrays.SparseMatrixCSC
-        v = SparseArrays.spzeros(sz_u_1,sz_B_2)
+        v = SparseArrays.spzeros(sz_B_1,sz_u_2)
     else 
-        v = zeros(sz_u_1,sz_B_2)
+        v = zeros(sz_B_1,sz_u_2)
     end
-
     model = B.dq.model
-
-    Kp = n_bases_per_phase(B.dq) # K = n_intervals, p = n_bases
-
-    C = rates(model)
+    mesh = B.dq.mesh
+    Kp = n_bases_per_phase(B.dq) # K = n_intervals(mesh), p = n_bases_per_cell(mesh)
+    C = rates(B.dq)
     n₋ = N₋(B.dq)
     n₊ = N₊(B.dq)
+
     # boundaries
     # at lower
-    v[1:n₋,:] += model.T[_has_left_boundary.(model.S),_has_left_boundary.(model.S)]*u[1:n₋,:]
+    _rmul_at_lwr_bndry!(v,u,model.T,model.S,n₋) 
     # in to lower 
-    idxdown = n₋ .+ ((1:n_bases_per_cell(B.dq)).+Kp*(findall(_has_left_boundary.(model.S)) .- 1)')[:]
-    v[idxdown,:] += LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(model.S)])),
-        B.boundary_flux.lower.in/Δ(B.dq,1),
-    )*u[1:n₋,:]
+    _rmul_into_lwr_bndry!(v,u,model,mesh,Kp,n₋,C,B.boundary_flux.lower.in)
+    
     # out of lower 
-    idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases_per_cell(B.dq)))[:]
-    v[1:n₋,:] += kron(model.T[_has_left_boundary.(model.S),C.>0],B.boundary_flux.lower.out')*u[idxup,:]
-
+    _rmul_out_lwr_bndry!(v,u,mesh,model.T,model.S,C,Kp,n₋,B.boundary_flux.lower.out)
+    
     # at upper
-    v[end-n₊+1:end,:] += model.T[_has_right_boundary.(model.S),_has_right_boundary.(model.S)]*u[end-n₊+1:end,:]
+    _rmul_at_upr_bndry!(v,u,model.T,model.S,n₊) # v[:,end-n₊+1:end] += u[:,end-n₊+1:end]*model.T[_has_right_boundary.(model.S),_has_right_boundary.(model.S)]
     # in to upper
-    idxup = n₋ .+ ((1:n_bases_per_cell(B.dq)).+Kp*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
-        (Kp - n_bases_per_cell(B.dq))
-    v[idxup,:] += LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => C[_has_right_boundary.(model.S)]),
-        B.boundary_flux.upper.in/Δ(B.dq,n_intervals(B.dq)),
-    )*u[end-n₊+1:end,:]
+    _rmul_into_upr_bndry!(v,u,model,mesh,Kp,n₋,n₊,C,B.boundary_flux.upper.in)
+    
     # out of upper 
-    idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases_per_cell(B.dq)))[:] .+
-        (Kp - n_bases_per_cell(B.dq))
-    v[end-n₊+1:end,:] += kron(model.T[_has_right_boundary.(model.S),C.<0],B.boundary_flux.upper.out')*u[idxdown,:]
-
+    _rmul_out_upr_bndry!(v,u,mesh,model.T,model.S,C,Kp,n₋,n₊,B.boundary_flux.upper.out)
+    
     # innards
     for i in phases(model), j in phases(model)
         if i == j 
             # mult on diagonal
-            for k in 1:n_intervals(B.dq)
-                k_idx = (i-1)*Kp .+ (k-1)*n_bases_per_cell(B.dq) .+ (1:n_bases_per_cell(B.dq)) .+ n₋
-                for ℓ in 1:n_intervals(B.dq)
-                    if (k == ℓ+1) && (C[i] > 0) # upper diagonal block
-                        ℓ_idx = k_idx .- n_bases_per_cell(B.dq) 
-                        v[ℓ_idx,:] += C[i]*(B.blocks[4]*u[k_idx,:])/Δ(B.dq,ℓ)
-                    elseif k == ℓ # diagonal 
-                        v[k_idx,:] += ((abs(C[i])*B.blocks[2 + (C[i].<0)]/Δ(B.dq,ℓ) + model.T[i,j]*LinearAlgebra.I)*u[k_idx,:])
-                    elseif (k == ℓ-1) && (C[i] < 0) # lower diagonal
-                        ℓ_idx = k_idx .+ n_bases_per_cell(B.dq) 
-                        v[ℓ_idx,:] += abs(C[i])*(B.blocks[1]*u[k_idx,:])/Δ(B.dq,ℓ)
-                    end
-                end
+            if C[i]>0.0 
+                _rmul_ii_pos_diag_block!(v,u,i,mesh,n₋,
+                    C[i]*B.blocks[2], model.T[i,i],
+                    C[i]*B.blocks[4],
+                    n_bases_per_cell(mesh),Kp)
+            elseif C[i]<0.0
+                _rmul_ii_neg_diag_block!(v,u,i,mesh,n₋,
+                    abs(C[i])*B.blocks[3], model.T[i,i],
+                    abs(C[i])*B.blocks[1],
+                    n_bases_per_cell(mesh),Kp)
+            else
+                _rmul_ii_0_diag_block!(v,u,i,n_intervals(mesh),n₋,model.T[i,i],n_bases_per_cell(mesh),Kp)
             end
-        elseif membership(model.S,i)!=membership(model.S,j) # B.pmidx[i,j]
-            # changes from S₊ to S₋ etc.
-            for k in 1:n_intervals(B.dq)
-                for ℓ in 1:n_intervals(B.dq)
-                    if k == ℓ
-                        i_idx = (i-1)*Kp .+ (k-1)*n_bases_per_cell(B.dq) .+ (1:n_bases_per_cell(B.dq)) .+ n₋
-                        j_idx = (j-1)*Kp .+ (k-1)*n_bases_per_cell(B.dq) .+ (1:n_bases_per_cell(B.dq)) .+ n₋
-                        v[i_idx,:] += (model.T[i,j]*B.D)*u[j_idx,:]
-                    end
-                end
-            end
+        elseif typeof(mesh)<:FRAPMesh
+            _rmul_ij_off_diag_blocks_FRAP!(v,u,i,j,model.S,model.T[i,j],B.D,Kp,n₋,n_intervals(mesh),n_bases_per_cell(mesh))
         else
             i_idx = (i-1)*Kp .+ (1:Kp) .+ n₋
             j_idx = (j-1)*Kp .+ (1:Kp) .+ n₋
@@ -571,6 +503,127 @@ function fast_mul(B::LazyGenerator, u::AbstractMatrix{Float64})
     end
     return v
 end
+
+function _rmul_at_lwr_bndry!(v,u,T,S,n₋)
+    v[1:n₋,:] += T[_has_left_boundary.(S),_has_left_boundary.(S)]*u[1:n₋,:]
+    return nothing 
+end
+function _rmul_at_upr_bndry!(v,u,T,S,n₊)
+    v[end-n₊+1:end,:] += T[_has_right_boundary.(S),_has_right_boundary.(S)]*u[end-n₊+1:end,:]
+    return nothing 
+end
+function _rmul_into_lwr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,C,bndry_flux_in_lwr)
+    idxdown = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(_has_left_boundary.(model.S)) .- 1)')[:]
+    v[idxdown,:] += LinearAlgebra.kron(
+        LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(model.S)])),
+        bndry_flux_in_lwr/Δ(mesh,1),
+    )*u[1:n₋,:]
+    return nothing
+end
+function _rmul_into_upr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,n₊,C,bndry_flux_in_upr)
+    idxup = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
+        (Kp - n_bases_per_cell(mesh))
+    v[idxup,:] += LinearAlgebra.kron(
+        LinearAlgebra.diagm(0 => C[_has_right_boundary.(model.S)]),
+        bndry_flux_in_upr/Δ(mesh,n_intervals(mesh)),
+    )*u[end-n₊+1:end,:]
+    return nothing
+end
+function _rmul_out_lwr_bndry!(v,u,mesh,T,S,C,Kp,n₋,bndry_flux_out_lwr)
+    idxup = n₋ .+ (Kp*(findall(C .> 0).-1)' .+ (1:n_bases_per_cell(mesh)))[:]
+    v[1:n₋,:] += LinearAlgebra.kron(T[_has_left_boundary.(S),C.>0],bndry_flux_out_lwr')*u[idxup,:]
+    return nothing 
+end
+function _rmul_out_upr_bndry!(v,u,mesh,T,S,C,Kp,n₋,n₊,bndry_flux_out_upr)
+    idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases_per_cell(mesh)))[:] .+
+        (Kp - n_bases_per_cell(mesh))
+    v[end-n₊+1:end,:] += LinearAlgebra.kron(T[_has_right_boundary.(S),C.<0],bndry_flux_out_upr')*u[idxdown,:]
+    return nothing 
+end
+function _rmul_ii_pos_diag_block!(v,u,i,mesh::Mesh,n₋,diag_block,Tᵢᵢ,up_block,n_bases_per_cell_mesh,Kp)
+    block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
+    v[block_idx,:] += (diag_block*u[block_idx,:])/Δ(mesh,1) + u[block_idx,:]*Tᵢᵢ
+    for k in 2:n_intervals(mesh)
+        block_idx = block_idx .+ n_bases_per_cell_mesh
+
+        ℓ_idx = block_idx .- n_bases_per_cell_mesh
+        v[ℓ_idx,:] += (up_block*u[block_idx,:])/Δ(mesh,k-1)
+
+        v[block_idx,:] += (diag_block*u[block_idx,:])/Δ(mesh,k) + u[block_idx,:]*Tᵢᵢ
+    end
+    return nothing 
+end
+function _rmul_ii_neg_diag_block!(v,u,i,mesh::Mesh,n₋,diag_block,Tᵢᵢ,down_block,n_bases_per_cell_mesh,Kp)
+    block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
+    for k in 1:n_intervals(mesh)-1
+        ℓ_idx = block_idx .+ n_bases_per_cell_mesh
+        v[ℓ_idx,:] += (down_block*u[block_idx,:])/Δ(mesh,k+1)
+
+        v[block_idx,:] += (diag_block*u[block_idx,:])/Δ(mesh,k) + u[block_idx,:]*Tᵢᵢ
+
+        block_idx = block_idx .+ n_bases_per_cell_mesh
+    end
+    v[block_idx,:] += (diag_block*u[block_idx,:])/Δ(mesh,n_intervals(mesh)) + u[block_idx,:]*Tᵢᵢ
+    return nothing 
+end
+function _rmul_ii_0_diag_block!(v,u,i,n_intervals_mesh,n₋,Tᵢᵢ,n_bases_per_cell_mesh,Kp)
+    block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
+    for k in 1:n_intervals_mesh
+        v[block_idx,:] += u[block_idx,:]*Tᵢᵢ
+        block_idx = block_idx .+ n_bases_per_cell_mesh
+    end
+    return nothing 
+end
+function _rmul_ii_pos_diag_block!(v,u,i,mesh::Mesh{StepRangeLen{Float64}},n₋,diag_block,Tᵢᵢ,up_block,n_bases_per_cell_mesh,Kp)
+    block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
+    diag_block /= Δ(mesh,1)
+    diag_block += Tᵢᵢ*LinearAlgebra.I(n_bases_per_cell_mesh)
+    up_block /= Δ(mesh,1)
+    v[block_idx,:] += diag_block*u[block_idx,:]
+    for k in 2:n_intervals(mesh)
+        block_idx = block_idx .+ n_bases_per_cell_mesh
+
+        ℓ_idx = block_idx .- n_bases_per_cell_mesh
+        v[ℓ_idx,:] += up_block*u[block_idx,:]
+
+        v[block_idx,:] += diag_block*u[block_idx,:]
+    end
+    return nothing 
+end
+function _rmul_ii_neg_diag_block!(v,u,i,mesh::Mesh{StepRangeLen{Float64}},n₋,diag_block,Tᵢᵢ,down_block,n_bases_per_cell_mesh,Kp)
+    block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
+    diag_block /= Δ(mesh,1)
+    diag_block += Tᵢᵢ*LinearAlgebra.I(n_bases_per_cell_mesh)
+    down_block /= Δ(mesh,1)
+    for k in 1:n_intervals(mesh)-1
+        ℓ_idx = block_idx .+ n_bases_per_cell_mesh
+        v[ℓ_idx,:] += down_block*u[block_idx,:]
+
+        v[block_idx,:] += diag_block*u[block_idx,:]
+
+        block_idx = block_idx .+ n_bases_per_cell_mesh
+    end
+    v[block_idx,:] += diag_block*u[block_idx,:]
+    return nothing 
+end
+function _rmul_ij_off_diag_blocks_FRAP!(v,u,i,j,S,Tᵢⱼ,D,Kp,n₋,n_intervals_mesh,n_bases_per_cell_mesh)
+    if membership(S,i)!=membership(S,j)# B.pmidx[i,j]
+        i_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
+        j_idx = (j-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
+        # changes from S₊ to S₋ etc.
+        v[i_idx,:] += Tᵢⱼ*(D*u[j_idx,:])
+        for k in 2:n_intervals_mesh
+            i_idx = i_idx .+ n_bases_per_cell_mesh
+            j_idx = j_idx .+ n_bases_per_cell_mesh
+            v[i_idx,:] += Tᵢⱼ*(D*u[j_idx,:])
+        end
+    else
+        i_idx = (i-1)*Kp .+ (1:Kp) .+ n₋
+        j_idx = (j-1)*Kp .+ (1:Kp) .+ n₋
+        v[i_idx,:] += u[j_idx,:]*Tᵢⱼ
+    end
+    return nothing 
+end 
 
 fast_mul(A::LazyGenerator, B::LazyGenerator) = fast_mul(build_full_generator(A).B,B)
 function fast_mul(A::LazyGenerator,x::Real) 
@@ -683,7 +736,3 @@ function getindex(B::LazyGenerator,i::Int)
     col += 1
     return B[row,col]
 end
-
-# function getindex(B::LazyGenerator,c::Colon) 
-#     return [B[i] for i in 1:length(B)]
-# end
