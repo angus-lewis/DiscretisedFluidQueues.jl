@@ -1,5 +1,5 @@
 """
-    FRAPMesh <: Mesh
+    FRAPMesh{T} <: Mesh{T}
 
 A QBD-RAP (FRAM) discretisation scheme for a DiscretisedFluidQueue. 
 
@@ -7,11 +7,11 @@ A QBD-RAP (FRAM) discretisation scheme for a DiscretisedFluidQueue.
 - `nodes`: the cell edges
 - `me`: the MatrixExponential used to approximate model the fluid queue on each cell.
 """
-struct FRAPMesh <: Mesh 
-    nodes::Array{Float64,1}
+struct FRAPMesh{T} <: Mesh{T}
+    nodes::T
     me::AbstractMatrixExponential
 end 
-FRAPMesh(nodes::Array{Float64,1},n_bases::Int) = FRAPMesh(nodes,build_me(cme_params[n_bases]))
+FRAPMesh(nodes::AbstractVector{Float64},n_bases::Int) = FRAPMesh(nodes,build_me(cme_params[n_bases]))
 function FRAPMesh()
     FRAPMesh(Array{Float64,1}(undef,0),0)
 end
@@ -42,9 +42,9 @@ Constant ""
 basis(mesh::FRAPMesh) = ""
 
 function build_lazy_generator(
-    dq::DiscretisedFluidQueue{FRAPMesh};
+    dq::DiscretisedFluidQueue{FRAPMesh{T}};
     v::Bool=false,
-)   
+) where T
     me = dq.mesh.me
     blocks = (me.s*me.a, me.S, me.s*me.a)
     boundary_flux = OneBoundaryFlux(me.s[:],me.a[:])

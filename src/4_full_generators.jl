@@ -1,13 +1,15 @@
 """
-    FullGenerator <: Generator
+    FullGenerator{T} <: Generator{T}
 
 An Matrix or SparseMatrixCSC representation of the generator of a generator of a DiscretisedFluidQueue.
 
 Higher memory requirements than LazyGenerator (as blocks are duplicated) but much faster matrix arithmetic.
 """
-struct FullGenerator <: Generator 
+struct FullGenerator{T} <: Generator{T}
     B::Union{Array{Float64,2}, SparseArrays.SparseMatrixCSC{Float64,Int}}
+    dq::DiscretisedFluidQueue{T}
 end
+FullGenerator(B,dq) = FullGenerator{typeof(dq.mesh)}(B,dq)
 
 size(B::FullGenerator) = size(B.B)
 # size(B::FullGenerator,dim::Int) = size(B.B,dim)
@@ -65,6 +67,6 @@ Returns a SparseMatrixCSC representation of a LazyGenerator.
 """
 function build_full_generator(lzB::LazyGenerator)
     B = fast_mul(SparseArrays.SparseMatrixCSC{Float64,Int}(LinearAlgebra.I(size(lzB,1))),lzB)
-    return FullGenerator(B)
+    return FullGenerator(B,lzB.dq)
 end
 

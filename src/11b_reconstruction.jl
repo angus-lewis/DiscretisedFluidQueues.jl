@@ -69,7 +69,7 @@ function pdf(d::SFMDistribution)
     throw(DomainError("unknown <:Mesh}"))
 end
 
-function pdf(d::SFMDistribution{DGMesh})
+function pdf(d::SFMDistribution{DGMesh{T}}) where T
     function f(x::Float64,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq)) && throw(DomainError("phase i must be in the support of the model"))
@@ -163,8 +163,8 @@ function normalised_closing_operator_cdf(a::AbstractArray{Float64,2},
     return x->only(1.0.-sum(a*exp_factor(x)*inv_factor,dims=2))
 end
 
-function pdf(d::SFMDistribution{FRAPMesh}, 
-    closing_operator::Function=normalised_closing_operator_pdf)
+function pdf(d::SFMDistribution{FRAPMesh{T}}, 
+    closing_operator::Function=normalised_closing_operator_pdf) where T
 
     function f(x::Float64,i::Int) # the PDF
         # check phase is in support 
@@ -193,7 +193,7 @@ function pdf(d::SFMDistribution{FRAPMesh},
     return f
 end
 
-function pdf(d::SFMDistribution{FVMesh})
+function pdf(d::SFMDistribution{FVMesh{T}}) where T
     function f(x::Float64,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq)) && throw(DomainError("phase i must be in the support of the model"))
@@ -264,7 +264,7 @@ function _sum_cells_left(d::SFMDistribution, i::Int, cell_idx::Int)
     return c
 end
 
-function cdf(d::SFMDistribution{DGMesh})
+function cdf(d::SFMDistribution{DGMesh{T}}) where T
     # First, get the coeffs and project in to higher dimensional space
     # get coeffs without boundary masses
     coeffs = d.coeffs[N₋(d.dq)+1:end-N₊(d.dq)] 
@@ -366,8 +366,8 @@ cdf(d::SFMDistribution,x,i) =
 cdf(d::SFMDistribution,x::Float64,i::Int) = cdf(d)(x,i)
 cdf(d::SFMDistribution,x::Int,i::Int) = cdf(d)(convert(Float64,x),i)
 
-function cdf(d::SFMDistribution{FRAPMesh}, 
-    closing_operator::Function=normalised_closing_operator_cdf)
+function cdf(d::SFMDistribution{FRAPMesh{T}}, 
+    closing_operator::Function=normalised_closing_operator_cdf) where T
 
     function F(x::Float64,i::Int) # the PDF
         # check phase is in support 
@@ -427,7 +427,7 @@ function cdf(d::SFMDistribution{FRAPMesh},
     return F
 end
 
-function _sum_cells_left(d::SFMDistribution{FVMesh}, i::Int, cell_idx::Int)
+function _sum_cells_left(d::SFMDistribution{FVMesh{T}}, i::Int, cell_idx::Int) where T
     c = 0
     for cell in 1:(cell_idx-1)
         # first legendre basis function =1 & has all the mass
@@ -437,7 +437,7 @@ function _sum_cells_left(d::SFMDistribution{FVMesh}, i::Int, cell_idx::Int)
     return c
 end
 
-function cdf(d::SFMDistribution{FVMesh})
+function cdf(d::SFMDistribution{FVMesh{T}}) where T
     function F(x::Float64,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq)) && throw(DomainError("phase i must be in the support of the model"))
@@ -478,7 +478,7 @@ function cdf(d::SFMDistribution{FVMesh})
     return F
 end
 
-function cell_probs(d::SFMDistribution{T}) where T<:Mesh 
+function cell_probs(d::SFMDistribution)
     function p(x::Float64,i::Int)
         mesh = d.dq.mesh
         _x_in_bounds = (x>mesh.nodes[1])&&(x<mesh.nodes[end])
@@ -492,7 +492,7 @@ function cell_probs(d::SFMDistribution{T}) where T<:Mesh
     return p
 end
 
-function cell_probs(d::SFMDistribution{FVMesh})
+function cell_probs(d::SFMDistribution{FVMesh{T}}) where T
     function p(x::Float64,i::Int)
         mesh = d.dq.mesh
         _x_in_bounds = (x>mesh.nodes[1])&&(x<mesh.nodes[end])

@@ -95,7 +95,7 @@ function limit(coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{Float64
     return [coeffs[1:n₋]; limited_coeffs[:]; coeffs[end-n₊+1:end]]
 end
 
-function limit(d::SFMDistribution{DGMesh})
+function limit(d::SFMDistribution{DGMesh{T}}) where T
     V, Vinv, D, w = vandermonde(n_bases_per_cell(d.dq))
     
     limited_coeffs = limit(d.coeffs[:],V,Vinv,D,w,Δ(d.dq),cell_nodes(d.dq),n_phases(d.dq),N₋(d.dq),N₊(d.dq))

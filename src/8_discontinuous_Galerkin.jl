@@ -1,5 +1,5 @@
 """
-    DGMesh <: Mesh
+    DGMesh{T} <: Mesh{T}
 
 A structure representing a discretisation scheme to be used for a DiscretisedFluidQueue. 
 
@@ -7,15 +7,15 @@ A structure representing a discretisation scheme to be used for a DiscretisedFlu
 - `nodes::Array{Float64, 1}`: The edges of the cells.
 - `n_bases::Int`: The number of basis functions used to represent the solution on each cell
 """
-struct DGMesh <: Mesh 
-    nodes::Array{Float64,1}
+struct DGMesh{T} <: Mesh{T}
+    nodes::T
     n_bases::Int
     basis::String
 end 
 # Convenience constructors
-function DGMesh(nodes::Array{Float64,1},n_bases::Int)
+function DGMesh(nodes::T,n_bases::Int) where T
     basis = "lagrange"
-    mesh = DGMesh(nodes, n_bases,basis)
+    mesh = DGMesh(nodes,n_bases,basis)
     return mesh
 end
 DGMesh() = DGMesh([0.0],0,"")
@@ -110,7 +110,7 @@ function local_dg_operators(
     return out 
 end
 
-function build_lazy_generator(dq::DiscretisedFluidQueue{DGMesh}; v::Bool = false)
+function build_lazy_generator(dq::DiscretisedFluidQueue{DGMesh{T}}; v::Bool = false) where T
 
     m = local_dg_operators(dq.mesh; v=v)
     blocks = (m.LowDiagBlock*m.MInv*2, (m.G+m.PosDiagBlock)*m.MInv*2, 

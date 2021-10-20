@@ -14,11 +14,11 @@ function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{<:Mesh})
 end
 
 """
-    SFMDistribution(pdf::Function, dq::DiscretisedFluidQueue{DGMesh})
+    SFMDistribution(pdf::Function, dq::DiscretisedFluidQueue{DGMesh{T}})
 
 Approximates `pdf` via polynomials. 
 """
-function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{DGMesh})
+function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{DGMesh{T}}) where T
     cellnodes = cell_nodes(dq)
     n₋ = N₋(dq)
     coeffs = zeros(n_bases_per_cell(dq),n_intervals(dq),n_phases(dq))
@@ -50,11 +50,11 @@ Returns a SFMDistribution. The method of approximation is defined by the type of
 """
 function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{<:Mesh}) end 
 """
-    interior_point_mass(x::Float64, i::Int, dq::DiscretisedFluidQueue{DGMesh})
+    interior_point_mass(x::Float64, i::Int, dq::DiscretisedFluidQueue{DGMesh{T}})
 
 Constructs a polynomial approximation to the point mass at (x,i)
 """
-function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{DGMesh})
+function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{DGMesh{T}}) where T
     (x<=dq.mesh.nodes[1])&&throw(DomainError("x is not in interior"))
     (x>=dq.mesh.nodes[end])&&throw(DomainError("x is not in interior"))
     if _has_right_boundary(dq.model.S,i) 
@@ -91,7 +91,7 @@ end
 
 Construct a SFMDistribution with a point mass at the left boundary of `dq` in phase `i` and 0 elsewhere.
 """
-function left_point_mass(i::Int,dq::DiscretisedFluidQueue)
+function left_point_mass(i::Int,dq::DiscretisedFluidQueue) 
     _has_right_boundary(dq.model.S,i)&&throw(DomainError("only phases with lpm=true have left point masses"))
     n₊ = N₊(dq)
     n₋ = N₊(dq)
@@ -123,7 +123,7 @@ Construct an approximation to `pdf` as the average of `pdf` of each cell.
 
 Uses quadrature with `fun_evals` function evaluations to approximate cell averages.
 """
-function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{FVMesh}, fun_evals::Int=6)
+function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{FVMesh{T}}, fun_evals::Int=6) where T
     n₋ = N₋(dq)
     coeffs = zeros(n_bases_per_cell(dq),n_intervals(dq),n_phases(dq))
     for i in phases(dq)
@@ -142,7 +142,7 @@ end
 
 Construct an approximation to a point mass at (x,i). Basically, just puts mass 1 in the cell containing (x,i).
 """
-function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{FVMesh})
+function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{FVMesh{T}}) where T
     if _has_right_boundary(dq.model.S,i)
         cell_idx, ~, ~ = _get_coeff_index_pos(x,i,dq) 
     elseif _has_left_boundary(dq.model.S,i)
@@ -156,7 +156,7 @@ function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{FVMesh}
 end
 
 ## constructors for FRAPMesh
-function SFMDistribution_from_cdf(cdf::Function,dq::DiscretisedFluidQueue{FRAPMesh}; fun_evals::Int=10)
+function SFMDistribution_from_cdf(cdf::Function,dq::DiscretisedFluidQueue{FRAPMesh{T}}; fun_evals::Int=10) where T
     n₋ = N₋(dq)
     coeffs = zeros(n_bases_per_cell(dq),n_intervals(dq),n_phases(dq))
     for i in phases(dq)
@@ -190,7 +190,7 @@ if the membership of `i` is `1` where
 `yₖ` and `yₖ₊₁` are the left and right cell edges, respectively, and 
 `a` and `S` are defined by `dq.mesh.me` are parameters of a MatrixExponential.
 """
-function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{FRAPMesh}; fun_evals=100)
+function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{FRAPMesh{T}}; fun_evals=100) where T
     n₋ = N₋(dq)
     coeffs = zeros(n_bases_per_cell(dq),n_intervals(dq),n_phases(dq))
     for i in phases(dq)
@@ -223,7 +223,7 @@ if the membership of `i` is `1` where
 `yₖ` and `yₖ₊₁` are the left and right cell edges and `x∈[yₖ,yₖ₊₁]`, respectively, and 
 `a` and `S` are defined by `dq.mesh.me` are parameters of a MatrixExponential.
 """
-function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{FRAPMesh})
+function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{FRAPMesh{T}}) where T
     if _has_right_boundary(dq.model.S,i) 
         cell_idx, ~, coeff_idx = _get_coeff_index_pos(x,i,dq) 
         yₖ = dq.mesh.nodes[cell_idx]

@@ -87,8 +87,8 @@ function integrate_time(x0::SFMDistribution, D::AbstractArray{Float64,2},
     return SFMDistribution(integrate_time(x0.coeffs,D,y,scheme),x0.dq)
 end
 
-function integrate_time(x0::SFMDistribution{DGMesh}, D::AbstractArray{Float64,2},
-    y::Float64, scheme::ExplicitRungeKuttaScheme; limiter::Limiter=GeneralisedMUSCL)
+function integrate_time(x0::SFMDistribution{DGMesh{T}}, D::AbstractArray{Float64,2},
+    y::Float64, scheme::ExplicitRungeKuttaScheme; limiter::Limiter=GeneralisedMUSCL) where T
     checksquare(D)
     !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
     

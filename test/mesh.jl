@@ -1,7 +1,6 @@
 @testset "Mesh Basics" begin 
     @testset "DG Mesh basics" begin    
-        @test typeof(dgmesh)==DGMesh
-        @test typeof(dgmesh)<:Mesh
+        @test typeof(dgmesh)<:DGMesh
         @test n_intervals(dgmesh)==length(nodes)-1
         @test Δ(dgmesh) == nodes[2:end]-nodes[1:end-1]
         @test Δ(dgmesh,1) == nodes[2]-nodes[1]
@@ -15,8 +14,7 @@
     end
 
     @testset "FV Mesh basics" begin    
-        @test typeof(fvmesh)==FVMesh
-        @test typeof(fvmesh)<:Mesh
+        @test typeof(fvmesh)<:FVMesh
         @test n_intervals(fvmesh)==length(nodes)-1
         @test Δ(fvmesh) == nodes[2:end]-nodes[1:end-1]
         @test Δ(fvmesh,1) == nodes[2]-nodes[1]
@@ -28,8 +26,7 @@
     end
 
     @testset "FRAP Mesh basics" begin    
-        @test typeof(frapmesh)==FRAPMesh
-        @test typeof(frapmesh)<:Mesh
+        @test typeof(frapmesh)<:FRAPMesh
         @test n_intervals(frapmesh)==length(nodes)-1
         @test Δ(frapmesh) == nodes[2:end]-nodes[1:end-1]
         @test Δ(frapmesh,1) == nodes[2]-nodes[1]

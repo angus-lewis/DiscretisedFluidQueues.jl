@@ -129,13 +129,29 @@ struct FluidQueue <: Model
         !(size(T,1)==length(S))&&throw(DomainError("PhaseSet must have length the size(T,1)"))
         return new(T,S)
     end
-end 
+end
 """
     FluidQueue(T::Array{Float64,2},c::Array{Float64,1})
 
 Alias to `FluidQueue(T,PhaseSet(c))`.
 """
 FluidQueue(T::Array{Float64,2},c::Array{Float64,1}) = FluidQueue(T,PhaseSet(c))
+
+struct BoundedFluidQueue <: Model
+    T::Array{Float64,2}
+    S::PhaseSet
+    P_lwr::Matrix{Float64}
+    P_upr::Matrix{Float64}
+    function BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet)
+        checksquare(T)
+        !all(isapprox.(sum(T,dims=2),0, atol=1e-5))&&throw(DomainError(T, "row sums must be 0 (tol=1e-5)"))
+        !all(sum(T,dims=2).==0)&&@warn "row sums of T must be 0 (tol=1e-5)"
+        !(size(T,1)==length(S))&&throw(DomainError("PhaseSet must have length the size(T,1)"))
+        !((sum(rates(S).<0.0)==size(P_lwr,1))&&(size(T,2)==size(P_lwr,2)))&&throw(DomainError("P_lwr must be |S₋| by |S|"))
+        !((sum(rates(S).>0.0)==size(P_upr,1))&&(size(T,2)==size(P_upr,2)))&&throw(DomainError("P_upr must be |S₊| by |S|"))
+        return new(T,S)
+    end
+end
 
 rates(m::FluidQueue) = rates(m.S)
 rates(m::FluidQueue,i::Int) = rates(m.S,i)

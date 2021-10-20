@@ -1,12 +1,13 @@
 @testset "Generators" begin 
     @testset "Lazy" begin 
         for i in (:dgmesh,:frapmesh) 
-            (i==:dgmesh) && include("test_DG_B_data.jl")
-            (i==:frapmesh) && include("test_FRAP_B_data.jl")
+            msh = @eval $i
+            (i==:dgmesh) && include("test_data/"*string(typeof(msh.nodes))[1:4]*"/test_DG_B_data.jl")
+            (i==:frapmesh) && include("test_data/"*string(typeof(msh.nodes))[1:4]*"/test_FRAP_B_data.jl")
             dq = @eval DiscretisedFluidQueue(am,$i)
             B = build_lazy_generator(dq)
             # types
-            @test typeof(B)==LazyGenerator
+            @test typeof(B)<:LazyGenerator
             @test all(isapprox.(B,B_data,atol=1e-4))
             # multiplcation (values)
             @test all(fast_mul(B,Matrix{Float64}(I(size(B,1)))) .== B)
@@ -41,13 +42,14 @@
     
     @testset "Full" begin
         for i in (:dgmesh,:frapmesh,:fvmesh)
-            (i==:dgmesh) && include("test_DG_B_data.jl")
-            (i==:frapmesh) && include("test_FRAP_B_data.jl")
-            (i==:fvmesh) && include("test_FV_B_data.jl")
+            msh = @eval $i
+            (i==:dgmesh) && include("test_data/"*string(typeof(msh.nodes))[1:4]*"/test_DG_B_data.jl")
+            (i==:frapmesh) && include("test_data/"*string(typeof(msh.nodes))[1:4]*"/test_FRAP_B_data.jl")
+            (i==:fvmesh) && include("test_data/"*string(typeof(msh.nodes))[1:4]*"/test_FV_B_data.jl")
             @eval begin 
                 dq = DiscretisedFluidQueue(am,$i)
                 B_Full = build_full_generator(dq)
-                if typeof($i)!=FVMesh
+                if !(typeof($i)<:FVMesh)
                     B = build_lazy_generator(dq) 
                     @test build_full_generator(B)==B_Full
                     @test all(isapprox.(B_Full*B_Full,B*B,atol=√eps()))

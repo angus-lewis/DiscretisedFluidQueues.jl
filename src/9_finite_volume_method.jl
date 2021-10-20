@@ -1,6 +1,6 @@
 # yuck. there were less fucks given making this
 """
-    FVMesh <: Mesh
+    FVMesh{T} <: Mesh{T}
 
 A finite volume discretisation scheme for a DiscretisedFluidQueue. 
 
@@ -9,8 +9,8 @@ A finite volume discretisation scheme for a DiscretisedFluidQueue.
  - `order`: the order of the polynomial interpolation used to approximate the flux at the 
  cell edges.
 """
-struct FVMesh <: Mesh 
-    nodes::Array{Float64,1}
+struct FVMesh{T} <: Mesh{T}
+    nodes::T
     order::Int
 end 
 
@@ -67,7 +67,7 @@ function MakeFVFlux(mesh::Mesh)
     return F
 end
 
-function build_full_generator(dq::DiscretisedFluidQueue{FVMesh}; v::Bool=false)
+function build_full_generator(dq::DiscretisedFluidQueue{FVMesh{T}}; v::Bool=false) where T
     model = dq.model
     
     order = _order(dq.mesh)
@@ -133,7 +133,7 @@ function build_full_generator(dq::DiscretisedFluidQueue{FVMesh}; v::Bool=false)
         end
     end
 
-    out = FullGenerator(B)#, mesh.Fil)
+    out = FullGenerator(B,dq)#, mesh.Fil)
     v && println("FullGenerator created with keys ", keys(out))
     return out
 end

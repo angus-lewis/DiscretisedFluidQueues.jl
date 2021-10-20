@@ -4,7 +4,7 @@
 
 Abstract type representing a discretisation mesh for a numerical scheme. 
 """
-abstract type Mesh end 
+abstract type Mesh{T<:AbstractVector{Float64}} end 
 
 """
 
@@ -28,6 +28,7 @@ The width of each cell for a Mesh or DiscretisedFluidQueue.
 The width of cell k for a Mesh or DiscretisedFluidQueue.
 """
 Δ(mesh::Mesh,k) = mesh.nodes[k+1] - mesh.nodes[k]
+Δ(mesh::Mesh{StepRangeLen{Float64}},k) = mesh.nodes.step.hi
 
 """
 

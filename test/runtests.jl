@@ -18,45 +18,48 @@ m_aug = -1 .+ 2*Int.(DiscretisedFluidQueues._strictly_pos.(C_aug))
 S_aug = PhaseSet(C_aug)
 am = FluidQueue(T_aug,S_aug)
 
-nodes = [0.0;3.0;4.0;12.0]
-nbases = 3
-dgmesh = DGMesh(nodes,nbases)
+nds_vec = Array{Any,1}(undef,2)
+nds_vec[1] = [0.0;3.0;4.0;12.0]
+nds_vec[2] = 0.0:4.0:12.0
+for nds in 1:2 # probably overkill to test everything twice but oh well!
+    global nodes=nds_vec[nds]
 
-am = augment_model(model)
+    global nbases=3
+    global dgmesh=DGMesh(nodes,nbases)
 
-fv_order = 3
-fvmesh = FVMesh(nodes,fv_order)
+    global am=augment_model(model)
 
-order = 3
-frapmesh = FRAPMesh(nodes,order)
+    global fv_order=3
+    global fvmesh=FVMesh(nodes,fv_order)
 
-@testset begin
+    global order=3
+    global frapmesh=FRAPMesh(nodes,order)
 
-    include("models.jl")
+    @testset begin
 
-    include("mesh.jl")
-    
-    include("generators.jl")
+        include("models.jl")
 
-# test 5_SFM_operators
+        include("mesh.jl")
+        
+        include("generators.jl")
 
-    include("me_tools.jl")
-    include("polynomials.jl")
+    # test 5_SFM_operators
 
-    include("distributions.jl")
+        include("me_tools.jl")
+        include("polynomials.jl")
 
-    include("time_integration.jl")
+        include("distributions.jl")
 
-    include("sims.jl")
+        include("time_integration.jl")
 
-    include("numerics.jl")
+        include("sims.jl")
 
-    include("limiters.jl")
+        include("numerics.jl")
 
-# more testing for lazy_generators now with new modularised code
-# testing for DiscretisedFluidQueue
-# etc...
+        include("limiters.jl")
+
+    # more testing for lazy_generators now with new modularised code
+    # testing for DiscretisedFluidQueue
+    # etc...
+    end
 end
-
-
-
