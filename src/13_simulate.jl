@@ -66,7 +66,7 @@ given the `InitialCondition` on (φ(0),X(0)).
 - A `Simulation` object.
 """
 function simulate(
-    model::FluidQueue,
+    model::BoundedFluidQueue,
     lwr::Float64, upr::Float64,
     StoppingTime::Function,
     InitCondition::NamedTuple{(:φ, :X)},

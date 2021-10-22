@@ -1,4 +1,4 @@
-@testset "Phase and FluidQueue" begin 
+@testset "Phase and BoundedFluidQueue" begin 
     @testset "PhaseSet struct" begin
         @test S[1]==Phase(0.0,1)
         @test_throws DomainError PhaseSet([-1.0],[1]) 
@@ -16,7 +16,7 @@
         @test_throws DomainError DiscretisedFluidQueues.checksquare(T[1:2,:])
     end
 
-    @testset "FluidQueue struct" begin
+    @testset "BoundedFluidQueue struct" begin
         @test model.T==T
         @test n_phases(model)==length(C)
         @test n_phases(model.S)==length(C)
@@ -26,14 +26,13 @@
         @test n_phases(model)==length(C)
         @test phases(model)==1:length(C)
 
-        @test_logs (:warn,"row sums of T must be 0 (tol=1e-5)") FluidQueue(T_warn,S)
+        @test_logs (:warn,"row sums of T should be 0") BoundedFluidQueue(T_warn,S)
 
-        @test_throws DomainError FluidQueue(T_nz[1:2,:],S)
-        @test_throws DomainError FluidQueue(T_nz,S)
-        @test_throws DomainError FluidQueue(T,S[1:end-1])
+        @test_throws DomainError BoundedFluidQueue(T_nz[1:2,:],S)
+        @test_throws DomainError BoundedFluidQueue(T,S[1:end-1])
     end
 
-    for f in fieldnames(FluidQueue)
+    for f in fieldnames(BoundedFluidQueue)
         @eval @test am.$f==augment_model(model).$f
     end
 end 

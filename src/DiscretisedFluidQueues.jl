@@ -4,7 +4,7 @@ import Jacobi, LinearAlgebra, SparseArrays, StaticArrays
 import Base: *, +, size, show, getindex, setindex!, sum
 
 # Types
-export Model, DiscretisedFluidQueue, FluidQueue, BoundedFluidQueue, Phase, PhaseSet # Queues are <:Model
+export Model, DiscretisedFluidQueue, BoundedFluidQueue, Phase, PhaseSet # Queues are <:Model
 export AbstractMatrixExponential, ConcentratedMatrixExponential, MatrixExponential 
 export Mesh, DGMesh, FRAPMesh, FVMesh # are <:Mesh
 export Generator, FullGenerator, LazyGenerator # are <:Generator

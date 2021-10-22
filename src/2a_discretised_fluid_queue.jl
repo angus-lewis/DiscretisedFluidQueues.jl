@@ -1,10 +1,10 @@
 """
     DiscretisedFluidQueue{T <: Mesh}
 
-A container to hold a FluidQueue and a discretisation scheme (a mesh). 
+A container to hold a BoundedFluidQueue and a discretisation scheme (a mesh). 
 Parametric type depending on the type of discretisation scheme (<:Mesh)
 # Arguments:
-- `model::Model`: a FluidQueue
+- `model::Model`: a BoundedFluidQueue
 - `mesh::T`: either a DGMesh, FVMesh or FRAPMesh specifying the discretisation scheme for the 
     continuous level of the fluid queue, X(t). 
 """

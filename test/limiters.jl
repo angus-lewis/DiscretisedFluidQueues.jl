@@ -53,7 +53,7 @@ using DiscretisedFluidQueues, Test
 	
 	T_limiter = [0.0][:,:]
 	c_limiter = [0.0]
-	m_limiter = FluidQueue(T_limiter,c_limiter)
+	m_limiter = BoundedFluidQueue(T_limiter,c_limiter)
 	nodes = collect(-1.0:0.1:1.0)
 	mesh_limiter = DGMesh(nodes,3)
 	dq = DiscretisedFluidQueue(m_limiter,mesh_limiter)

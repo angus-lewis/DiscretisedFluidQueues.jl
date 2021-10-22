@@ -324,29 +324,12 @@ function _lmul_at_upr_bndry!(v,u,T,S,n₊)
     v[:,end-n₊+1:end]+=u[:,end-n₊+1:end]*T[_has_right_boundary.(S),_has_right_boundary.(S)]
     return nothing 
 end
-function _lmul_into_lwr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,C,bndry_flux_in_lwr)
-    idxdown = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(_has_left_boundary.(model.S)) .- 1)')[:]
-    v[:,1:n₋] += u[:,idxdown]*LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(model.S)])),
-        bndry_flux_in_lwr/Δ(mesh,1),
-    )
-    return nothing
-end
 function _lmul_into_lwr_bndry!(v,u,model::BoundedFluidQueue,mesh,Kp,n₋,C,bndry_flux_in_lwr)
     idxdown = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(negative_phases(model)) .- 1)')[:]
     v[:,1:n₋] += u[:,idxdown]*LinearAlgebra.kron(
         # LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(model.S)])),
         abs.(C[negative_phases(model)]).*model.P_lwr[:,_has_left_boundary.(model.S)],
         bndry_flux_in_lwr/Δ(mesh,1),
-    )
-    return nothing
-end
-function _lmul_into_upr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,n₊,C,bndry_flux_in_upr)
-    idxup = n₋ .+ ((1:n_bases_per_cell(mesh)) .+ Kp*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
-        (Kp - n_bases_per_cell(mesh))
-    v[:,end-n₊+1:end] += u[:,idxup]*LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => abs.(C[_has_right_boundary.(model.S)])),
-        bndry_flux_in_upr/Δ(mesh,n_intervals(mesh)),
     )
     return nothing
 end
@@ -365,10 +348,6 @@ function _lmul_out_lwr_bndry_generic!(v,u,mesh,model,Kp,n₋,bndry_flux_out_lwr)
     v[:,idxup] += u[:,1:n₋]*LinearAlgebra.kron(model.T[_has_left_boundary.(model.S),positive_phases(model)],bndry_flux_out_lwr')
     return idxup
 end
-function _lmul_out_lwr_bndry!(v,u,mesh,model::FluidQueue,Kp,n₋,bndry_flux_in_lwr,bndry_flux_out_lwr)
-    _lmul_out_lwr_bndry_generic!(v,u,mesh,model,Kp,n₋,bndry_flux_out_lwr)
-    return nothing 
-end
 function _lmul_out_lwr_bndry!(v,u,mesh,model::BoundedFluidQueue,Kp,n₋,bndry_flux_in_lwr,bndry_flux_out_lwr)
     idxup = _lmul_out_lwr_bndry_generic!(v,u,mesh,model,Kp,n₋,bndry_flux_out_lwr)
     idxdown = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(negative_phases(model)) .- 1)')[:]
@@ -384,10 +363,6 @@ function _lmul_out_upr_bndry_generic!(v,u,mesh,model,Kp,n₋,n₊,bndry_flux_out
     (Kp - n_bases_per_cell(mesh))
     v[:,idxdown] += u[:,end-n₊+1:end]*LinearAlgebra.kron(model.T[_has_right_boundary.(model.S),negative_phases(model)],bndry_flux_out_upr')
     return idxdown
-end
-function _lmul_out_upr_bndry!(v,u,mesh,model::FluidQueue,Kp,n₋,n₊,bndry_flux_in_upr,bndry_flux_out_upr)
-    _lmul_out_upr_bndry_generic!(v,u,mesh,model,Kp,n₋,n₊,bndry_flux_out_upr)
-    return nothing 
 end
 function _lmul_out_upr_bndry!(v,u,mesh,model::BoundedFluidQueue,Kp,n₋,n₊,bndry_flux_in_upr,bndry_flux_out_upr)
     idxdown = _lmul_out_upr_bndry_generic!(v,u,mesh,model,Kp,n₋,n₊,bndry_flux_out_upr)
@@ -560,29 +535,12 @@ function _rmul_at_upr_bndry!(v,u,T,S,n₊)
     v[end-n₊+1:end,:] += T[_has_right_boundary.(S),_has_right_boundary.(S)]*u[end-n₊+1:end,:]
     return nothing 
 end
-function _rmul_into_lwr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,C,bndry_flux_in_lwr)
-    idxdown = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(_has_left_boundary.(model.S)) .- 1)')[:]
-    v[idxdown,:] += LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => abs.(C[_has_left_boundary.(model.S)])),
-        bndry_flux_in_lwr/Δ(mesh,1),
-    )*u[1:n₋,:]
-    return nothing
-end
 function _rmul_into_lwr_bndry!(v,u,model::BoundedFluidQueue,mesh,Kp,n₋,C,bndry_flux_in_lwr)
     idxdown = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(negative_phases(model)) .- 1)')[:]
     v[idxdown,:] += LinearAlgebra.kron(
         abs.(C[negative_phases(model)]).*model.P_lwr[:,_has_left_boundary.(model.S)],
         bndry_flux_in_lwr/Δ(mesh,1),
     )*u[1:n₋,:]
-    return nothing
-end
-function _rmul_into_upr_bndry!(v,u,model::FluidQueue,mesh,Kp,n₋,n₊,C,bndry_flux_in_upr)
-    idxup = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(_has_right_boundary.(model.S)) .- 1)')[:] .+
-        (Kp - n_bases_per_cell(mesh))
-    v[idxup,:] += LinearAlgebra.kron(
-        LinearAlgebra.diagm(0 => C[_has_right_boundary.(model.S)]),
-        bndry_flux_in_upr/Δ(mesh,n_intervals(mesh)),
-    )*u[end-n₊+1:end,:]
     return nothing
 end
 function _rmul_into_upr_bndry!(v,u,model::BoundedFluidQueue,mesh,Kp,n₋,n₊,C,bndry_flux_in_upr)
@@ -599,10 +557,6 @@ function _rmul_out_lwr_bndry_generic!(v,u,mesh,model,Kp,n₋,bndry_flux_out_lwr)
     v[1:n₋,:] += LinearAlgebra.kron(model.T[_has_left_boundary.(model.S),positive_phases(model)],bndry_flux_out_lwr')*u[idxup,:]
     return idxup 
 end
-function _rmul_out_lwr_bndry!(v,u,mesh,model::FluidQueue,Kp,n₋,bndry_flux_in_lwr,bndry_flux_out_lwr)
-    idxup = _rmul_out_lwr_bndry_generic!(v,u,mesh,model,Kp,n₋,bndry_flux_out_lwr)
-    return nothing 
-end
 function _rmul_out_lwr_bndry!(v,u,mesh,model::BoundedFluidQueue,Kp,n₋,bndry_flux_in_lwr,bndry_flux_out_lwr)
     idxup = _rmul_out_lwr_bndry_generic!(v,u,mesh,model,Kp,n₋,bndry_flux_out_lwr)
     idxdown = n₋ .+ ((1:n_bases_per_cell(mesh)).+Kp*(findall(negative_phases(model)) .- 1)')[:]
@@ -618,13 +572,6 @@ function _rmul_out_upr_bndry_generic!(v,u,mesh,model,Kp,n₋,n₊,bndry_flux_out
         (Kp - n_bases_per_cell(mesh))
     v[end-n₊+1:end,:] += LinearAlgebra.kron(model.T[_has_right_boundary.(model.S),negative_phases(model)],bndry_flux_out_upr')*u[idxdown,:]
     return idxdown 
-end
-function _rmul_out_upr_bndry!(v,u,mesh,model::FluidQueue,Kp,n₋,n₊,bndry_flux_in_upr,bndry_flux_out_upr)
-    _rmul_out_upr_bndry_generic!(v,u,mesh,model,Kp,n₋,n₊,bndry_flux_out_upr)
-    # idxdown = n₋ .+ (Kp*(findall(C .< 0).-1)' .+ (1:n_bases_per_cell(mesh)))[:] .+
-    #     (Kp - n_bases_per_cell(mesh))
-    # v[end-n₊+1:end,:] += LinearAlgebra.kron(T[_has_right_boundary.(S),C.<0],bndry_flux_out_upr')*u[idxdown,:]
-    return nothing 
 end
 function _rmul_out_upr_bndry!(v,u,mesh,model::BoundedFluidQueue,Kp,n₋,n₊,bndry_flux_in_upr,bndry_flux_out_upr)
     idxdown = _rmul_out_upr_bndry_generic!(v,u,mesh,model,Kp,n₋,n₊,bndry_flux_out_upr)
