@@ -184,7 +184,35 @@ _check_mesh_index(k::Int,mesh::Mesh) =
     !(1<=k<=n_intervals(mesh)) && throw(DomainError("k in not a valid cell"))
 _check_basis_index(p::Int,mesh::Mesh) = !(1<=p<=n_bases_per_cell(mesh))
 
-function _map_to_index_interior(i::Int,k::Int,p::Int,dq::DiscretisedFluidQueue)
+# function _map_to_index_interior(i::Int,k::Int,p::Int,dq::DiscretisedFluidQueue)
+#     # i phase
+#     # k cell
+#     # p basis
+    
+#     _check_phase_index(i,dq.model)
+#     _check_mesh_index(k,dq.mesh)
+#     _check_basis_index(p,dq.mesh)
+
+#     P = n_bases_per_cell(dq)
+#     KP = n_bases_per_phase(dq)
+
+#     idx = (i-1)*KP + (k-1)*P + p
+#     return N₋(dq) + idx 
+# end
+# function _map_to_index_boundary(i::Int,dq::DiscretisedFluidQueue)
+#     # i phase
+#     _check_phase_index(i,dq.model)
+#     if _has_left_boundary(dq.model.S,i) 
+#         idx = N₋(dq.model.S[1:i])
+#     else _has_right_boundary(dq.model.S,i)
+#         N = n_phases(dq)
+#         KP = n_bases_per_phase(dq)
+#         idx = N₊(dq.model.S[1:i]) + KP*N + N₋(dq)
+#     end
+#     return idx
+# end
+
+function _map_to_index_interior((i,k,p)::NTuple{3,Int},dq::DiscretisedFluidQueue)
     # i phase
     # k cell
     # p basis
@@ -199,17 +227,34 @@ function _map_to_index_interior(i::Int,k::Int,p::Int,dq::DiscretisedFluidQueue)
     idx = (i-1)*KP + (k-1)*P + p
     return N₋(dq) + idx 
 end
-function _map_to_index_boundary(i::Int,dq::DiscretisedFluidQueue)
+function _map_to_index_boundary((i,k,p)::NTuple{3,Int},dq::DiscretisedFluidQueue)
     # i phase
+    # k cell
+    # p basis
     _check_phase_index(i,dq.model)
-    if _has_left_boundary(dq.model.S,i) 
+    !(p==1)&&throw(DomainError("p must be 1 at the boundary"))
+    !((k==0)||(k==n_intervals(dq)+1))&&throw(DomainError("k not a boundary index of dq"))
+    if (k==0)&&(_has_left_boundary(dq.model.S,i))
         idx = N₋(dq.model.S[1:i])
-    else _has_right_boundary(dq.model.S,i)
-        N = n_phases(dq)
-        KP = n_bases_per_phase(dq)
-        idx = N₊(dq.model.S[1:i]) + KP*N + N₋(dq)
+    elseif (k==n_intervals(dq)+1)&&_has_right_boundary(i,dq.model)
+        idx = N₊(dq.model.S[1:i]) + total_n_bases(dq) + N₋(dq)
+    else 
+        throw(DomainError("Not a valid index"))
+    end
+    return idx 
+end
+function _map_to_index((i,k,p)::NTuple{3,Int},dq::DiscretisedFluidQueue)
+    if (k==0)||(k==n_intervals(dq)+1)
+        idx = _map_to_index_boundary((i,k,p),dq)
+    else 
+        idx = _map_to_index_interior((i,k,p),dq)
     end
     return idx
+end
+function Base.getindex(B::Generator,(i,k,p)::NTuple{3,Int},(j,l,q)::NTuple{3,Int})
+    row = _map_to_index((i,k,p),B.dq)
+    col = _map_to_index((j,l,q),B.dq)
+    return B[row,col]
 end
 
 _is_boundary_index(n::Int,B::LazyGenerator) = (n∈1:N₋(B.dq))||(n∈(size(B,1).-(0:N₊(B.dq)-1)))
