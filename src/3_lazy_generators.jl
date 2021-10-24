@@ -236,10 +236,10 @@ function _map_to_index_boundary((i,k,p)::NTuple{3,Int},dq::DiscretisedFluidQueue
     !((k==0)||(k==n_intervals(dq)+1))&&throw(DomainError("k not a boundary index of dq"))
     if (k==0)&&(_has_left_boundary(dq.model.S,i))
         idx = N₋(dq.model.S[1:i])
-    elseif (k==n_intervals(dq)+1)&&_has_right_boundary(i,dq.model)
+    elseif (k==n_intervals(dq)+1)&&_has_right_boundary(dq.model.S,i)
         idx = N₊(dq.model.S[1:i]) + total_n_bases(dq) + N₋(dq)
     else 
-        throw(DomainError("Not a valid index"))
+        throw(DomainError(string((i,k,p))*" is not a valid index of dq"))
     end
     return idx 
 end
@@ -251,10 +251,78 @@ function _map_to_index((i,k,p)::NTuple{3,Int},dq::DiscretisedFluidQueue)
     end
     return idx
 end
-function Base.getindex(B::Generator,(i,k,p)::NTuple{3,Int},(j,l,q)::NTuple{3,Int})
-    row = _map_to_index((i,k,p),B.dq)
-    col = _map_to_index((j,l,q),B.dq)
-    return B[row,col]
+# function Base.getindex(B::Generator,(i,k,p)::NTuple{3,Int},(j,l,q)::NTuple{3,Int})
+#     row = _map_to_index((i,k,p),B.dq)
+#     col = _map_to_index((j,l,q),B.dq)
+#     return B[row,col]
+# end
+function Base.getindex(B::Generator,(is,ks,ps)::Tuple,(js,ls,qs)::Tuple)
+    (typeof(is)==Colon)&&(is=1:n_phases(B.dq))
+    (typeof(js)==Colon)&&(js=1:n_phases(B.dq))
+    (typeof(ks)==Colon) ? (ks=0:n_intervals(B.dq)+1; ks_colon=true) : (ks_colon=false)
+    (typeof(ls)==Colon) ? (ls=0:n_intervals(B.dq)+1; ls_colon=true) : (ls_colon=false)
+    (typeof(ps)==Colon)&&(ps=1:n_bases_per_cell(B.dq))
+    (typeof(qs)==Colon)&&(qs=1:n_bases_per_cell(B.dq))
+    
+    rows = Int[]
+    for i in is
+        for k in ks 
+            for p in ps 
+                if (k==0)&&(p==1)&&_has_left_boundary(B.dq.model.S,i)
+                    push!(rows,(_map_to_index((i,0,1),B.dq)*ones(Int,sum(ps.==1)))...)
+                    break
+                elseif (k==n_intervals(B.dq)+1)&&(p==1)&&_has_right_boundary(B.dq.model.S,i)
+                    push!(rows,(_map_to_index((i,n_intervals(B.dq)+1,1)*ones(Int,sum(ps.==1)),B.dq))...)
+                    break
+                elseif (k!=0)&&(k!=n_intervals(B.dq)+1)
+                    push!(rows,_map_to_index((i,k,p),B.dq))
+                end
+            end
+        end
+    end
+
+    cols = Int[]
+    for j in js
+        for l in ls 
+            for q in qs 
+                if (l==0)&&(q==1)&&_has_left_boundary(B.dq.model.S,j)
+                    push!(cols,(_map_to_index((j,0,1),B.dq)*ones(Int,sum(qs.==1)))...)
+                    break
+                elseif (l==n_intervals(B.dq)+1)&&(q==1)&&_has_right_boundary(B.dq.model.S,j)
+                    push!(cols,(_map_to_index((j,n_intervals(B.dq)+1,1),B.dq)*ones(Int,sum(qs.==1)))...)
+                    break
+                elseif (l!=0)&&(l!=n_intervals(B.dq)+1)
+                    push!(cols,_map_to_index((j,l,q),B.dq))
+                end
+            end
+        end
+    end
+
+
+    # rows = [_map_to_index((i,k,p),B.dq) for i in is for k in ks for p in ps]
+    # cols = [_map_to_index((j,l,q),B.dq) for j in js for l in ls for q in qs]
+
+    # if (ks_colon)&&(1∈ps)
+    #     lwr_bndry_idx_row = Int[]
+    #     upr_bndry_idx_row = Int[]
+    #     for i in is
+    #         _has_left_boundary(B.dq.model.S,i)&&push!(lwr_bndry_idx_row,_map_to_index((i,0,1),B.dq))
+    #         _has_right_boundary(B.dq.model.S,i)&&push!(upr_bndry_idx_row,_map_to_index((i,n_intervals(B.dq)+1,1),B.dq))
+    #     end
+    #     rows = [lwr_bndry_idx_row; rows; upr_bndry_idx_row]
+    # end
+    # if (ls_colon)&&(1∈ps)
+    #     lwr_bndry_idx_col = Int[]
+    #     upr_bndry_idx_col = Int[]
+    #     for i in is
+    #         _has_left_boundary(B.dq.model.S,i)&&push!(lwr_bndry_idx_col,_map_to_index((i,0,1),B.dq))
+    #         _has_right_boundary(B.dq.model.S,i)&&push!(upr_bndry_idx_col,_map_to_index((i,n_intervals(B.dq)+1,1),B.dq))
+    #     end
+    #     cols = [lwr_bndry_idx_col; cols; upr_bndry_idx_col]
+    # end
+    @show rows
+    @show cols 
+    return B[rows,cols]
 end
 
 _is_boundary_index(n::Int,B::LazyGenerator) = (n∈1:N₋(B.dq))||(n∈(size(B,1).-(0:N₊(B.dq)-1)))
