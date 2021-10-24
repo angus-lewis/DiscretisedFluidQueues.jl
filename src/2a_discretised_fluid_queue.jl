@@ -47,6 +47,8 @@ Return the number of basis functions of a given DiscretisedFluidQueue or Mesh.
 total_n_bases(dq::DiscretisedFluidQueue) = n_bases_per_phase(dq)*n_phases(dq)
 cell_nodes(dq::DiscretisedFluidQueue) = cell_nodes(dq.mesh)
 
+n_bases_per_level(dq::DiscretisedFluidQueue) = n_phases(dq)*n_bases_per_cell(dq)
+
 function qbd_idx(dq::DiscretisedFluidQueue)
     ## Make QBD index
     model = dq.model

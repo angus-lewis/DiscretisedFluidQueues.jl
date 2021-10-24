@@ -38,3 +38,5 @@ Total number of basis functions used to represent the fluid queue for each phase
     of a Mesh or DiscretisedFluidQueue.
 """
 n_bases_per_phase(mesh::Mesh) = n_bases_per_cell(mesh) * n_intervals(mesh)
+
+
