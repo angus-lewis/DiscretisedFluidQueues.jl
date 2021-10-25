@@ -67,13 +67,14 @@ function MakeFVFlux(mesh::Mesh)
     return F
 end
 
+
+
 function build_full_generator(dq::DiscretisedFluidQueue{FVMesh{T}}; v::Bool=false) where T
     model = dq.model
     
     order = _order(dq.mesh)
     F = MakeFVFlux(dq.mesh)
 
-    m = membership(model.S)
     C = rates(model.S)
     n₋ = N₋(model.S)
     n₊ = N₊(model.S)
@@ -133,7 +134,7 @@ function build_full_generator(dq::DiscretisedFluidQueue{FVMesh{T}}; v::Bool=fals
         end
     end
 
-    out = FullGenerator(B,dq)#, mesh.Fil)
+    out = FullGenerator(B[QBDidx,QBDidx],dq)#, mesh.Fil)
     v && println("FullGenerator created with keys ", keys(out))
     return out
 end

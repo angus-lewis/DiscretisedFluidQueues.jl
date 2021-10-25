@@ -56,10 +56,10 @@ function limit(coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{Float64
 
     limited_coeffs = limited_coeffs[n₋+1:end-n₊]
 
-    limited_coeffs = reshape(limited_coeffs,length(w),length(Δvec),num_phases)
+    limited_coeffs = reshape(limited_coeffs,length(w),num_phases,length(Δvec))
 
-    cell_averages = sum(limited_coeffs,dims=1)./transpose(Δvec)
-    cell_averages = reshape(cell_averages,length(Δvec),num_phases)
+    cell_averages = sum(limited_coeffs,dims=1)
+    cell_averages = reshape(cell_averages,num_phases,length(Δvec))./transpose(Δvec)
 
     poly_reconstruct_left = limited_coeffs[1,:,:]*2.0./(Δvec*w[1])
     poly_reconstruct_right = limited_coeffs[end,:,:]*2.0./(Δvec*w[end])
@@ -67,27 +67,25 @@ function limit(coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{Float64
     
     for phase in 1:num_phases
         for cell in 2:length(Δvec)-1
-            a = cell_averages[cell,phase] - poly_reconstruct_left[cell,phase]
-            b = cell_averages[cell,phase] - cell_averages[cell-1,phase]
-            c = cell_averages[cell+1,phase] - cell_averages[cell,phase]
+            a = cell_averages[phase,cell] - poly_reconstruct_left[phase,cell]
+            b = cell_averages[phase,cell] - cell_averages[phase,cell-1]
+            c = cell_averages[phase,cell+1] - cell_averages[phase,cell]
 
-            left_limited_flux = cell_averages[cell,phase] - minmod(a,b,c)
+            left_limited_flux = cell_averages[phase,cell] - minmod(a,b,c)
 
-            a = poly_reconstruct_right[cell,phase] - cell_averages[cell,phase]
+            a = poly_reconstruct_right[phase,cell] - cell_averages[phase,cell]
 
-            right_limited_flux = cell_averages[cell,phase] + minmod(a,b,c)
+            right_limited_flux = cell_averages[phase,cell] + minmod(a,b,c)
 
-            needs_limiting = !(isapprox(left_limited_flux,poly_reconstruct_left[cell,phase];atol=1e-8) &&
-                isapprox(right_limited_flux,poly_reconstruct_right[cell,phase];atol=1e-8))
+            needs_limiting = !(isapprox(left_limited_flux,poly_reconstruct_left[phase,cell];atol=1e-8) &&
+                isapprox(right_limited_flux,poly_reconstruct_right[phase,cell];atol=1e-8))
             if needs_limiting
-                cell_coeffs = limited_coeffs[:,cell,phase]
+                cell_coeffs = limited_coeffs[:,phase,cell]
                 cell_coeffs, slope = linear(cell_coeffs,V,Vinv,D,w,Δvec[cell])
 
-                nodes = cell_nodes_matrix[:,cell]
-                centre = (nodes[1]+nodes[end])/2.0
-                nodes = nodes .- centre
+                nodes = cell_nodes_matrix[:,cell] .- (cell_nodes_matrix[1,cell]+cell_nodes_matrix[end,cell])/2.0
 
-                limited_coeffs[:,cell,phase] = (cell_averages[cell,phase] .+ 
+                limited_coeffs[:,phase,cell] = (cell_averages[phase,cell] .+ 
                     (nodes*minmod(slope,b/Δvec[cell],c/Δvec[cell])))./(2.0./(Δvec[cell]*w))
             end
         end
@@ -99,15 +97,14 @@ function limit(d::SFMDistribution{DGMesh{T}}) where T
     V, Vinv, D, w = vandermonde(n_bases_per_cell(d.dq))
     
     limited_coeffs = limit(d.coeffs[:],V,Vinv,D,w,Δ(d.dq),cell_nodes(d.dq),n_phases(d.dq),N₋(d.dq),N₊(d.dq))
-    return SFMDistribution(Array(limited_coeffs'),d.dq) 
+    return SFMDistribution(limited_coeffs,d.dq) 
 end
 
 # abstract type AbstractLimiter end 
 
 struct Limiter #<: AbstractLimiter
-    fun::Function           # the limiter function
-    generate_params::Function   # a function to map a DiscretisedFluidQueue 
-                                # to extra parameters for the limiter
+    fun::Function               # the limiter function
+    generate_params::Function   # a function to map a DiscretisedFluidQueue to extra parameters for the limiter
 end
 
 muscl_params(dq::DiscretisedFluidQueue) =

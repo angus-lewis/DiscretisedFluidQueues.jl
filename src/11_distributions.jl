@@ -12,14 +12,15 @@ arithmetic operations on a distribution act on this vector.
 - `dq::DiscretisedFluidQueue{T}`: 
 """
 struct SFMDistribution{T<:Mesh} <: AbstractMatrix{Float64}
-    coeffs::Array{Float64,2}
+    coeffs::Vector{Float64}
     dq::DiscretisedFluidQueue{T}
-    SFMDistribution{T}(coeffs::Array{Float64,2},dq::DiscretisedFluidQueue{T}) where T<:Mesh = 
-        (size(coeffs,1)==1) ? new(coeffs,dq) : throw(DimensionMismatch("coeffs must be a row-vector"))
 end
 
-SFMDistribution(coeffs::Array{Float64,2},dq::DiscretisedFluidQueue{T}) where T = 
+SFMDistribution(coeffs::Vector{Float64},dq::DiscretisedFluidQueue{T}) where T = 
     SFMDistribution{T}(coeffs,dq)
+
+SFMDistribution(coeffs::Matrix{Float64},dq::DiscretisedFluidQueue) = 
+    (size(coeffs,1)==1) ? SFMDistribution(coeffs[:],dq) : throw(DomainError("coeffs must be a row (1xn array) or column vector"))
 
 """
     SFMDistribution(dq::DiscretisedFluidQueue{T})
@@ -27,14 +28,14 @@ SFMDistribution(coeffs::Array{Float64,2},dq::DiscretisedFluidQueue{T}) where T =
 A blank initialiser for a fluid queue distribution a distribution with `coeffs=zeros`.
 """
 SFMDistribution(dq::DiscretisedFluidQueue{T}) where T = 
-    SFMDistribution{T}(zeros(1,n_bases_per_phase(dq)*n_phases(dq)+N₊(dq))+N₋(dq))
+    SFMDistribution{T}(zeros(n_bases_per_phase(dq)*n_phases(dq)+N₊(dq))+N₋(dq))
 
 size(d::SFMDistribution) = size(d.coeffs)
 size(d::SFMDistribution,dim::Int) = size(d.coeffs,dim)
-getindex(d::SFMDistribution,i,j) = d.coeffs[i,j]
+# getindex(d::SFMDistribution,i,j) = d.coeffs[i,j]
 getindex(d::SFMDistribution,i) = d.coeffs[i]
 # setindex!(d::SFMDistribution,x,i,j) = throw(DomainError("inserted value(s) must be Float64"))
-setindex!(d::SFMDistribution,x,i,j) = (d.coeffs[i,j]=x)
+# setindex!(d::SFMDistribution,x,i,j) = (d.coeffs[i,j]=x)
 # setindex!(d::SFMDistribution,x,i) = throw(DomainError("inserted value(s) must be Float64"))
 setindex!(d::SFMDistribution,x,i) = (d.coeffs[i]=x)
 # length(d::SFMDistribution) = prod(size(d.coeffs))
@@ -44,7 +45,7 @@ setindex!(d::SFMDistribution,x,i) = (d.coeffs[i]=x)
 
 show(io::IO, mime::MIME"text/plain", d::SFMDistribution) = show(io, mime, d.coeffs)
 
-fast_mul(u::SFMDistribution,B::AbstractMatrix{Float64}) = SFMDistribution(u.coeffs*B,u.dq)
+fast_mul(u::SFMDistribution,B::AbstractMatrix{Float64}) = SFMDistribution(transpose(u.coeffs)*B,u.dq)
 fast_mul(B::AbstractMatrix{Float64},u::SFMDistribution) = 
     throw(DomainError("you can only premultiply a SFMDistribution"))
 fast_mul(u::SFMDistribution,x::Real) = SFMDistribution(u.coeffs*x,u.dq)

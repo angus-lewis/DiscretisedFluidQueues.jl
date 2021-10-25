@@ -32,7 +32,7 @@
                 generator[:,1] .= 1.0
             end
             stationary_coeffs = b/generator.B
-            d = SFMDistribution(stationary_coeffs,dq)
+            d = SFMDistribution(stationary_coeffs[:],dq)
             stationary_cdf_estimate = (mtype!=FRAPMesh) ? cdf(d) : cdf(d, normalised_closing_operator_cdf)
             (mtype==FRAPMesh) && (stationary_cdf_estimate_naive = cdf(d, naive_normalised_closing_operator_cdf))
             analytical_cdf = stationary_distribution_x(model)[3]
@@ -60,7 +60,7 @@
                 generator_am[:,1] .= 1.0
             end
             stationary_coeffs_am = b_am/generator_am.B
-            d_am = SFMDistribution(stationary_coeffs_am,dq_am)
+            d_am = SFMDistribution(stationary_coeffs_am[:],dq_am)
             stationary_cdf_estimate_am = (mtype!=FRAPMesh) ? cdf(d_am) : (stationary_cdf_estimate_am_naive = cdf(d_am, normalised_closing_operator_cdf))
             (mtype==FRAPMesh) && (stationary_cdf_estimate_am_naive = cdf(d_am, naive_normalised_closing_operator_cdf))
             analytical_cdf_am = stationary_distribution_x(am)[3]

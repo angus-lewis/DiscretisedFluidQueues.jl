@@ -28,18 +28,19 @@ rand_model = BoundedFluidQueue(am.T,am.S,P_lwr_rand,P_upr_rand)
                 Matrix(B)
                 # types
                 @test typeof(B)<:LazyGenerator
-                @test all(isapprox.(B,B_data,atol=1e-4))
+                idx = DiscretisedFluidQueues.qbd_idx(dq)
+                @test all(isapprox.(B,B_data[idx,idx],atol=1e-4))
                 # multiplcation (values)
-                @test all(fast_mul(B,Matrix{Float64}(I(size(B,1)))) .≈ B)
-                @test all(fast_mul(Matrix{Float64}(I(size(B,1))),B) .≈ B)
+                @test all(DiscretisedFluidQueues.fast_mul(B,Matrix{Float64}(I(size(B,1)))) .≈ B)
+                @test all(DiscretisedFluidQueues.fast_mul(Matrix{Float64}(I(size(B,1))),B) .≈ B)
                 # row sums
                 @test sum(abs.(sum(B,dims=2)))≈0.0 atol=√eps()
-                @test all(isapprox.(B*B,B_data*B_data,atol=1e-3))
+                @test all(isapprox.(B*B,B_data[idx,idx]*B_data[idx,idx],atol=1e-3))
                 # multiplication (types)
-                @test typeof(fast_mul(B,Matrix{Float64}(I(size(B,1)))))==Array{Float64,2}
-                @test typeof(fast_mul(Matrix{Float64}(I(size(B,1))),B))==Array{Float64,2}
-                @test typeof(fast_mul(B,SparseMatrixCSC{Float64,Int}(I(size(B,1)))))==SparseMatrixCSC{Float64,Int}
-                @test typeof(fast_mul(SparseMatrixCSC{Float64,Int}(I(size(B,1))),B))==SparseMatrixCSC{Float64,Int}
+                @test typeof(DiscretisedFluidQueues.fast_mul(B,Matrix{Float64}(I(size(B,1)))))==Array{Float64,2}
+                @test typeof(DiscretisedFluidQueues.fast_mul(Matrix{Float64}(I(size(B,1))),B))==Array{Float64,2}
+                @test typeof(DiscretisedFluidQueues.fast_mul(B,SparseMatrixCSC{Float64,Int}(I(size(B,1)))))==SparseMatrixCSC{Float64,Int}
+                @test typeof(DiscretisedFluidQueues.fast_mul(SparseMatrixCSC{Float64,Int}(I(size(B,1))),B))==SparseMatrixCSC{Float64,Int}
                 # size
                 @test size(B) == (40,40)
                 @test size(B,1) == 40
@@ -88,6 +89,7 @@ rand_model = BoundedFluidQueue(am.T,am.S,P_lwr_rand,P_upr_rand)
                         end
                         @test typeof(B_Full.B)==SparseMatrixCSC{Float64,Int}
                         # types
+                        B_data = B_data[DiscretisedFluidQueues.qbd_idx(dq),DiscretisedFluidQueues.qbd_idx(dq)]
                         @test all(isapprox.(B_Full,B_data,atol=1e-4))
                         # multiplcation (values)
                         @test B_Full*SparseMatrixCSC{Float64,Int}(I(size(B_Full,1)))==B_Full
@@ -109,15 +111,15 @@ rand_model = BoundedFluidQueue(am.T,am.S,P_lwr_rand,P_upr_rand)
                 # types
                 @test typeof(B)<:LazyGenerator
                 # multiplcation (values)
-                @test all(fast_mul(B,Matrix{Float64}(I(size(B,1)))) .== B)
-                @test all(fast_mul(Matrix{Float64}(I(size(B,1))),B) .== B)
+                @test all(DiscretisedFluidQueues.fast_mul(B,Matrix{Float64}(I(size(B,1)))) .≈ B)
+                @test all(DiscretisedFluidQueues.fast_mul(Matrix{Float64}(I(size(B,1))),B) .≈ B)
                 # row sums
                 @test all(isapprox.(sum(B,dims=2),0,atol=√eps()))
                 # multiplication (types)
-                @test typeof(fast_mul(B,Matrix{Float64}(I(size(B,1)))))==Array{Float64,2}
-                @test typeof(fast_mul(Matrix{Float64}(I(size(B,1))),B))==Array{Float64,2}
-                @test typeof(fast_mul(B,SparseMatrixCSC{Float64,Int}(I(size(B,1)))))==SparseMatrixCSC{Float64,Int}
-                @test typeof(fast_mul(SparseMatrixCSC{Float64,Int}(I(size(B,1))),B))==SparseMatrixCSC{Float64,Int}
+                @test typeof(DiscretisedFluidQueues.fast_mul(B,Matrix{Float64}(I(size(B,1)))))==Array{Float64,2}
+                @test typeof(DiscretisedFluidQueues.fast_mul(Matrix{Float64}(I(size(B,1))),B))==Array{Float64,2}
+                @test typeof(DiscretisedFluidQueues.fast_mul(B,SparseMatrixCSC{Float64,Int}(I(size(B,1)))))==SparseMatrixCSC{Float64,Int}
+                @test typeof(DiscretisedFluidQueues.fast_mul(SparseMatrixCSC{Float64,Int}(I(size(B,1))),B))==SparseMatrixCSC{Float64,Int}
                 # size
                 @test size(B) == (31,31)
                 @test size(B,1) == 31
@@ -131,7 +133,7 @@ rand_model = BoundedFluidQueue(am.T,am.S,P_lwr_rand,P_upr_rand)
                         ei[i] = 1
                         ej = zeros(sz)[:,:]
                         ej[j] = 1
-                        !(B[i,j] == (ei*B*ej)[1]) && (getindex_does_not_match_mul = false)
+                        !(B[i,j] .≈ (ei*B*ej)[1]) && (getindex_does_not_match_mul = false)
                     end
                     @test getindex_does_not_match_mul
                 end

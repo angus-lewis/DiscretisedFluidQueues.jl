@@ -4,7 +4,7 @@ end
 
 function _get_nodes_coeffs_from_index(cell_idx::Int,i::Int,dq::DiscretisedFluidQueue) 
     cellnodes = cell_nodes(dq)[:,cell_idx]
-    coeff_idx = (N₋(dq) + (i-1)*n_bases_per_phase(dq) + (cell_idx-1)*n_bases_per_cell(dq)) .+ (1:n_bases_per_cell(dq))
+    coeff_idx = (N₋(dq) + (i-1)*n_bases_per_cell(dq) + (cell_idx-1)*n_bases_per_level(dq)) .+ (1:n_bases_per_cell(dq))
     return cellnodes, coeff_idx
 end
 
@@ -23,7 +23,7 @@ end
 
 function _get_point_mass_data_pos(i::Int,dq)
     cellnodes = dq.mesh.nodes[end]
-    coeff_idx = N₋(dq) + n_bases_per_phase(dq)*n_phases(dq) + N₊(dq.model.S[1:i])
+    coeff_idx = N₋(dq) + total_n_bases(dq) + N₊(dq.model.S[1:i])
     return cellnodes, coeff_idx 
 end
 function _get_point_mass_data_neg(i::Int,dq::DiscretisedFluidQueue)
@@ -175,8 +175,7 @@ function pdf(d::SFMDistribution{FRAPMesh{T}},
         if ((x<=mesh.nodes[1])||(x>=mesh.nodes[end]))
             # fxi = 0.0
         else
-            cell_idx, cellnodes, coeff_idx = _get_coeffs_index(x,i,d.dq)
-            coeffs = d.coeffs[coeff_idx]
+            cell_idx, ~, coeff_idx = _get_coeffs_index(x,i,d.dq)
             # if not a point mass, then reconstruct solution
             if _has_right_boundary(d.dq.model.S,i)
                 yₖ₊₁ = mesh.nodes[cell_idx+1]
@@ -186,7 +185,7 @@ function pdf(d::SFMDistribution{FRAPMesh{T}},
                 to_go = (x-yₖ)./Δ(mesh,cell_idx)
             end
             me = mesh.me
-            fxi = closing_operator(transpose(coeffs),me)(to_go)./Δ(mesh,cell_idx)
+            fxi = closing_operator(transpose(d.coeffs[coeff_idx]),me)(to_go)./Δ(mesh,cell_idx)
         end
         return fxi
     end
@@ -203,9 +202,9 @@ function pdf(d::SFMDistribution{FVMesh{T}}) where T
         if ((x<=mesh.nodes[1])||(x>=mesh.nodes[end]))
             # fxi = 0.0
         else
-            cell_idx, cellnodes, coeff_idx = _get_coeffs_index(x,i,d.dq)
+            cell_idx, ~, coeff_idx = _get_coeffs_index(x,i,d.dq)
             # if not a point mass, then reconstruct solution
-            ptsLHS = Int(ceil(_order(mesh)/2))
+            ptsLHS = (membership(d.dq.model.S,i)<0) ? (Int(ceil(_order(mesh)/2))+1) : Int(ceil(_order(mesh)/2))
             if cell_idx-ptsLHS < 0
                 nodesIdx = 1:_order(mesh)
                 nodes = cell_nodes(mesh)[nodesIdx]
@@ -218,8 +217,8 @@ function pdf(d::SFMDistribution{FVMesh{T}}) where T
                 nodesIdx =  (cell_idx-ptsLHS) .+ (1:_order(mesh))
                 poly_vals = lagrange_polynomials(cell_nodes(mesh)[nodesIdx],x)
             end
-            coeff_idx = (N₋(d.dq) + (i-1)*n_bases_per_phase(mesh)) .+ nodesIdx
-            coeffs = d.coeffs[coeff_idx]#./Δ(mesh)[cell_idx]
+            coeff_idx = (N₋(d.dq) + i) .+ ((nodesIdx.-1).*n_phases(d.dq))
+            coeffs = d.coeffs[coeff_idx]
             fxi = LinearAlgebra.dot(poly_vals,coeffs)
         end
         return fxi
@@ -252,12 +251,12 @@ function _sum_cells_left(d::SFMDistribution, i::Int, cell_idx::Int)
     if basis(d.dq.mesh) == "legendre"
         for cell in 1:(cell_idx-1)
             # first legendre basis function =1 & has all the mass
-            idx = (N₋(d.dq) + (i-1)*n_bases_per_phase(d.dq) + (cell-1)*n_bases_per_cell(d.dq)) .+ 1 
+            idx = (N₋(d.dq) + (i-1)*n_bases_per_cell(d.dq) + (cell-1)*n_bases_per_level(d.dq)) .+ 1 
             c += d.coeffs[idx]
         end
     else
         for cell in 1:(cell_idx-1)
-            idx = (N₋(d.dq) + (i-1)*n_bases_per_phase(d.dq) + (cell-1)*n_bases_per_cell(d.dq)) .+ (1:n_bases_per_cell(d.dq))
+            idx = (N₋(d.dq) + (i-1)*n_bases_per_cell(d.dq) + (cell-1)*n_bases_per_level(d.dq)) .+ (1:n_bases_per_cell(d.dq))
             c += sum(d.coeffs[idx])
         end
     end
@@ -268,11 +267,11 @@ function cdf(d::SFMDistribution{DGMesh{T}}) where T
     # First, get the coeffs and project in to higher dimensional space
     # get coeffs without boundary masses
     coeffs = d.coeffs[N₋(d.dq)+1:end-N₊(d.dq)] 
-    coeffs = reshape(coeffs,n_bases_per_cell(d.dq),n_intervals(d.dq),n_phases(d.dq))
+    coeffs = reshape(coeffs,n_bases_per_cell(d.dq),n_phases(d.dq),n_intervals(d.dq))
     # reweight basis to get it into the typicall lagrange interpolating basis
     v = vandermonde(n_bases_per_cell(d.dq))
     for i in 1:n_phases(d.dq)
-        coeffs[:,:,i] = (coeffs[:,:,i] ./ Δ(d.dq)') ./ (v.w ./ 2.0)
+        coeffs[:,i,:] = (coeffs[:,i,:] ./ Δ(d.dq)') ./ (v.w ./ 2.0)
     end
     # coeffs = lagrange_to_legendre(coeffs) # do this later to save computation power
     # project to higher space (in lagrange this is equiv. to adding a 0 coeff)
@@ -310,9 +309,9 @@ function cdf(d::SFMDistribution{DGMesh{T}}) where T
     # where the order of each operator is in ()
     # precompute transform
     transform = (V.V/G)*[LinearAlgebra.I(n_bases_per_cell(d.dq)); zeros(1,n_bases_per_cell(d.dq))]*v.inv
-    integral_coeffs = zeros(n_bases_per_cell(d.dq)+1,n_intervals(d.dq),n_phases(d.dq))
+    integral_coeffs = zeros(n_bases_per_cell(d.dq)+1,n_phases(d.dq),n_intervals(d.dq))
     for i in 1:n_phases(d.dq)
-        integral_coeffs[:,:,i] = (transform*coeffs[:,:,i]).*Δ(d.dq)'./2.0 # the factor at the end
+        integral_coeffs[:,i,:] = (transform*coeffs[:,i,:]).*Δ(d.dq)'./2.0 # the factor at the end
         # is actually part of the integral operator G^-1. i.e. we should have Δ(d.dq,cell)G^-1 
         # for each cell. 
     end
@@ -341,8 +340,9 @@ function cdf(d::SFMDistribution{DGMesh{T}}) where T
                 # i.e. evaluate p(x) from above
                 cellnodes = gauss_lobatto_points(mesh.nodes[cell_idx],
                     mesh.nodes[cell_idx+1], n_bases_per_cell(d.dq)+1)
+                    
                 basis_values = lagrange_polynomials(cellnodes, x) # interpolating basis
-                Fxi += LinearAlgebra.dot(basis_values,integral_coeffs[:,cell_idx,i])
+                Fxi += LinearAlgebra.dot(basis_values,integral_coeffs[:,i,cell_idx])
             elseif x>=mesh.nodes[end] # integrate over the whole space
                 Fxi += _sum_cells_left(d, i, n_intervals(d.dq)+1)
                 if _has_right_boundary(d.dq.model.S,i)
@@ -387,7 +387,7 @@ function cdf(d::SFMDistribution{FRAPMesh{T}},
             end
             # integral over density
             (x.>=mesh.nodes[end]) ? (xd=mesh.nodes[end]-sqrt(eps())) : xd = x
-            cell_idx, cellnodes, coeff_idx = _get_coeffs_index(xd,i,d.dq)
+            cell_idx, ~, coeff_idx = _get_coeffs_index(xd,i,d.dq)
             coeffs = d.coeffs[coeff_idx]
 
             if !(cell_idx=="point mass")
@@ -430,8 +430,7 @@ end
 function _sum_cells_left(d::SFMDistribution{FVMesh{T}}, i::Int, cell_idx::Int) where T
     c = 0
     for cell in 1:(cell_idx-1)
-        # first legendre basis function =1 & has all the mass
-        idx = N₋(d.dq) + (i-1)*n_bases_per_phase(d.dq) + cell
+        idx = N₋(d.dq) + i + (cell-1)*n_bases_per_level(d.dq)
         c += d.coeffs[idx]*Δ(d.dq,cell)
     end
     return c
@@ -456,7 +455,7 @@ function cdf(d::SFMDistribution{FVMesh{T}}) where T
             end
             # integral over density
             (x.>=mesh.nodes[end]) ? (xd=mesh.nodes[end]-sqrt(eps())) : xd = x
-            cell_idx, cellnodes, coeff_idx = _get_coeffs_index(xd,i,d.dq)
+            cell_idx, ~, ~ = _get_coeffs_index(xd,i,d.dq)
             # if not a point mass, then reconstruct solution
             if !(cell_idx=="point mass")
                 # add all mass from cells to the left
@@ -483,7 +482,7 @@ function cell_probs(d::SFMDistribution)
         mesh = d.dq.mesh
         _x_in_bounds = (x>mesh.nodes[1])&&(x<mesh.nodes[end])
         if _x_in_bounds
-            cell_idx, ~, coeff_idx = _get_coeff_index_pos(x,i,d.dq)
+            ~, ~, coeff_idx = _get_coeff_index_pos(x,i,d.dq)
             return sum(d.coeffs[coeff_idx])
         else 
             return 0.0
@@ -499,7 +498,7 @@ function cell_probs(d::SFMDistribution{FVMesh{T}}) where T
         if _x_in_bounds
             cell_idx, ~, coeff_idx = _get_coeff_index_pos(x,i,d.dq)
             cell_average = d.coeffs[coeff_idx]
-            return (cell_average*Δ(d.dq,cell_idx))[1]
+            return only(cell_average*Δ(d.dq,cell_idx))
         else 
             return 0.0
         end

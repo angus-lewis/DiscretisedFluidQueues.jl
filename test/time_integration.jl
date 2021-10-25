@@ -1,7 +1,7 @@
 @testset "time integration" begin
     D = [-1.0 2.0*π; -2.0*π -1.0]
     x0 = [1.0 0.0]
-    test_data = x0*exp(D)
+    test_data = (x0*exp(D))[:]
     e = ForwardEuler(1e-3)
     heuns = Heuns(1e-3)
     ssprk3 = StableRK3(1e-3)

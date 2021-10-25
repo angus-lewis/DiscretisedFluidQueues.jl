@@ -1,4 +1,3 @@
-using DiscretisedFluidQueues, Test
 @testset "limiters" begin 
 	@test DiscretisedFluidQueues.minmod(0.0,0.0,0.0)==0.0
 	@test DiscretisedFluidQueues.minmod(0.0,0.0,1.0)==0.0

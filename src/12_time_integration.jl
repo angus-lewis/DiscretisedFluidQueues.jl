@@ -76,8 +76,16 @@ Given `x0` apprximate `x0 exp(Dy)`.
 """
 function integrate_time(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
     y::Float64, scheme::ExplicitRungeKuttaScheme)
+
     checksquare(D)
     !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
+    
+    return _integrate(x0[:],D,y,scheme)
+end
+function integrate_time(x0::Array{Float64,1}, D::AbstractArray{Float64,2},
+    y::Float64, scheme::ExplicitRungeKuttaScheme)
+
+    checksquare(D)
     
     return _integrate(x0,D,y,scheme)
 end
@@ -89,53 +97,54 @@ end
 
 function integrate_time(x0::SFMDistribution{DGMesh{T}}, D::AbstractArray{Float64,2},
     y::Float64, scheme::ExplicitRungeKuttaScheme; limiter::Limiter=GeneralisedMUSCL) where T
+
     checksquare(D)
-    !(size(x0,2)==size(D,1))&&throw(DimensionMismatch("x0 must have length size(D,1)"))
     
     limiter_params = limiter.generate_params(x0.dq)
     limiter_function = x->limiter.fun(x,limiter_params...)
+
     return SFMDistribution(_integrate(x0.coeffs,D,y,scheme,limiter_function),x0.dq)
 end
 
 """
-    _integrate(x0::Array{Float64,2}, 
+    _integrate(x0::Array{Float64,1}, 
         D::Union{Array{Float64,2},SparseArrays.SparseMatrixCSC{Float64,Int}}, 
         y::Float64, scheme::ExplicitRungeKuttaScheme)
 
 Use ExplicitRungeKuttaScheme method.
 """
-function _integrate(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
+function _integrate(x0::Array{Float64,1}, D::AbstractArray{Float64,2},
     y::Float64, scheme::ExplicitRungeKuttaScheme)
 
     return _integrate(x0, D, y, scheme, identity)
 end
 
-function _integrate(x0::Array{Float64,2}, D::AbstractArray{Float64,2},
+function _integrate(x0::Array{Float64,1}, D::AbstractArray{Float64,2},
     y::Float64, scheme::ExplicitRungeKuttaScheme, limit_function::Function)
-
-    x = limit_function(x0[:])
+    
+    x = limit_function(x0)
     h = scheme.step_size
     l = size(scheme.alpha,1)
     α = scheme.alpha
     βh = scheme.beta*h
-    v = Array{Float64,2}(undef,l+1,size(x0,2))
-    vD = Array{Float64,2}(undef,l+1,size(x0,2))
+    v = Array{Float64,2}(undef,length(x0),l+1)
+    vD = Array{Float64,2}(undef,length(x0),l+1)
     for t = h:h:y
-        v[1,:] = x
+        v[:,1] = x
         for i in 1:l
-            vD[i,:] = transpose(v[i,:])*D
+            vD[:,i] = transpose(v[:,i])*D
             initialised = false 
             for j in 1:i
                 if α[i,j]!=0.0
-                    initialised ? (v[i+1,:]+=v[j,:]*α[i,j]) : (v[i+1,:]=v[j,:]*α[i,j]; initialised=true)
+                    initialised ? (v[:,i+1]+=v[:,j]*α[i,j]) : (v[:,i+1]=v[:,j]*α[i,j]; initialised=true)
                 end
                 if βh[i,j]!=0.0
-                    initialised ? (v[i+1,:]+=vD[j,:]*βh[i,j]) : (v[i+1,:]=vD[j,:]*βh[i,j]; initialised=true)
+                    initialised ? (v[:,i+1]+=vD[:,j]*βh[i,j]) : (v[:,i+1]=vD[:,j]*βh[i,j]; initialised=true)
                 end
             end
-            v[i+1,:] = limit_function(v[i+1,:])
+            v[:,i+1] = limit_function(v[:,i+1])
         end
-        x = v[end,:]
+        x = v[:,end]
     end
-    return Array(transpose(x))
+    return x
 end

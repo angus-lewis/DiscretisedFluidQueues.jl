@@ -7,7 +7,7 @@ of `dq`.
 # Arguments:
 - `pdf::Function`: a function `f(x::Float64,i::Int)` where `f(x,i)dx=P(X(0)∈dx,φ(0)=i)` is the initial 
     distribution of a fluid queue.
-- `dqDiscretisedFluidQueue{<:Mesh}`: 
+- `dq::DiscretisedFluidQueue{<:Mesh}`: 
 - `fun_evals`: the number of function evaluations used to approximate `f(x,i)`
 """
 function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{<:Mesh})
@@ -21,7 +21,7 @@ Approximates `pdf` via polynomials.
 function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{DGMesh{T}}) where T
     cellnodes = cell_nodes(dq)
     n₋ = N₋(dq)
-    coeffs = zeros(n_bases_per_cell(dq),n_intervals(dq),n_phases(dq))
+    coeffs = zeros(n_bases_per_cell(dq),n_phases(dq),n_intervals(dq))
     for i in phases(dq)
         for cell in 1:n_intervals(dq)
             nodes = cellnodes[:,cell]
@@ -30,10 +30,10 @@ function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{DGMesh{T}}) whe
             else
                 weights = gauss_lobatto_weights(nodes[1],nodes[end],length(nodes))
             end
-            coeffs[:,cell,i] = pdf.(nodes,i).*weights
+            coeffs[:,i,cell] = pdf.(nodes,i).*weights
         end
     end
-    coeffs = [zeros(1,n₋) Array(coeffs[:]') zeros(1,N₊(dq))]
+    coeffs = [zeros(n₋); coeffs[:]; zeros(N₊(dq))]
     return SFMDistribution(coeffs,dq)
 end
 
@@ -64,7 +64,7 @@ function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{DGMesh{
     end
     n₊ = N₊(dq)
     n₋ = N₋(dq)
-    coeffs = zeros(1,n₊+n₋+total_n_bases(dq))
+    coeffs = zeros(n₊+n₋+total_n_bases(dq))
     nodes = cell_nodes(dq.mesh)[:,cell_idx]
     V = vandermonde(n_bases_per_cell(dq))
     # we solve a∫ψ(x)ψ(x)'dx = ∫δ(x-x₀)ψ'(x)dx where ψ(x) is a column vector of 
@@ -95,7 +95,7 @@ function left_point_mass(i::Int,dq::DiscretisedFluidQueue)
     _has_right_boundary(dq.model.S,i)&&throw(DomainError("only phases with lpm=true have left point masses"))
     n₊ = N₊(dq)
     n₋ = N₊(dq)
-    coeffs = zeros(1,n₊+n₋+total_n_bases(dq))
+    coeffs = zeros(n₊+n₋+total_n_bases(dq))
     nᵢ = N₋(dq.model.S[1:i])
     coeffs[nᵢ] = 1.0
     return SFMDistribution(coeffs,dq)
@@ -110,7 +110,7 @@ function right_point_mass(i::Int,dq::DiscretisedFluidQueue)
     _has_left_boundary(dq.model.S,i)&&throw(DomainError("only phases with rpm=false have left point masses"))
     n₊ = N₊(dq)
     n₋ = N₊(dq)
-    coeffs = zeros(1,n₊+n₋+total_n_bases(dq))
+    coeffs = zeros(n₊+n₋+total_n_bases(dq))
     nᵢ = N₊(dq.model.S[1:i])
     coeffs[end-n₊+nᵢ] = 1.0
     return SFMDistribution(coeffs,dq)
@@ -125,15 +125,15 @@ Uses quadrature with `fun_evals` function evaluations to approximate cell averag
 """
 function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{FVMesh{T}}, fun_evals::Int=6) where T
     n₋ = N₋(dq)
-    coeffs = zeros(n_bases_per_cell(dq),n_intervals(dq),n_phases(dq))
+    coeffs = zeros(n_bases_per_cell(dq),n_phases(dq),n_intervals(dq))
     for i in phases(dq)
         for cell in 1:n_intervals(dq)
             a,b = dq.mesh.nodes[cell:cell+1]
             quad = gauss_lobatto_quadrature(x->pdf(x,i),a,b,fun_evals)
-            coeffs[1,cell,i] = quad./Δ(dq,cell)
+            coeffs[1,i,cell] = quad./Δ(dq,cell)
         end
     end
-    coeffs = [zeros(1,n₋) Array(coeffs[:]') zeros(1,N₊(dq))]
+    coeffs = [zeros(n₋); coeffs[:]; zeros(N₊(dq))]
     return SFMDistribution(coeffs,dq)
 end
 
@@ -150,7 +150,7 @@ function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{FVMesh{
     end
     n₊ = N₊(dq)
     n₋ = N₋(dq)
-    coeffs = zeros(1,n₊+n₋+total_n_bases(dq))
+    coeffs = zeros(n₊+n₋+total_n_bases(dq))
     coeffs[cell_idx] = 1.0./Δ(dq,cell_idx)
     return SFMDistribution(coeffs,dq)
 end
@@ -158,19 +158,19 @@ end
 ## constructors for FRAPMesh
 function SFMDistribution_from_cdf(cdf::Function,dq::DiscretisedFluidQueue{FRAPMesh{T}}; fun_evals::Int=10) where T
     n₋ = N₋(dq)
-    coeffs = zeros(n_bases_per_cell(dq),n_intervals(dq),n_phases(dq))
+    coeffs = zeros(n_bases_per_cell(dq),n_phases(dq),n_intervals(dq))
     for i in phases(dq)
         for cell in 1:n_intervals(dq)
             a,b = dq.mesh.nodes[cell:cell+1]
             if _has_right_boundary(dq.model.S,i)
-                o = expected_orbit_from_cdf(x->cdf(Δ(dq,cell)-x,i),a,b,fun_evals) 
+                o = expected_orbit_from_cdf(x->cdf(Δ(dq,cell)-x,i),dq.mesh.me,a,b,fun_evals) 
             elseif _has_left_boundary(dq.model.S,i)
-                o = expected_orbit_from_cdf(x->cdf(x,i),a,b,fun_evals) 
+                o = expected_orbit_from_cdf(x->cdf(x,i),dq.mesh.me,a,b,fun_evals) 
             end
-            coeffs[:,cell,i] = o
+            coeffs[:,i,cell] = o
         end
     end
-    coeffs = [zeros(1,n₋) Array(coeffs[:]') zeros(1,N₊(dq.model.S))]
+    coeffs = [zeros(n₋); coeffs[:]; zeros(N₊(dq.model.S))]
     return SFMDistribution(coeffs,dq)
 end
 
@@ -192,7 +192,7 @@ if the membership of `i` is `1` where
 """
 function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{FRAPMesh{T}}; fun_evals=100) where T
     n₋ = N₋(dq)
-    coeffs = zeros(n_bases_per_cell(dq),n_intervals(dq),n_phases(dq))
+    coeffs = zeros(n_bases_per_cell(dq),n_phases(dq),n_intervals(dq))
     for i in phases(dq)
         for cell in 1:n_intervals(dq)
             a,b = dq.mesh.nodes[cell:cell+1]
@@ -201,10 +201,10 @@ function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{FRAPMesh{T}}; f
             else
                 o = expected_orbit_from_pdf(x->(b-a)*pdf(b-x*(b-a),i),dq.mesh.me,0.0,1.0,fun_evals) 
             end
-            coeffs[:,cell,i] = o
+            coeffs[:,i,cell] = o
         end
     end
-    coeffs = [zeros(1,n₋) Array(coeffs[:]') zeros(1,N₊(dq))]
+    coeffs = [zeros(n₋); coeffs[:]; zeros(N₊(dq))]
     return SFMDistribution(coeffs,dq)
 end
 
@@ -234,7 +234,7 @@ function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{FRAPMes
         d = yₖ₊₁-x
     end
     o = orbit(dq.mesh.me,d/Δ(dq.mesh,cell_idx))
-    coeffs = zeros(1,N₊(dq)+N₋(dq)+total_n_bases(dq))
+    coeffs = zeros(N₊(dq)+N₋(dq)+total_n_bases(dq))
     coeffs[coeff_idx] = o
     return SFMDistribution(coeffs,dq)
 end

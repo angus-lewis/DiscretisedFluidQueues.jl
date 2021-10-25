@@ -36,16 +36,12 @@
             @test all(isapprox.( f_cdf_2.(x,1:4), cdf_rec_2.(x,1:4), atol=5e-2 ))
 
             @test_throws DomainError left_point_mass(1,dq)
-            tst = zeros(1,
-                n_phases(am)*n_bases_per_phase(msh) 
-                + N₋(am.S) + N₊(am.S))
+            tst = zeros(n_phases(am)*n_bases_per_phase(msh)+N₋(am.S)+N₊(am.S))
             tst[1] = 1.0
             @test left_point_mass(2,dq)==tst
             
             @test_throws DomainError right_point_mass(2,dq)
-            tst2 = zeros(1,
-                n_phases(am)*n_bases_per_phase(msh) 
-                + N₋(am.S) + N₊(am.S))
+            tst2 = zeros(n_phases(am)*n_bases_per_phase(msh)+N₋(am.S)+N₊(am.S))
             tst2[end] = 1.0
             @test right_point_mass(3,dq)==tst2
         end

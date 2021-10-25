@@ -344,7 +344,7 @@ function expected_orbit_from_pdf(pdf::Function,me::AbstractMatrixExponential,a::
     return E_orbit
 end
 
-function expected_orbit_from_cdf(cdf::Function,me::AbstractMatrixExponential,a::Float64,b::Float64,evals::Int)
+function expected_orbit_from_cdf(cdf::Function,me::AbstractMatrixExponential,a::Float64,b::Float64,evals::Int=10)
     # evals is an integer specifying how many points to eval the function at
     # params is a cme_params dictionary entry, i.e. cme_params[3]
     (b<=a)&&throw(DomainError("must have b>a"))
