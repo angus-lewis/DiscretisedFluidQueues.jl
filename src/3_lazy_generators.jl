@@ -214,8 +214,8 @@ function Base.getindex(B::Generator,(is,ks,ps)::Tuple,(js,ls,qs)::Tuple)
     (typeof(qs)==Colon)&&(qs=1:n_bases_per_cell(B.dq))
     
     rows = Int[]
-    for i in is
-        for k in ks 
+    for k in ks 
+        for i in is
             for p in ps 
                 if (k==0)&&(p==1)&&_has_left_boundary(B.dq.model.S,i)
                     push!(rows,(_map_to_index((i,0,1),B.dq)*ones(Int,sum(ps.==1)))...)
@@ -231,8 +231,8 @@ function Base.getindex(B::Generator,(is,ks,ps)::Tuple,(js,ls,qs)::Tuple)
     end
 
     cols = Int[]
-    for j in js
-        for l in ls 
+    for l in ls 
+        for j in js
             for q in qs 
                 if (l==0)&&(q==1)&&_has_left_boundary(B.dq.model.S,j)
                     push!(cols,(_map_to_index((j,0,1),B.dq)*ones(Int,sum(qs.==1)))...)
