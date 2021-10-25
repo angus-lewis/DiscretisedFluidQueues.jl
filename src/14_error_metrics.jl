@@ -38,4 +38,4 @@ function Lp_pdf(d::SFMDistribution,f2::Function, p=1)
     end
     return M
 end
-Lp_cell_probs(d::SFMDistribution,s::SFMDistribution,p=1) = Lp_cell_probs(d,pdf(s),p)
+Lp_pdf(d::SFMDistribution,s::SFMDistribution,p=1) = Lp_pdf(d,pdf(s),p)

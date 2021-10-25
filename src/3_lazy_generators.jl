@@ -690,11 +690,11 @@ function getindex(B::LazyGenerator,row::Int,col::Int)
     return v
 end
 
-function getindex(B::LazyGenerator,i::Int) 
-    !(0<i<=length(B))&&throw(BoundsError(B,i))
-    sz = size(B)
-    col = (i-1)÷sz[1] 
-    row = i-col*sz[1]
-    col += 1
-    return B[row,col]
-end
+# function getindex(B::LazyGenerator,i::Int) 
+#     !(0<i<=length(B))&&throw(BoundsError(B,i))
+#     sz = size(B)
+#     col = (i-1)÷sz[1] 
+#     row = i-col*sz[1]
+#     col += 1
+#     return B[row,col]
+# end
