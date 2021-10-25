@@ -5,7 +5,6 @@ Abstract type representing a discretised infinitesimal generator of a FLuidQueue
 Behaves much like a square matrix. 
 """
 abstract type Generator{T<:Mesh} <: AbstractMatrix{Float64} end 
-# checksquare(A::Generator) = !(size(A,1)==size(A,2)) ? throw(DomainError(A," must be square")) : nothing
 
 const UnionVectors = Union{StaticArrays.SVector,Vector{Float64}}
 const UnionArrays = Union{Array{Float64,2},StaticArrays.SMatrix}
@@ -144,18 +143,6 @@ function static_generator(lz)
     return out
 end
 
-# I think this is a duplicate: delete?
-
-# function LazyGenerator(
-#     blocks::Tuple{Array{Float64,2},Array{Float64,2},Array{Float64,2}},
-#     boundary_flux::NamedTuple{(:in, :out),Tuple{Array{Float64,1},Array{Float64,1}}},
-#     D::Union{Array{Float64,2},LinearAlgebra.Diagonal{Bool,Array{Bool,1}}},
-# )
-#     blocks = (blocks[1],blocks[2],blocks[2],blocks[3])
-#     boundary_flux = (upper = boundary_flux, lower = boundary_flux)
-#     return LazyGenerator(blocks, boundary_flux, D)
-# end
-
 """
     build_lazy_generator(dq::DiscretisedFluidQueue; v::Bool = false)
 
@@ -174,43 +161,12 @@ function size(B::LazyGenerator)
 end
 size(B::LazyGenerator, n::Int) = 
     (n∈[1,2]) ? size(B)[n] : throw(DomainError("Lazy generator is a matrix, index must be 1 or 2"))
-# length(B::LazyGenerator) = prod(size(B))
-# iterate(v::LazyGenerator, i=1) = (length(v) < i ? nothing : (v[i], i + 1))
-# Base.BroadcastStyle(::Type{<:LazyGenerator}) = Broadcast.ArrayStyle{LazyGenerator}()
 
 _check_phase_index(i::Int,model::Model) = 
     (i∉phases(model)) && throw(DomainError("i is not a valid phase in model"))
 _check_mesh_index(k::Int,mesh::Mesh) = 
     !(1<=k<=n_intervals(mesh)) && throw(DomainError("k in not a valid cell"))
 _check_basis_index(p::Int,mesh::Mesh) = !(1<=p<=n_bases_per_cell(mesh))
-
-# function _map_to_index_interior(i::Int,k::Int,p::Int,dq::DiscretisedFluidQueue)
-#     # i phase
-#     # k cell
-#     # p basis
-    
-#     _check_phase_index(i,dq.model)
-#     _check_mesh_index(k,dq.mesh)
-#     _check_basis_index(p,dq.mesh)
-
-#     P = n_bases_per_cell(dq)
-#     KP = n_bases_per_phase(dq)
-
-#     idx = (i-1)*KP + (k-1)*P + p
-#     return N₋(dq) + idx 
-# end
-# function _map_to_index_boundary(i::Int,dq::DiscretisedFluidQueue)
-#     # i phase
-#     _check_phase_index(i,dq.model)
-#     if _has_left_boundary(dq.model.S,i) 
-#         idx = N₋(dq.model.S[1:i])
-#     else _has_right_boundary(dq.model.S,i)
-#         N = n_phases(dq)
-#         KP = n_bases_per_phase(dq)
-#         idx = N₊(dq.model.S[1:i]) + KP*N + N₋(dq)
-#     end
-#     return idx
-# end
 
 function _map_to_index_interior((k,ip)::NTuple{3,Int},dq::DiscretisedFluidQueue)
     # i phase
@@ -248,11 +204,7 @@ function _map_to_index((i,k,p)::NTuple{3,Int},dq::DiscretisedFluidQueue)
     end
     return idx
 end
-# function Base.getindex(B::Generator,(i,k,p)::NTuple{3,Int},(j,l,q)::NTuple{3,Int})
-#     row = _map_to_index((i,k,p),B.dq)
-#     col = _map_to_index((j,l,q),B.dq)
-#     return B[row,col]
-# end
+
 function Base.getindex(B::Generator,(is,ks,ps)::Tuple,(js,ls,qs)::Tuple)
     (typeof(is)==Colon)&&(is=1:n_phases(B.dq))
     (typeof(js)==Colon)&&(js=1:n_phases(B.dq))
@@ -294,31 +246,6 @@ function Base.getindex(B::Generator,(is,ks,ps)::Tuple,(js,ls,qs)::Tuple)
             end
         end
     end
-
-
-    # rows = [_map_to_index((i,k,p),B.dq) for i in is for k in ks for p in ps]
-    # cols = [_map_to_index((j,l,q),B.dq) for j in js for l in ls for q in qs]
-
-    # if (ks_colon)&&(1∈ps)
-    #     lwr_bndry_idx_row = Int[]
-    #     upr_bndry_idx_row = Int[]
-    #     for i in is
-    #         _has_left_boundary(B.dq.model.S,i)&&push!(lwr_bndry_idx_row,_map_to_index((i,0,1),B.dq))
-    #         _has_right_boundary(B.dq.model.S,i)&&push!(upr_bndry_idx_row,_map_to_index((i,n_intervals(B.dq)+1,1),B.dq))
-    #     end
-    #     rows = [lwr_bndry_idx_row; rows; upr_bndry_idx_row]
-    # end
-    # if (ls_colon)&&(1∈ps)
-    #     lwr_bndry_idx_col = Int[]
-    #     upr_bndry_idx_col = Int[]
-    #     for i in is
-    #         _has_left_boundary(B.dq.model.S,i)&&push!(lwr_bndry_idx_col,_map_to_index((i,0,1),B.dq))
-    #         _has_right_boundary(B.dq.model.S,i)&&push!(upr_bndry_idx_col,_map_to_index((i,n_intervals(B.dq)+1,1),B.dq))
-    #     end
-    #     cols = [lwr_bndry_idx_col; cols; upr_bndry_idx_col]
-    # end
-    # @show rows
-    # @show cols 
     return B[rows,cols]
 end
 
@@ -439,73 +366,6 @@ function _lmul_innards!(v,u,model,mesh::Mesh{StepRangeLen{Float64, Base.TwicePre
     end
 end
 
-
-# function _fast_mul(u::AbstractMatrix{Float64}, B::LazyGenerator)
-#     output_type = typeof(u)
-    
-#     sz_u_1 = size(u,1)
-#     sz_u_2 = size(u,2)
-#     sz_B_1 = size(B,1)
-#     sz_B_2 = size(B,2)
-#     !(sz_u_2 == sz_B_1) && throw(DomainError("Dimension mismatch, u*B, length(u) must be size(B,1)"))
-
-#     if output_type <: SparseArrays.SparseMatrixCSC
-#         v = SparseArrays.spzeros(sz_u_1,sz_B_2)
-#     else 
-#         v = zeros(sz_u_1,sz_B_2)
-#     end
-#     model = B.dq.model
-#     mesh = B.dq.mesh
-#     Kp = n_bases_per_phase(B.dq) # K = n_intervals(mesh), p = n_bases_per_cell(mesh)
-#     C = rates(B.dq)
-#     n₋ = N₋(B.dq)
-#     n₊ = N₊(B.dq)
-
-#     # boundaries
-#     # at lower
-#     _lmul_at_lwr_bndry!(v,u,model.T,model.S,n₋) 
-#     # in to lower 
-#     _lmul_into_lwr_bndry!(v,u,model,mesh,Kp,n₋,C,B.boundary_flux.lower.in)
-
-#     # out of lower 
-#     _lmul_out_lwr_bndry!(v,u,mesh,model,Kp,n₋,B.boundary_flux.lower.in,B.boundary_flux.lower.out)
-
-#     # at upper
-#     _lmul_at_upr_bndry!(v,u,model.T,model.S,n₊) 
-#     # in to upper
-#     _lmul_into_upr_bndry!(v,u,model,mesh,Kp,n₋,n₊,C,B.boundary_flux.upper.in)
-    
-#     # out of upper 
-#     _lmul_out_upr_bndry!(v,u,mesh,model,Kp,n₋,n₊,B.boundary_flux.upper.in,B.boundary_flux.upper.out)
-    
-#     # innards
-#     for i in phases(model), j in phases(model)
-#         if i == j 
-#             # mult on diagonal
-#             if C[i]>0.0 
-#                 _lmul_ii_pos_diag_block!(v,u,i,mesh,n₋,
-#                     C[i]*B.blocks[2], model.T[i,i],
-#                     C[i]*B.blocks[4],
-#                     n_bases_per_cell(mesh),Kp)
-#             elseif C[i]<0.0
-#                 _lmul_ii_neg_diag_block!(v,u,i,mesh,n₋,
-#                     abs(C[i])*B.blocks[3], model.T[i,i],
-#                     abs(C[i])*B.blocks[1],
-#                     n_bases_per_cell(mesh),Kp)
-#             else
-#                 _lmul_ii_0_diag_block!(v,u,i,n_intervals(mesh),n₋,model.T[i,i],n_bases_per_cell(mesh),Kp)
-#             end
-#         elseif typeof(mesh)<:FRAPMesh
-#             _lmul_ij_off_diag_blocks_FRAP!(v,u,i,j,model.S,model.T[i,j],B.D,Kp,n₋,n_intervals(mesh),n_bases_per_cell(mesh))
-#         else
-#             i_idx = (i-1)*Kp .+ (1:Kp) .+ n₋
-#             j_idx = (j-1)*Kp .+ (1:Kp) .+ n₋
-#             v[:,j_idx] += (u[:,i_idx]*model.T[i,j])
-#         end
-#     end
-#     return v
-# end
-
 function _lmul_at_lwr_bndry!(v,u,T,S,n₋)
     v[:,1:n₋]+=u[:,1:n₋]*T[_has_left_boundary.(S),_has_left_boundary.(S)]
     return nothing 
@@ -565,91 +425,6 @@ function _lmul_out_upr_bndry!(v,u,mesh,model::BoundedFluidQueue,Kp,n₋,n₊,bnd
     )
     return nothing 
 end
-# function _lmul_ii_pos_diag_block!(v,u,i,mesh::Mesh,n₋,diag_block,Tᵢᵢ,up_block,n_bases_per_cell_mesh,Kp)
-#     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#     v[:,block_idx] += (u[:,block_idx]*diag_block)/Δ(mesh,1) + u[:,block_idx]*Tᵢᵢ
-#     for k in 2:n_intervals(mesh)
-#         block_idx = block_idx .+ n_bases_per_cell_mesh
-
-#         ℓ_idx = block_idx .- n_bases_per_cell_mesh
-#         v[:,block_idx] += (u[:,ℓ_idx]*up_block)/Δ(mesh,k-1)
-
-#         v[:,block_idx] += (u[:,block_idx]*diag_block)/Δ(mesh,k) + u[:,block_idx]*Tᵢᵢ
-#     end
-#     return nothing 
-# end
-# function _lmul_ii_neg_diag_block!(v,u,i,mesh::Mesh,n₋,diag_block,Tᵢᵢ,down_block,n_bases_per_cell_mesh,Kp)
-#     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#     for k in 1:n_intervals(mesh)-1
-#         ℓ_idx = block_idx .+ n_bases_per_cell_mesh
-#         v[:,block_idx] += (u[:,ℓ_idx]*down_block)/Δ(mesh,k+1)
-
-#         v[:,block_idx] += (u[:,block_idx]*diag_block)/Δ(mesh,k) + u[:,block_idx]*Tᵢᵢ
-
-#         block_idx = block_idx .+ n_bases_per_cell_mesh
-#     end
-#     v[:,block_idx] += (u[:,block_idx]*diag_block)/Δ(mesh,n_intervals(mesh)) + u[:,block_idx]*Tᵢᵢ
-#     return nothing 
-# end
-# function _lmul_ii_0_diag_block!(v,u,i,n_intervals_mesh,n₋,Tᵢᵢ,n_bases_per_cell_mesh,Kp)
-#     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#     for k in 1:n_intervals_mesh
-#         v[:,block_idx] += u[:,block_idx]*Tᵢᵢ
-#         block_idx = block_idx .+ n_bases_per_cell_mesh
-#     end
-#     return nothing 
-# end
-# function _lmul_ii_pos_diag_block!(v,u,i,mesh::Mesh{StepRangeLen{Float64}},n₋,diag_block,Tᵢᵢ,up_block,n_bases_per_cell_mesh,Kp)
-#     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#     diag_block /= Δ(mesh,1)
-#     diag_block += Tᵢᵢ*LinearAlgebra.I(n_bases_per_cell_mesh)
-#     up_block /= Δ(mesh,1)
-#     v[:,block_idx] += u[:,block_idx]*diag_block
-#     for k in 2:n_intervals(mesh)
-#         block_idx = block_idx .+ n_bases_per_cell_mesh
-
-#         ℓ_idx = block_idx .- n_bases_per_cell_mesh
-#         v[:,block_idx] += u[:,ℓ_idx]*up_block
-
-#         v[:,block_idx] += u[:,block_idx]*diag_block
-#     end
-#     return nothing 
-# end
-# function _lmul_ii_neg_diag_block!(v,u,i,mesh::Mesh{StepRangeLen{Float64}},n₋,diag_block,Tᵢᵢ,down_block,n_bases_per_cell_mesh,Kp)
-#     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#     diag_block /= Δ(mesh,1)
-#     diag_block += Tᵢᵢ*LinearAlgebra.I(n_bases_per_cell_mesh)
-#     down_block /= Δ(mesh,1)
-#     for k in 1:n_intervals(mesh)-1
-#         ℓ_idx = block_idx .+ n_bases_per_cell_mesh
-#         v[:,block_idx] += u[:,ℓ_idx]*down_block
-
-#         v[:,block_idx] += u[:,block_idx]*diag_block
-
-#         block_idx = block_idx .+ n_bases_per_cell_mesh
-#     end
-#     v[:,block_idx] += u[:,block_idx]*diag_block
-#     return nothing 
-# end
-# function _lmul_ij_off_diag_blocks_FRAP!(v,u,i,j,S,Tᵢⱼ,D,Kp,n₋,n_intervals_mesh,n_bases_per_cell_mesh)
-#     if membership(S,i)!=membership(S,j) 
-#         i_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#         j_idx = (j-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#         # changes from S₊ to S₋ etc.
-#         v[:,j_idx] += Tᵢⱼ*(u[:,i_idx]*D)
-#         for k in 2:n_intervals_mesh
-#             i_idx = i_idx .+ n_bases_per_cell_mesh
-#             j_idx = j_idx .+ n_bases_per_cell_mesh
-#             v[:,j_idx] += Tᵢⱼ*(u[:,i_idx]*D)
-#         end
-#     else
-#         i_idx = (i-1)*Kp .+ (1:Kp) .+ n₋
-#         j_idx = (j-1)*Kp .+ (1:Kp) .+ n₋
-#         v[:,j_idx] += u[:,i_idx]*Tᵢⱼ
-#     end
-#     return nothing 
-# end 
-
 
 function fast_mul(B::LazyGenerator,u::AbstractMatrix{Float64})
     output_type = typeof(u)
@@ -732,73 +507,6 @@ function _rmul_innards!(v,u,model,mesh::Mesh{StepRangeLen{Float64, Base.TwicePre
     end
 end
 
-
-# function _fast_mul(B::LazyGenerator,u::AbstractMatrix{Float64})
-#     output_type = typeof(u)
-    
-#     sz_u_1 = size(u,1)
-#     sz_u_2 = size(u,2)
-#     sz_B_1 = size(B,1)
-#     sz_B_2 = size(B,2)
-#     !(sz_B_2 == sz_u_1) && throw(DomainError("Dimension mismatch, u*B, length(u) must be size(B,1)"))
-
-#     if output_type <: SparseArrays.SparseMatrixCSC
-#         v = SparseArrays.spzeros(sz_B_1,sz_u_2)
-#     else 
-#         v = zeros(sz_B_1,sz_u_2)
-#     end
-#     model = B.dq.model
-#     mesh = B.dq.mesh
-#     Kp = n_bases_per_phase(B.dq) # K = n_intervals(mesh), p = n_bases_per_cell(mesh)
-#     C = rates(B.dq)
-#     n₋ = N₋(B.dq)
-#     n₊ = N₊(B.dq)
-
-#     # boundaries
-#     # at lower
-#     _rmul_at_lwr_bndry!(v,u,model.T,model.S,n₋) 
-#     # in to lower 
-#     _rmul_into_lwr_bndry!(v,u,model,mesh,Kp,n₋,C,B.boundary_flux.lower.in)
-    
-#     # out of lower 
-#     _rmul_out_lwr_bndry!(v,u,mesh,model,Kp,n₋,B.boundary_flux.lower.in,B.boundary_flux.lower.out)
-    
-#     # at upper
-#     _rmul_at_upr_bndry!(v,u,model.T,model.S,n₊) # v[:,end-n₊+1:end] += u[:,end-n₊+1:end]*model.T[_has_right_boundary.(model.S),_has_right_boundary.(model.S)]
-#     # in to upper
-#     _rmul_into_upr_bndry!(v,u,model,mesh,Kp,n₋,n₊,C,B.boundary_flux.upper.in)
-    
-#     # out of upper 
-#     _rmul_out_upr_bndry!(v,u,mesh,model,Kp,n₋,n₊,B.boundary_flux.upper.in,B.boundary_flux.upper.out)
-    
-#     # innards
-#     for i in phases(model), j in phases(model)
-#         if i == j 
-#             # mult on diagonal
-#             if C[i]>0.0 
-#                 _rmul_ii_pos_diag_block!(v,u,i,mesh,n₋,
-#                     C[i]*B.blocks[2], model.T[i,i],
-#                     C[i]*B.blocks[4],
-#                     n_bases_per_cell(mesh),Kp)
-#             elseif C[i]<0.0
-#                 _rmul_ii_neg_diag_block!(v,u,i,mesh,n₋,
-#                     abs(C[i])*B.blocks[3], model.T[i,i],
-#                     abs(C[i])*B.blocks[1],
-#                     n_bases_per_cell(mesh),Kp)
-#             else
-#                 _rmul_ii_0_diag_block!(v,u,i,n_intervals(mesh),n₋,model.T[i,i],n_bases_per_cell(mesh),Kp)
-#             end
-#         elseif typeof(mesh)<:FRAPMesh
-#             _rmul_ij_off_diag_blocks_FRAP!(v,u,i,j,model.S,model.T[i,j],B.D,Kp,n₋,n_intervals(mesh),n_bases_per_cell(mesh))
-#         else
-#             i_idx = (i-1)*Kp .+ (1:Kp) .+ n₋
-#             j_idx = (j-1)*Kp .+ (1:Kp) .+ n₋
-#             v[i_idx,:] += model.T[i,j]*u[j_idx,:]
-#         end
-#     end
-#     return v
-# end
-
 function _rmul_at_lwr_bndry!(v,u,T,S,n₋)
     v[1:n₋,:] += T[_has_left_boundary.(S),_has_left_boundary.(S)]*u[1:n₋,:]
     return nothing 
@@ -856,90 +564,6 @@ function _rmul_out_upr_bndry!(v,u,mesh,model::BoundedFluidQueue,Kp,n₋,n₊,bnd
     )*u[idxdown,:]
     return nothing 
 end
-# function _rmul_ii_pos_diag_block!(v,u,i,mesh::Mesh,n₋,diag_block,Tᵢᵢ,up_block,n_bases_per_cell_mesh,Kp)
-#     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#     v[block_idx,:] += (diag_block*u[block_idx,:])/Δ(mesh,1) + u[block_idx,:]*Tᵢᵢ
-#     for k in 2:n_intervals(mesh)
-#         block_idx = block_idx .+ n_bases_per_cell_mesh
-
-#         ℓ_idx = block_idx .- n_bases_per_cell_mesh
-#         v[ℓ_idx,:] += (up_block*u[block_idx,:])/Δ(mesh,k-1)
-
-#         v[block_idx,:] += (diag_block*u[block_idx,:])/Δ(mesh,k) + u[block_idx,:]*Tᵢᵢ
-#     end
-#     return nothing 
-# end
-# function _rmul_ii_neg_diag_block!(v,u,i,mesh::Mesh,n₋,diag_block,Tᵢᵢ,down_block,n_bases_per_cell_mesh,Kp)
-#     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#     for k in 1:n_intervals(mesh)-1
-#         ℓ_idx = block_idx .+ n_bases_per_cell_mesh
-#         v[ℓ_idx,:] += (down_block*u[block_idx,:])/Δ(mesh,k+1)
-
-#         v[block_idx,:] += (diag_block*u[block_idx,:])/Δ(mesh,k) + u[block_idx,:]*Tᵢᵢ
-
-#         block_idx = block_idx .+ n_bases_per_cell_mesh
-#     end
-#     v[block_idx,:] += (diag_block*u[block_idx,:])/Δ(mesh,n_intervals(mesh)) + u[block_idx,:]*Tᵢᵢ
-#     return nothing 
-# end
-# function _rmul_ii_0_diag_block!(v,u,i,n_intervals_mesh,n₋,Tᵢᵢ,n_bases_per_cell_mesh,Kp)
-#     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#     for k in 1:n_intervals_mesh
-#         v[block_idx,:] += u[block_idx,:]*Tᵢᵢ
-#         block_idx = block_idx .+ n_bases_per_cell_mesh
-#     end
-#     return nothing 
-# end
-# function _rmul_ii_pos_diag_block!(v,u,i,mesh::Mesh{StepRangeLen{Float64}},n₋,diag_block,Tᵢᵢ,up_block,n_bases_per_cell_mesh,Kp)
-#     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#     diag_block /= Δ(mesh,1)
-#     diag_block += Tᵢᵢ*LinearAlgebra.I(n_bases_per_cell_mesh)
-#     up_block /= Δ(mesh,1)
-#     v[block_idx,:] += diag_block*u[block_idx,:]
-#     for k in 2:n_intervals(mesh)
-#         block_idx = block_idx .+ n_bases_per_cell_mesh
-
-#         ℓ_idx = block_idx .- n_bases_per_cell_mesh
-#         v[ℓ_idx,:] += up_block*u[block_idx,:]
-
-#         v[block_idx,:] += diag_block*u[block_idx,:]
-#     end
-#     return nothing 
-# end
-# function _rmul_ii_neg_diag_block!(v,u,i,mesh::Mesh{StepRangeLen{Float64}},n₋,diag_block,Tᵢᵢ,down_block,n_bases_per_cell_mesh,Kp)
-#     block_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#     diag_block /= Δ(mesh,1)
-#     diag_block += Tᵢᵢ*LinearAlgebra.I(n_bases_per_cell_mesh)
-#     down_block /= Δ(mesh,1)
-#     for k in 1:n_intervals(mesh)-1
-#         ℓ_idx = block_idx .+ n_bases_per_cell_mesh
-#         v[ℓ_idx,:] += down_block*u[block_idx,:]
-
-#         v[block_idx,:] += diag_block*u[block_idx,:]
-
-#         block_idx = block_idx .+ n_bases_per_cell_mesh
-#     end
-#     v[block_idx,:] += diag_block*u[block_idx,:]
-#     return nothing 
-# end
-# function _rmul_ij_off_diag_blocks_FRAP!(v,u,i,j,S,Tᵢⱼ,D,Kp,n₋,n_intervals_mesh,n_bases_per_cell_mesh)
-#     if membership(S,i)!=membership(S,j)# B.pmidx[i,j]
-#         i_idx = (i-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#         j_idx = (j-1)*Kp .+ (1:n_bases_per_cell_mesh) .+ n₋
-#         # changes from S₊ to S₋ etc.
-#         v[i_idx,:] += Tᵢⱼ*(D*u[j_idx,:])
-#         for k in 2:n_intervals_mesh
-#             i_idx = i_idx .+ n_bases_per_cell_mesh
-#             j_idx = j_idx .+ n_bases_per_cell_mesh
-#             v[i_idx,:] += Tᵢⱼ*(D*u[j_idx,:])
-#         end
-#     else
-#         i_idx = (i-1)*Kp .+ (1:Kp) .+ n₋
-#         j_idx = (j-1)*Kp .+ (1:Kp) .+ n₋
-#         v[i_idx,:] += u[j_idx,:]*Tᵢⱼ
-#     end
-#     return nothing 
-# end 
 
 fast_mul(A::LazyGenerator, B::LazyGenerator) = fast_mul(build_full_generator(A).B,B)
 function fast_mul(A::LazyGenerator,x::Real) 
@@ -953,11 +577,6 @@ function fast_mul(A::LazyGenerator,x::Real)
 end
 fast_mul(x::Real,A::LazyGenerator) = fast_mul(A,x)
 
-# for f in (:+,:-), t in (Matrix{Float64},SparseArrays.SparseMatrixCSC{Float64,Int})
-#     @eval $f(B::LazyGenerator,A::$t) = [$f(B[i,j],A[i,j]) for i in 1:size(B,1), j in 1:size(B,2)]
-#     @eval $f(A::$t,B::LazyGenerator) = $f(B,A)
-# end
-
 function show(io::IO, mime::MIME"text/plain", B::LazyGenerator)
     if VERSION >= v"1.6"
         show(io, mime, fast_mul(SparseArrays.SparseMatrixCSC{Float64,Int}(LinearAlgebra.I(size(B,1))),B))
@@ -965,7 +584,6 @@ function show(io::IO, mime::MIME"text/plain", B::LazyGenerator)
         show(io, mime, fast_mul(Matrix{Float64}(LinearAlgebra.I(size(B,1))),B))
     end
 end
-# show(B::LazyGenerator) = show(stdout, B)
 
 function getindex_interior(B::LazyGenerator,row::Int,col::Int)
     
@@ -1013,38 +631,6 @@ function getindex_interior(B::LazyGenerator,row::Int,col::Int)
     end
 end
 
-# function _getindex_interior(B::LazyGenerator,row::Int,col::Int)
-#     i, k, p = _map_from_index_interior(row,B)
-#     j, l, q = _map_from_index_interior(col,B)
-    
-#     model = B.dq.model
-#     C = rates(model)
-
-#     v=0.0
-#     if i==j
-#         if k==l
-#             v=abs(C[i])*B.blocks[2 + (C[i].<0)][p,q]/Δ(B.dq,k) + model.T[i,j]*(p==q)
-#         elseif k+1==l# upper diagonal blocks
-#             (C[i]>0) && (v=C[i]*B.blocks[4][p,q]/Δ(B.dq,k))
-#         elseif k-1==l
-#             (C[i]<0) && (v=abs(C[i])*B.blocks[1][p,q]/Δ(B.dq,k))
-#         end
-#     elseif membership(model.S,i)!=membership(model.S,j)
-#         (k==l) && (v=model.T[i,j]*B.D[p,q])
-#     else
-#         ((p==q)&&(k==l)) && (v=model.T[i,j])
-#     end
-
-#     if (C[i]<0.0)&&(C[j]>0.0)&&(l==1)&&(k==1)
-#         i_idx = i - sum(rates(B.dq.model.S[1:i-1]).>=0.0)
-#         v+=abs(C[i])*B.dq.model.P_lwr[i_idx,j]*B.boundary_flux.lower.in[p]*B.boundary_flux.lower.out[q]/Δ(B.dq,k)
-#     elseif (C[i]>0.0)&&(C[j]<0.0)&&(l==n_intervals(B.dq))&&(k==n_intervals(B.dq))
-#         i_idx = i - sum(rates(B.dq.model.S[1:i-1]).<=0.0)
-#         v+=abs(C[i])*B.dq.model.P_upr[i_idx,j]*B.boundary_flux.upper.in[p]*B.boundary_flux.upper.out[q]/Δ(B.dq,k)
-#     end
-#     return v
-# end
-
 function getindex_out_boundary(B::LazyGenerator,row::Int,col::Int)
     (!_is_boundary_index(row,B))&&throw(DomainError(row,"row index does not correspond to a boundary"))
     l, j, q = _map_from_index_interior(col,B)
@@ -1063,23 +649,7 @@ function getindex_out_boundary(B::LazyGenerator,row::Int,col::Int)
     
     return v
 end
-# function _getindex_in_boundary(B::LazyGenerator,row::Int,col::Int)
-#     (!_is_boundary_index(col,B))&&throw(DomainError(col,"col index does not correspond to a boundary"))
-#     k, i, p = _map_from_index_interior(row,B)
-    
-#     C = rates(B.dq)
-    
-#     j = _map_from_index_boundary(col,B)
-#     if (k==1)&&(C[i]<=0.0)&&(i==j)
-#         v = abs(C[i])*B.boundary_flux.lower.in[p]/Δ(B.dq,1)
-#     elseif (k==n_intervals(B.dq))&&(C[i]>0.0)&&(i==j)
-#         v = abs(C[i])*B.boundary_flux.upper.in[p]/Δ(B.dq,n_intervals(B.dq))
-#     else 
-#         v = 0.0
-#     end
-    
-#     return v
-# end
+
 function getindex_in_boundary(B::LazyGenerator,row::Int,col::Int)
     (!_is_boundary_index(col,B))&&throw(DomainError(col,"col index does not correspond to a boundary"))
     k, i, p = _map_from_index_interior(row,B)

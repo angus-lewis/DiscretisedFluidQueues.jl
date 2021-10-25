@@ -20,15 +20,6 @@ phases(dq::DiscretisedFluidQueue) = phases(dq.model)
 N₋(dq::DiscretisedFluidQueue) = N₋(dq.model)
 N₊(dq::DiscretisedFluidQueue) = N₊(dq.model)
 
-# _has_left_boundary(i::Phase) = i.lpm
-# _has_right_boundary(i::Phase) = i.rpm
-# _has_left_boundary(S::PhaseSet,i::Int) = S[i].lpm
-# _has_right_boundary(S::PhaseSet,i::Int) = S[i].rpm
-# _has_left_boundary(S::PhaseSet) = _has_left_boundary.(S)
-# _has_right_boundary(S::PhaseSet) = _has_right_boundary.(S)
-# N₋(S::PhaseSet) = sum(_has_left_boundary(S))
-# N₊(S::PhaseSet) = sum(_has_right_boundary(S))
-
 n_intervals(dq::DiscretisedFluidQueue) = n_intervals(dq.mesh)
 Δ(dq::DiscretisedFluidQueue) = Δ(dq.mesh)
 Δ(dq::DiscretisedFluidQueue,k::Int) = Δ(dq.mesh,k)

@@ -32,16 +32,8 @@ SFMDistribution(dq::DiscretisedFluidQueue{T}) where T =
 
 size(d::SFMDistribution) = size(d.coeffs)
 size(d::SFMDistribution,dim::Int) = size(d.coeffs,dim)
-# getindex(d::SFMDistribution,i,j) = d.coeffs[i,j]
 getindex(d::SFMDistribution,i) = d.coeffs[i]
-# setindex!(d::SFMDistribution,x,i,j) = throw(DomainError("inserted value(s) must be Float64"))
-# setindex!(d::SFMDistribution,x,i,j) = (d.coeffs[i,j]=x)
-# setindex!(d::SFMDistribution,x,i) = throw(DomainError("inserted value(s) must be Float64"))
 setindex!(d::SFMDistribution,x,i) = (d.coeffs[i]=x)
-# length(d::SFMDistribution) = prod(size(d.coeffs))
-# itertate(d::SFMDistribution, i=1, args...;kwargs...) = iterate(d.coeffs, i, args...; kwargs...)
-# lastindex(d::SFMDistribution) = d.coeffs[length(d)]
-# Base.BroadcastStyle(::Type{<:SFMDistribution}) = Broadcast.ArrayStyle{SFMDistribution}()
 
 show(io::IO, mime::MIME"text/plain", d::SFMDistribution) = show(io, mime, d.coeffs)
 
