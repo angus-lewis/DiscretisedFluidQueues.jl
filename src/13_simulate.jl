@@ -128,6 +128,23 @@ function cdf(s::Simulation)
     return F
 end
 
+function cell_probs(s::Simulation,nodes)
+    function p(x::Float64,i::Int)
+        !(i∈phases(s.model)) && throw(DomainError("phase i must be in the support of the model"))
+        _x_in_bounds = (x>nodes[1])&&(x<nodes[end])
+        if _x_in_bounds
+            idx = findfirst(nodes.<x)
+            left_edge = nodes[idx]
+            right_edge = nodes[idx+1]
+            i_idx = s.φ.==i
+            return (membership(s.model.S,i)>0.0) ? (sum(left_edge.<=s.X[i_idx].<right_edge)/n_sims) : (sum(left_edge.<s.X[i_idx].<=right_edge)/n_sims)
+        else 
+            return 0.0
+        end
+    end
+    return p
+end
+
 """
 Returns ``X(t+S) = min(max(X(t) + cᵢS,0),U)`` where ``U`` is some upper bound
 on the process.

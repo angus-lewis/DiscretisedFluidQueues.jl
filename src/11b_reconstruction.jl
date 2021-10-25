@@ -479,8 +479,7 @@ end
 
 function cell_probs(d::SFMDistribution)
     function p(x::Float64,i::Int)
-        mesh = d.dq.mesh
-        _x_in_bounds = (x>mesh.nodes[1])&&(x<mesh.nodes[end])
+        _x_in_bounds = (x>d.dq.mesh.nodes[1])&&(x<d.dq.mesh.nodes[end])
         if _x_in_bounds
             ~, ~, coeff_idx = _get_coeff_index_pos(x,i,d.dq)
             return sum(d.coeffs[coeff_idx])
@@ -493,8 +492,7 @@ end
 
 function cell_probs(d::SFMDistribution{FVMesh{T}}) where T
     function p(x::Float64,i::Int)
-        mesh = d.dq.mesh
-        _x_in_bounds = (x>mesh.nodes[1])&&(x<mesh.nodes[end])
+        _x_in_bounds = (x>d.dq.mesh.nodes[1])&&(x<d.dq.mesh.nodes[end])
         if _x_in_bounds
             cell_idx, ~, coeff_idx = _get_coeff_index_pos(x,i,d.dq)
             cell_average = d.coeffs[coeff_idx]

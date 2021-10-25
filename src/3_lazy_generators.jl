@@ -168,7 +168,7 @@ _check_mesh_index(k::Int,mesh::Mesh) =
     !(1<=k<=n_intervals(mesh)) && throw(DomainError("k in not a valid cell"))
 _check_basis_index(p::Int,mesh::Mesh) = !(1<=p<=n_bases_per_cell(mesh))
 
-function _map_to_index_interior((k,ip)::NTuple{3,Int},dq::DiscretisedFluidQueue)
+function _map_to_index_interior((k,i,p)::NTuple{3,Int},dq::DiscretisedFluidQueue)
     # i phase
     # k cell
     # p basis
@@ -192,11 +192,11 @@ function _map_to_index_boundary((k,i,p)::NTuple{3,Int},dq::DiscretisedFluidQueue
     elseif (k==n_intervals(dq)+1)&&_has_right_boundary(dq.model.S,i)
         idx = N₊(dq.model.S[1:i]) + total_n_bases(dq) + N₋(dq)
     else 
-        throw(DomainError(string((i,k,p))*" is not a valid index of dq"))
+        throw(DomainError(string((k,i,p))*" is not a valid index of dq"))
     end
     return idx 
 end
-function _map_to_index((i,k,p)::NTuple{3,Int},dq::DiscretisedFluidQueue)
+function _map_to_index((k,i,p)::NTuple{3,Int},dq::DiscretisedFluidQueue)
     if (k==0)||(k==n_intervals(dq)+1)
         idx = _map_to_index_boundary((k,i,p),dq)
     else 
@@ -205,7 +205,7 @@ function _map_to_index((i,k,p)::NTuple{3,Int},dq::DiscretisedFluidQueue)
     return idx
 end
 
-function Base.getindex(B::Generator,(is,ks,ps)::Tuple,(js,ls,qs)::Tuple)
+function Base.getindex(B::Generator,(ks,is,ps)::Tuple,(ls,js,qs)::Tuple)
     (typeof(is)==Colon)&&(is=1:n_phases(B.dq))
     (typeof(js)==Colon)&&(js=1:n_phases(B.dq))
     (typeof(ks)==Colon) ? (ks=0:n_intervals(B.dq)+1; ks_colon=true) : (ks_colon=false)
@@ -218,13 +218,11 @@ function Base.getindex(B::Generator,(is,ks,ps)::Tuple,(js,ls,qs)::Tuple)
         for i in is
             for p in ps 
                 if (k==0)&&(p==1)&&_has_left_boundary(B.dq.model.S,i)
-                    push!(rows,(_map_to_index((i,0,1),B.dq)*ones(Int,sum(ps.==1)))...)
-                    break
+                    push!(rows,_map_to_index((0,i,1),B.dq))
                 elseif (k==n_intervals(B.dq)+1)&&(p==1)&&_has_right_boundary(B.dq.model.S,i)
-                    push!(rows,(_map_to_index((i,n_intervals(B.dq)+1,1)*ones(Int,sum(ps.==1)),B.dq))...)
-                    break
+                    push!(rows,_map_to_index((n_intervals(B.dq)+1,i,1),B.dq))
                 elseif (k!=0)&&(k!=n_intervals(B.dq)+1)
-                    push!(rows,_map_to_index((i,k,p),B.dq))
+                    push!(rows,_map_to_index((k,i,p),B.dq))
                 end
             end
         end
@@ -235,13 +233,11 @@ function Base.getindex(B::Generator,(is,ks,ps)::Tuple,(js,ls,qs)::Tuple)
         for j in js
             for q in qs 
                 if (l==0)&&(q==1)&&_has_left_boundary(B.dq.model.S,j)
-                    push!(cols,(_map_to_index((j,0,1),B.dq)*ones(Int,sum(qs.==1)))...)
-                    break
+                    push!(cols,_map_to_index((0,j,1),B.dq))
                 elseif (l==n_intervals(B.dq)+1)&&(q==1)&&_has_right_boundary(B.dq.model.S,j)
-                    push!(cols,(_map_to_index((j,n_intervals(B.dq)+1,1),B.dq)*ones(Int,sum(qs.==1)))...)
-                    break
+                    push!(cols,_map_to_index((n_intervals(B.dq)+1,j,1),B.dq))
                 elseif (l!=0)&&(l!=n_intervals(B.dq)+1)
-                    push!(cols,_map_to_index((j,l,q),B.dq))
+                    push!(cols,_map_to_index((l,j,q),B.dq))
                 end
             end
         end
