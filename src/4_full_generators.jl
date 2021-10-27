@@ -12,8 +12,9 @@ end
 FullGenerator(B,dq) = FullGenerator{typeof(dq.mesh)}(B,dq)
 
 size(B::FullGenerator) = size(B.B)
-getindex(B::FullGenerator,i) = B.B[i]
+# getindex(B::FullGenerator,i) = B.B[i]
 getindex(B::FullGenerator,i,j) = B.B[i,j]
+getindex(B::FullGenerator,t::Tuple,s::Tuple) = _getindex_from_tuple(B,t,s)
 setindex!(B::FullGenerator,x::Float64,i,j) = (B.B[i,j]=x)
 sum(B::FullGenerator; kwargs...) = sum(B.B; kwargs...)
 

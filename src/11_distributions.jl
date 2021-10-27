@@ -11,7 +11,7 @@ arithmetic operations on a distribution act on this vector.
     DiscretisedFluidQueue and can be used to reconstruct a solution.
 - `dq::DiscretisedFluidQueue{T}`: 
 """
-struct SFMDistribution{T<:Mesh} <: AbstractMatrix{Float64}
+struct SFMDistribution{T<:Mesh} <: AbstractVector{Float64}
     coeffs::Vector{Float64}
     dq::DiscretisedFluidQueue{T}
 end

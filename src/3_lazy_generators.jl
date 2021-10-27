@@ -204,45 +204,55 @@ function _map_to_index((k,i,p)::NTuple{3,Int},dq::DiscretisedFluidQueue)
     end
     return idx
 end
-
-function Base.getindex(B::Generator,(ks,is,ps)::Tuple,(ls,js,qs)::Tuple)
-    (typeof(is)==Colon)&&(is=1:n_phases(B.dq))
-    (typeof(js)==Colon)&&(js=1:n_phases(B.dq))
-    (typeof(ks)==Colon) ? (ks=0:n_intervals(B.dq)+1; ks_colon=true) : (ks_colon=false)
-    (typeof(ls)==Colon) ? (ls=0:n_intervals(B.dq)+1; ls_colon=true) : (ls_colon=false)
-    (typeof(ps)==Colon)&&(ps=1:n_bases_per_cell(B.dq))
-    (typeof(qs)==Colon)&&(qs=1:n_bases_per_cell(B.dq))
+_getindex_from_tuple(B,(ks,is,ps)::Tuple,(ls,js,qs)::Tuple) = _getindex_from_tuple(B,B.dq,(ks,is,ps)::Tuple,(ls,js,qs)::Tuple)
+function _build_index_from_tuple(dq,(ks,is,ps)::Tuple) 
+    (typeof(is)==Colon)&&(is=1:n_phases(dq))
+    (typeof(ks)==Colon)&&(ks=0:n_intervals(dq)+1)
+    (typeof(ps)==Colon)&&(ps=1:n_bases_per_cell(dq))
     
-    rows = Int[]
+    idx = Int[]
     for k in ks 
         for i in is
             for p in ps 
-                if (k==0)&&(p==1)&&_has_left_boundary(B.dq.model.S,i)
-                    push!(rows,_map_to_index((0,i,1),B.dq))
-                elseif (k==n_intervals(B.dq)+1)&&(p==1)&&_has_right_boundary(B.dq.model.S,i)
-                    push!(rows,_map_to_index((n_intervals(B.dq)+1,i,1),B.dq))
-                elseif (k!=0)&&(k!=n_intervals(B.dq)+1)
-                    push!(rows,_map_to_index((k,i,p),B.dq))
+                if (k==0)&&(p==1)&&_has_left_boundary(dq.model.S,i)
+                    push!(idx,_map_to_index((0,i,1),dq))
+                elseif (k==n_intervals(dq)+1)&&(p==1)&&_has_right_boundary(dq.model.S,i)
+                    push!(idx,_map_to_index((n_intervals(dq)+1,i,1),dq))
+                elseif (k!=0)&&(k!=n_intervals(dq)+1)
+                    push!(idx,_map_to_index((k,i,p),dq))
                 end
             end
         end
     end
+    return idx
+end
+function _getindex_from_tuple(B,dq,(ks,is,ps)::Tuple,(ls,js,qs)::Tuple)
+    # (typeof(js)==Colon)&&(js=1:n_phases(dq))
+    # (typeof(ls)==Colon) ? (ls=0:n_intervals(dq)+1; ls_colon=true) : (ls_colon=false)
+    # (typeof(qs)==Colon)&&(qs=1:n_bases_per_cell(dq))
+    
+    rows = _build_index_from_tuple(dq,(ks,is,ps))
+    cols = _build_index_from_tuple(dq,(ls,js,qs))
 
-    cols = Int[]
-    for l in ls 
-        for j in js
-            for q in qs 
-                if (l==0)&&(q==1)&&_has_left_boundary(B.dq.model.S,j)
-                    push!(cols,_map_to_index((0,j,1),B.dq))
-                elseif (l==n_intervals(B.dq)+1)&&(q==1)&&_has_right_boundary(B.dq.model.S,j)
-                    push!(cols,_map_to_index((n_intervals(B.dq)+1,j,1),B.dq))
-                elseif (l!=0)&&(l!=n_intervals(B.dq)+1)
-                    push!(cols,_map_to_index((l,j,q),B.dq))
-                end
-            end
-        end
-    end
+    # cols = Int[]
+    # for l in ls 
+    #     for j in js
+    #         for q in qs 
+    #             if (l==0)&&(q==1)&&_has_left_boundary(dq.model.S,j)
+    #                 push!(cols,_map_to_index((0,j,1),dq))
+    #             elseif (l==n_intervals(dq)+1)&&(q==1)&&_has_right_boundary(dq.model.S,j)
+    #                 push!(cols,_map_to_index((n_intervals(dq)+1,j,1),dq))
+    #             elseif (l!=0)&&(l!=n_intervals(dq)+1)
+    #                 push!(cols,_map_to_index((l,j,q),dq))
+    #             end
+    #         end
+    #     end
+    # end
     return B[rows,cols]
+end
+
+function Base.getindex(B::LazyGenerator,(ks,is,ps)::Tuple,(ls,js,qs)::Tuple)
+    return _getindex_from_tuple(B,(ks,is,ps),(ls,js,qs))
 end
 
 _is_boundary_index(n::Int,B::LazyGenerator) = (n∈1:N₋(B.dq))||(n∈(size(B,1).-(0:N₊(B.dq)-1)))
