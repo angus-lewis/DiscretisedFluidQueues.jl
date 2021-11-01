@@ -1,7 +1,7 @@
 """
     lagrange_polynomials(nodes::Array{Float64, 1}, evalPt::Float64)
 
-Evaluate the lagrange polynomials defied by `nodes` at the point `evalPt`.
+Evaluate the lagrange interpolating polynomials defied by `nodes` at the point `evalPt`.
 """
 function lagrange_polynomials(nodes::Array{Float64,1}, evalPt::Float64)
     order = length(nodes)

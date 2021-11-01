@@ -1,3 +1,8 @@
+abstract type AbstractIntegrationMethod end
+struct AutoQuadrature end 
+struct Quadrature end 
+struct TrapezoidRule end
+
 """
     SFMDistribution(pdf::Function, dq::DiscretisedFluidQueue{<:Mesh}, fun_evals::Int = 6)
 
@@ -10,15 +15,16 @@ of `dq`.
 - `dq::DiscretisedFluidQueue{<:Mesh}`: 
 - `fun_evals`: the number of function evaluations used to approximate `f(x,i)`
 """
-function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{<:Mesh})
+function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{<:Mesh},method::Type{AbstractIntegrationMethod})
+    throw(DomainError("No such integration method"))
 end
 
 """
     SFMDistribution(pdf::Function, dq::DiscretisedFluidQueue{DGMesh{T}})
 
-Approximates `pdf` via polynomials. 
+Approximates `pdf` via polynomials using interpolation. 
 """
-function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{DGMesh{T}}) where T
+function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{DGMesh{T}},method::Type{AutoQuadrature}=AutoQuadrature) where T
     cellnodes = cell_nodes(dq)
     n₋ = N₋(dq)
     coeffs = zeros(n_bases_per_cell(dq),n_phases(dq),n_intervals(dq))
@@ -31,6 +37,36 @@ function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{DGMesh{T}}) whe
                 weights = gauss_lobatto_weights(nodes[1],nodes[end],length(nodes))
             end
             coeffs[:,i,cell] = pdf.(nodes,i).*weights
+        end
+    end
+    coeffs = [zeros(n₋); coeffs[:]; zeros(N₊(dq))]
+    return SFMDistribution(coeffs,dq)
+end
+
+function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{DGMesh{T}},method::Type{TrapezoidRule};fun_evals::Int=2001) where T
+    cellnodes = cell_nodes(dq)
+    n₋ = N₋(dq)
+    coeffs = zeros(n_bases_per_cell(dq),n_phases(dq),n_intervals(dq))
+    V = vandermonde(n_bases_per_cell(dq))
+    for i in phases(dq)
+        for cell in 1:n_intervals(dq)
+            nodes = cellnodes[:,cell]
+            if length(nodes)==1
+                weights = fill(Δ(dq,cell),1,1)
+            else
+                weights = gauss_lobatto_weights(nodes[1],nodes[end],length(nodes))
+            end
+            lagrange_polynomials(x) = DiscretisedFluidQueues.lagrange_polynomials(
+                DiscretisedFluidQueues.gauss_lobatto_points(nodes[1],nodes[end],n_bases_per_cell(dq)),x)./weights
+
+            eval_pts = range(nodes[1],nodes[end],length=fun_evals)
+            h = 1.0/(fun_evals-1)
+            vals = zeros(n_bases_per_cell(dq),fun_evals)
+            for (m,x) in enumerate(eval_pts)
+                vals[:,m] = lagrange_polynomials(x).*pdf(x,i)*h
+            end
+            lagrange_coeffs = (sum(vals[:,2:end-1],dims=2)+vals[:,1]/2+vals[:,2]/2)'*(weights[:].*V.V*V.V'.*weights[:]')*2.0/Δ(dq,cell)
+            coeffs[:,i,cell] = lagrange_coeffs
         end
     end
     coeffs = [zeros(n₋); coeffs[:]; zeros(N₊(dq))]
@@ -92,9 +128,9 @@ end
 Construct a SFMDistribution with a point mass at the left boundary of `dq` in phase `i` and 0 elsewhere.
 """
 function left_point_mass(i::Int,dq::DiscretisedFluidQueue) 
-    _has_right_boundary(dq.model.S,i)&&throw(DomainError("only phases with lpm=true have left point masses"))
+    !_has_left_boundary(dq.model.S,i)&&throw(DomainError("only phases with lpm=true have left point masses"))
     n₊ = N₊(dq)
-    n₋ = N₊(dq)
+    n₋ = N₋(dq)
     coeffs = zeros(n₊+n₋+total_n_bases(dq))
     nᵢ = N₋(dq.model.S[1:i])
     coeffs[nᵢ] = 1.0
@@ -107,9 +143,9 @@ end
 Construct a SFMDistribution with a point mass at the left boundary of `dq` in phase `i` and 0 elsewhere.
 """
 function right_point_mass(i::Int,dq::DiscretisedFluidQueue)
-    _has_left_boundary(dq.model.S,i)&&throw(DomainError("only phases with rpm=false have left point masses"))
+    !_has_right_boundary(dq.model.S,i)&&throw(DomainError("only phases with rpm=false have left point masses"))
     n₊ = N₊(dq)
-    n₋ = N₊(dq)
+    n₋ = N₋(dq)
     coeffs = zeros(n₊+n₋+total_n_bases(dq))
     nᵢ = N₊(dq.model.S[1:i])
     coeffs[end-n₊+nᵢ] = 1.0
@@ -123,7 +159,7 @@ Construct an approximation to `pdf` as the average of `pdf` of each cell.
 
 Uses quadrature with `fun_evals` function evaluations to approximate cell averages.
 """
-function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{FVMesh{T}}, fun_evals::Int=6) where T
+function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{FVMesh{T}},method::Type{Quadrature}=Quadrature;fun_evals::Int=6) where T
     n₋ = N₋(dq)
     coeffs = zeros(n_bases_per_cell(dq),n_phases(dq),n_intervals(dq))
     for i in phases(dq)
@@ -156,7 +192,7 @@ function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{FVMesh{
 end
 
 ## constructors for FRAPMesh
-function SFMDistribution_from_cdf(cdf::Function,dq::DiscretisedFluidQueue{FRAPMesh{T}}; fun_evals::Int=10) where T
+function SFMDistribution_from_cdf(cdf::Function,dq::DiscretisedFluidQueue{FRAPMesh{T}},method::Type{TrapezoidRule}=TrapezoidRule;fun_evals::Int=2001) where T
     n₋ = N₋(dq)
     coeffs = zeros(n_bases_per_cell(dq),n_phases(dq),n_intervals(dq))
     for i in phases(dq)
@@ -175,10 +211,11 @@ function SFMDistribution_from_cdf(cdf::Function,dq::DiscretisedFluidQueue{FRAPMe
 end
 
 """
-    SFMDistribution(pdf::Function, dq::DiscretisedFluidQueue{FRAPMesh}; fun_evals = 100)
+    SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{FRAPMesh{T}},method::Type{TrapezoidRule}=TrapezoidRule;fun_evals=2001) where T
 
 Return the appropriate initial condition to approximate the initial distribution `pdf`
-for the numerical discretisation scheme defined by the `dq` DiscretisedFluidQueue.
+for the numerical discretisation scheme defined by the `dq` DiscretisedFluidQueue. `method` 
+specifies the integration rule to approximate the integral of the pdf and the orbit function.
 
 i.e. for each cell compute the expected orbit position 
 ``∫pdf(x,i) ⋅ a(x) dx ``
@@ -190,7 +227,7 @@ if the membership of `i` is `1` where
 `yₖ` and `yₖ₊₁` are the left and right cell edges, respectively, and 
 `a` and `S` are defined by `dq.mesh.me` are parameters of a MatrixExponential.
 """
-function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{FRAPMesh{T}}; fun_evals=100) where T
+function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{FRAPMesh{T}},method::Type{TrapezoidRule}=TrapezoidRule;fun_evals=2001) where T
     n₋ = N₋(dq)
     coeffs = zeros(n_bases_per_cell(dq),n_phases(dq),n_intervals(dq))
     for i in phases(dq)

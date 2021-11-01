@@ -8,7 +8,7 @@ export Model, DiscretisedFluidQueue, BoundedFluidQueue, Phase, PhaseSet # Queues
 export AbstractMatrixExponential, ConcentratedMatrixExponential, MatrixExponential 
 export Mesh, DGMesh, FRAPMesh, FVMesh # are <:Mesh
 export Generator, FullGenerator, LazyGenerator # are <:Generator
-export SFMDistribution
+export SFMDistribution, AbstractIntegrationMethod, AutoQuadrature, Quadrature, TrapezoidRule
 export ExplicitRungeKuttaScheme, ForwardEuler, Heuns, StableRK3, StableRK4 # Euler, RungeKutta4 <: TimeIntegrationScheme
 export Simulation
 

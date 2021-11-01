@@ -47,7 +47,7 @@ function linear(cell_coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{F
 end
 
 function limit(coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{Float64},
-    D::Matrix{Float64}, w::Vector{Float64}, Δvec::Vector{Float64}, 
+    D::Matrix{Float64}, w::Vector{Float64}, Δvec::AbstractVector{Float64}, 
     cell_nodes_matrix::Matrix{Float64}, num_phases::Int, n₋::Int, n₊::Int)
 
     # V, Vinv, D, w = vandermonde(n_bases_per_cell(d.dq))
@@ -61,8 +61,8 @@ function limit(coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{Float64
     cell_averages = sum(limited_coeffs,dims=1)
     cell_averages = reshape(cell_averages,num_phases,length(Δvec))./transpose(Δvec)
 
-    poly_reconstruct_left = limited_coeffs[1,:,:]*2.0./(Δvec*w[1])
-    poly_reconstruct_right = limited_coeffs[end,:,:]*2.0./(Δvec*w[end])
+    poly_reconstruct_left = limited_coeffs[1,:,:]*2.0./(Δvec[:]'*w[1])
+    poly_reconstruct_right = limited_coeffs[end,:,:]*2.0./(Δvec[:]'*w[end])
 
     
     for phase in 1:num_phases
