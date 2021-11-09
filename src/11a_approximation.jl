@@ -44,23 +44,22 @@ function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{DGMesh{T}},meth
 end
 
 function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{DGMesh{T}},method::Type{TrapezoidRule};fun_evals::Int=2001) where T
-    cellnodes = cell_nodes(dq)
     n₋ = N₋(dq)
     coeffs = zeros(n_bases_per_cell(dq),n_phases(dq),n_intervals(dq))
     V = vandermonde(n_bases_per_cell(dq))
     for i in phases(dq)
         for cell in 1:n_intervals(dq)
-            nodes = cellnodes[:,cell]
-            if length(nodes)==1
+            nodes = dq.mesh.nodes[cell:cell+1]
+            if n_bases_per_cell(dq)==1
                 weights = fill(Δ(dq,cell),1,1)
             else
-                weights = gauss_lobatto_weights(nodes[1],nodes[end],length(nodes))
+                weights = gauss_lobatto_weights(nodes[1],nodes[end],n_bases_per_cell(dq))
             end
             lagrange_polynomials(x) = DiscretisedFluidQueues.lagrange_polynomials(
                 DiscretisedFluidQueues.gauss_lobatto_points(nodes[1],nodes[end],n_bases_per_cell(dq)),x)./weights
 
             eval_pts = range(nodes[1],nodes[end],length=fun_evals)
-            h = 1.0/(fun_evals-1)
+            h = Δ(dq,cell)/(fun_evals-1)
             vals = zeros(n_bases_per_cell(dq),fun_evals)
             for (m,x) in enumerate(eval_pts)
                 vals[:,m] = lagrange_polynomials(x).*pdf(x,i)*h
@@ -91,8 +90,8 @@ function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{<:Mesh}
 Constructs a polynomial approximation to the point mass at (x,i)
 """
 function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{DGMesh{T}}) where T
-    (x<=dq.mesh.nodes[1])&&throw(DomainError("x is not in interior"))
-    (x>=dq.mesh.nodes[end])&&throw(DomainError("x is not in interior"))
+    (x<dq.mesh.nodes[1])&&throw(DomainError("x is not in interior"))
+    (x>dq.mesh.nodes[end])&&throw(DomainError("x is not in interior"))
     if _has_right_boundary(dq.model.S,i) 
         cell_idx, cellnodes, coeff_idx = _get_coeff_index_pos(x,i,dq) 
     elseif _has_left_boundary(dq.model.S,i)

@@ -11,6 +11,7 @@ struct FRAPMesh{T} <: Mesh{T}
     nodes::T
     me::AbstractMatrixExponential
 end 
+FRAPMesh{T}(nodes::T,n_bases::Int) where T = FRAPMesh{T}(nodes,build_me(cme_params[n_bases]))
 FRAPMesh(nodes::AbstractVector{Float64},n_bases::Int) = FRAPMesh(nodes,build_me(cme_params[n_bases]))
 function FRAPMesh()
     FRAPMesh(Array{Float64,1}(undef,0),0)

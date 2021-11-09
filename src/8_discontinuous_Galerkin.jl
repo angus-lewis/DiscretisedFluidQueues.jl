@@ -13,11 +13,12 @@ struct DGMesh{T} <: Mesh{T}
     basis::String
 end 
 # Convenience constructors
-function DGMesh(nodes::T,n_bases::Int) where T
+function DGMesh{T}(nodes::T,n_bases::Int) where T
     basis = "lagrange"
     mesh = DGMesh(nodes,n_bases,basis)
     return mesh
 end
+DGMesh(nodes::T,n_bases::Int) where T = DGMesh{T}(nodes::T,n_bases::Int) 
 DGMesh() = DGMesh([0.0],0,"")
 
 """

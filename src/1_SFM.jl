@@ -183,6 +183,8 @@ end
 Alias to `BoundedFluidQueue(T,PhaseSet(c))`.
 """
 BoundedFluidQueue(T::Array{Float64,2},c::Array{Float64,1}) = BoundedFluidQueue(T,PhaseSet(c))
+BoundedFluidQueue(T::Array{Float64,2}, c::Array{Float64,1}, P_lwr::Matrix{Float64}, P_upr::Matrix{Float64}) = 
+    BoundedFluidQueue(T,PhaseSet(c),P_lwr,P_upr)
 
 rates(m::Model) = rates(m.S)
 rates(m::Model,i::Int) = rates(m.S,i)
