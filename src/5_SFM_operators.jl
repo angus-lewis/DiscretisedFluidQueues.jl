@@ -237,3 +237,106 @@ function stationary_distribution_x( model::Model)
     return pₓ, πₓ, Πₓ, K
 end
 
+function expected_crossings(moodel::BoundedFluidQueue)
+    rate_reverse_model = BoundedFluidQueue(model.T,-model.C,model.P_lwr,model.P_upr)
+    ~, TDict = _model_dicts(model)
+    ~, T̃Dict = _model_dicts(rate_reverse_model)
+    Ψ = psi_fun_x(model)
+    Ψ̃ = psi_fun_x(rate_reverse_model)
+    K = TDict["++"] + Ψ*TDict["-+"]
+    K̃ = T̃Dict["++"] + Ψ̃*T̃Dict["-+"]
+    n₊ = size(TDict["++"],1)
+    n₋ = size(TDict["--"],1)
+    I₊ = LinearAlgebra.I(n₊)
+    I₋ = LinearAlgebra.I(n₋)
+    N(x) = [I₊ exp(K*model.b); exp(K̃*model.b) I₋]\[exp(K*x) zeros(n₊,n₋); zeros(n₋,n₊) exp(K̃*(model.b-x))]*
+        [I₊ Ψ; Ψ̃ I₋]
+    return N(x)
+end
+
+function hat_matrices(model::BoundedFluidQueue)
+    rate_reverse_model = BoundedFluidQueue(model.T,-model.C,model.P_lwr,model.P_upr)
+    ~, TDict = _model_dicts(model)
+    # ~, T̃Dict = _model_dicts(rate_reverse_model)
+    Ψ = psi_fun_x(model)
+    Ψ̃ = psi_fun_x(rate_reverse_model)
+    U = TDict["--"] + TDict["-+"]*Ψ
+    Ũ = TDict["++"] + TDict["+-"]*Ψ̃
+    n₊ = size(TDict["++"],1)
+    n₋ = size(TDict["--"],1)
+    I₊ = LinearAlgebra.I(n₊)
+    I₋ = LinearAlgebra.I(n₋)
+    b = model.b
+    Λ̂₁₁ = (I₊ - Ψ*Ψ̃)*exp(Ũ*b)/(I₊ - Ψ*exp(U*b)*Ψ̃*exp(Ũ*b))
+    Ψ̂₁₂ = (Ψ - exp(Ũ*b)*Ψ*exp(U*b))/(I₋ - Ψ̃*exp(Ũ*b)*Ψ*exp(U*b))
+    Ψ̂₂₁ = (Ψ̃ - exp(U*b)*Ψ̃*exp(Ũ*b))/(I₊ - Ψ*exp(U*b)*Ψ̃*exp(Ũ*b))
+    Λ̂₂₂ = (I₋ - Ψ̃*Ψ)*exp(U*b)/(I₋ - Ψ̃*exp(Ũ*b)*Ψ*exp(U*b))
+    return Λ̂₁₁, Ψ̂₁₂, Ψ̂₂₁, Λ̂₂₂
+end
+
+function H_matrix(model)
+    Λ̂₁₁, Ψ̂₁₂, Ψ̂₂₁, Λ̂₂₂ = hat_matrices(model)
+    hat_matrix = [Λ̂₁₁, Ψ̂₁₂; Ψ̂₂₁, Λ̂₂₂]
+    S, TDict = _model_dicts(model)
+    n₊ = size(TDict["++"],1)
+    n₋ = size(TDict["--"],1)
+    n = length(model.C)
+    Ĥ = hat_matrix*[zeros(n₊,n₊) model.P_upr[:,S["-"]]; zeros(n₋,n₋) model.P_lwr[:,S["+"]]] + 
+        hat_matrix*[model.P_upr[:,[i∉S["-"] for i in 1:n]] zeros(n₊,n-n₊); model.P_lwr[:,[i∉S["+"] for i in 1:n]] zeros(n₋,n-n₋)]*
+            [-inv(model.T[[i∉S["-"] for i in 1:n],[i∉S["-"] for i in 1:n]]) zeros(n-n₋,n-n₊); 
+            zeros(n-n₊,n-n₋) -inv(model.T[[i∉S["+"] for i in 1:n],[i∉S["+"] for i in 1:n]])]*
+                [zeros(n-n₋,n₊) model.T[[i∉S["-"] for i in 1:n],S["-"]];
+                model.T[[i∉S["+"] for i in 1:n],S["+"]] zeros(n-n₊,n₋)]
+    return Ĥ
+end
+
+function nu(model)
+    A = H_matrix(model) - LinearAlgebra.I
+    A[:,1] .= 1.0
+    b = zeros(1,size(A,1))
+    b[1] = 1.0
+    return b/A
+end
+
+function normalising_constant_matrix(model)
+    rate_reverse_model = BoundedFluidQueue(model.T,-model.C,model.P_lwr,model.P_upr)
+    ~, TDict = _model_dicts(model)
+    ~, T̃Dict = _model_dicts(rate_reverse_model)
+    Ψ = psi_fun_x(model)
+    Ψ̃ = psi_fun_x(rate_reverse_model)
+    K = TDict["++"] + Ψ*TDict["-+"]
+    K̃ = T̃Dict["++"] + Ψ̃*T̃Dict["-+"]
+    n₊ = size(TDict["++"],1)
+    n₋ = size(TDict["--"],1)
+    I₊ = LinearAlgebra.I(n₊)
+    I₋ = LinearAlgebra.I(n₋)
+    N = [I₊ exp(K*model.b); exp(K̃*model.b) I₋]\[K\(exp(K*b)-I₊) zeros(n₊,n₋); zeros(n₋,n₊) K̃\(exp(K̃*b)-I₋)]*
+        [I₊ Ψ; Ψ̃ I₋]
+    return N
+end
+
+function stationary_distribution_x(model::BoundedFluidQueue)
+    ν = nu(model)
+    S, T = _model_dicts(model)
+    # n₊ = length(S["+"])
+    # n₋ = length(S["-"])
+    # n = length(model.C)
+    N = expected_crossings(model)
+    N_const = normalising_constant_matrix(model)
+    # ν₊ = ν[1:n₊]
+    # ν₋ = ν[(n₊+1):end]
+    Cinv= diagm(1.0./[abs.(model.C[S["+"]]);abs.(model.C[S["-"]])])
+    norm_vec = ν*N_const*Cinv
+    z = sum(norm_vec) + sum(norm_vec*[T["+0"];T["-0"]]*(-inv(T["00"])))
+    idx = [findall(rates(model).>0);
+        findall(rates(model).<0);
+        findall(rates(model).==0)]
+    function πₓ(x)
+        vec = ν*N(x)*Cinv
+        zϕ̂ = vec*[T["+0"];T["-0"]]*(-inv(T["00"]))
+        out = [vec zϕ̂]./z
+        return out[idx]
+    end
+    return πₓ
+end
+
