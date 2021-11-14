@@ -32,7 +32,6 @@ include("2_abstract_mesh.jl") # things which apply to all meshes
 include("2a_discretised_fluid_queue.jl")
 include("3_lazy_generators.jl")
 include("4_full_generators.jl")
-include("5_SFM_operators.jl")
 
 # auxillary functions
 include("6_ME_tools.jl") # used in FRAPApproximation.jl

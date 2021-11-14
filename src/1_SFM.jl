@@ -140,14 +140,16 @@ struct BoundedFluidQueue <: Model
     S::PhaseSet
     P_lwr::Matrix{Float64}
     P_upr::Matrix{Float64}
-    function BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet, P_lwr::Matrix{Float64}, P_upr::Matrix{Float64})
+    b::Float64
+    function BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet, P_lwr::Matrix{Float64}, P_upr::Matrix{Float64},b::Float64)
         _fluid_queue_checks(T,S)
         !(all(sum(T,dims=2).≈0.0))&&@warn "row sums of T should be 0"
         !all(sum(P_lwr,dims=2).≈1.0)&&throw(DomainError("P_lwr sum should be 1"))#@warn "row sums of P_lwr should be 1.0"
         !all(sum(P_upr,dims=2).≈1.0)&&throw(DomainError("P_lwr sum should be 1"))#@warn "row sums of P_upr should be 1.0"
         !((sum(rates(S).<0.0)==size(P_lwr,1))&&(size(T,2)==size(P_lwr,2)))&&throw(DomainError("P_lwr must be |S₋| by |S|"))
         !((sum(rates(S).>0.0)==size(P_upr,1))&&(size(T,2)==size(P_upr,2)))&&throw(DomainError("P_upr must be |S₊| by |S|"))
-        return new(T,S,P_lwr,P_upr)
+        (b<0)&&throw(DomainError("upperboundary, b, must be positive"))
+        return new(T,S,P_lwr,P_upr,b)
     end
 end
 """
@@ -159,7 +161,7 @@ Constructor for a fluid queue model with regulated boundaries by default
 - `T::Array{Float64, 2}`: Generator of the phase process
 - `S::PhaseSet`: An array of phases describing the evolution of the fluid level in each phase.
 """
-function BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet)
+function BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet, b::Float64=10.0)
     _fluid_queue_checks(T,S)
     P_lwr = zeros(sum(negative_phases(S)),size(T,2))
     P_upr = zeros(sum(positive_phases(S)),size(T,2))
@@ -175,16 +177,16 @@ function BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet)
             P_upr[i_upr,j] = 1.0
         end
     end
-    return BoundedFluidQueue(T,S,P_lwr,P_upr)
+    return BoundedFluidQueue(T,S,P_lwr,P_upr,b)
 end
 """
     BoundedFluidQueue(T::Array{Float64,2},c::Array{Float64,1})
 
 Alias to `BoundedFluidQueue(T,PhaseSet(c))`.
 """
-BoundedFluidQueue(T::Array{Float64,2},c::Array{Float64,1}) = BoundedFluidQueue(T,PhaseSet(c))
-BoundedFluidQueue(T::Array{Float64,2}, c::Array{Float64,1}, P_lwr::Matrix{Float64}, P_upr::Matrix{Float64}) = 
-    BoundedFluidQueue(T,PhaseSet(c),P_lwr,P_upr)
+BoundedFluidQueue(T::Array{Float64,2},c::Array{Float64,1},b::Float64=10.0) = BoundedFluidQueue(T,PhaseSet(c),b)
+BoundedFluidQueue(T::Array{Float64,2}, c::Array{Float64,1}, P_lwr::Matrix{Float64}, P_upr::Matrix{Float64}, b::Float64=10.0) = 
+    BoundedFluidQueue(T,PhaseSet(c),P_lwr,P_upr,b)
 
 rates(m::Model) = rates(m.S)
 rates(m::Model,i::Int) = rates(m.S,i)
@@ -282,7 +284,7 @@ function augment_model(model::Model)
         T_aug, C_aug, m_aug, lpm_aug, rpm_aug, P_lwr_aug, P_upr_aug = 
             _duplicate_zero_states(model.T,rates(model),model.P_lwr,model.P_upr)
         S_aug = PhaseSet(C_aug,m_aug,lpm_aug,rpm_aug)
-        return BoundedFluidQueue(T_aug,S_aug,P_lwr_aug,P_upr_aug)
+        return BoundedFluidQueue(T_aug,S_aug,P_lwr_aug,P_upr_aug,model.b)
     else # no zero states, no augmentation needed
        return model 
     end

@@ -1,6 +1,7 @@
 using DiscretisedFluidQueues 
 using LinearAlgebra, SparseArrays, StableRNGs 
 using Test
+include("SFM_operators.jl")
 
 T = [-2.5 2 0.5; 1 -2 1; 1 2 -3]
 T_nz = T - [0.01 0 0;0 0 0;0 0 0]
