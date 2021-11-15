@@ -161,7 +161,7 @@ Constructor for a fluid queue model with regulated boundaries by default
 - `T::Array{Float64, 2}`: Generator of the phase process
 - `S::PhaseSet`: An array of phases describing the evolution of the fluid level in each phase.
 """
-function BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet, b::Float64=10.0)
+function BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet, b::Float64)
     _fluid_queue_checks(T,S)
     P_lwr = zeros(sum(negative_phases(S)),size(T,2))
     P_upr = zeros(sum(positive_phases(S)),size(T,2))
@@ -180,12 +180,12 @@ function BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet, b::Float64=10.0)
     return BoundedFluidQueue(T,S,P_lwr,P_upr,b)
 end
 """
-    BoundedFluidQueue(T::Array{Float64,2},c::Array{Float64,1})
+    BoundedFluidQueue(T::Array{Float64,2},c::Array{Float64,1},b::Float64)
 
 Alias to `BoundedFluidQueue(T,PhaseSet(c))`.
 """
-BoundedFluidQueue(T::Array{Float64,2},c::Array{Float64,1},b::Float64=10.0) = BoundedFluidQueue(T,PhaseSet(c),b)
-BoundedFluidQueue(T::Array{Float64,2}, c::Array{Float64,1}, P_lwr::Matrix{Float64}, P_upr::Matrix{Float64}, b::Float64=10.0) = 
+BoundedFluidQueue(T::Array{Float64,2},c::Array{Float64,1},b::Float64) = BoundedFluidQueue(T,PhaseSet(c),b)
+BoundedFluidQueue(T::Array{Float64,2}, c::Array{Float64,1}, P_lwr::Matrix{Float64}, P_upr::Matrix{Float64}, b::Float64) = 
     BoundedFluidQueue(T,PhaseSet(c),P_lwr,P_upr,b)
 
 rates(m::Model) = rates(m.S)

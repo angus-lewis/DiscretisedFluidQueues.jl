@@ -4,7 +4,7 @@ P_lwr_reflecting = P_lwr_reflecting./sum(P_lwr_reflecting,dims=2)
 P_upr_reflecting = zeros(size(am.P_upr))
 P_upr_reflecting[:,rates(am).<0.0] .= 1.0
 P_upr_reflecting = P_upr_reflecting./sum(P_upr_reflecting,dims=2)
-refl_model = BoundedFluidQueue(am.T,am.S,P_lwr_reflecting,P_upr_reflecting)
+refl_model = BoundedFluidQueue(am.T,am.S,P_lwr_reflecting,P_upr_reflecting,nodes[end])
 
 rng = StableRNGs.StableRNG(94)
 P_lwr_rand = rand(rng,size(am.P_lwr)...)
@@ -13,7 +13,7 @@ P_lwr_rand = P_lwr_rand./sum(P_lwr_rand,dims=2)
 P_upr_rand = rand(rng,size(am.P_upr)...)
 P_upr_rand[:,(rates(am).==0.0).&DiscretisedFluidQueues._has_left_boundary(am.S)] .= 0.0
 P_upr_rand = P_upr_rand./sum(P_upr_rand,dims=2)
-rand_model = BoundedFluidQueue(am.T,am.S,P_lwr_rand,P_upr_rand)
+rand_model = BoundedFluidQueue(am.T,am.S,P_lwr_rand,P_upr_rand,nodes[end])
 
 @testset "Generators" begin 
     @testset "augment_model" begin
@@ -177,7 +177,7 @@ end
     P_lwr[end] = 1.0
     P_upr = zeros(sum(rates(model.S).>0.0),n_phases(model))
     P_upr[2] = 1.0
-    model_bnd = BoundedFluidQueue(T,S,P_lwr,P_upr)
+    model_bnd = BoundedFluidQueue(T,S,P_lwr,P_upr,nodes[end])
 
     dq = DiscretisedFluidQueue(model,dgmesh)
     dq_bnd = DiscretisedFluidQueue(model_bnd,dgmesh)

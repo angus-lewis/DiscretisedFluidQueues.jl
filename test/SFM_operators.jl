@@ -56,7 +56,7 @@ function psi_fun_x( model::Model; s = 0, MaxIters = 1000, err = 1e-8)
             TDict["bullet0"] * T00inv * TDict["0bullet"]
         )
 
-    model_without_zero_phases = BoundedFluidQueue(Q,model.S[SDict["bullet"]])
+    model_without_zero_phases = BoundedFluidQueue(Q,model.S[SDict["bullet"]],model.b)
 
     ~, QDict = _model_dicts(model_without_zero_phases)
 
@@ -150,7 +150,7 @@ function stationary_distribution_x( model::Model, Ψ::Array, ξ::Array)
             TDict["bullet0"] * T00inv * TDict["0bullet"]
         )
 
-    model_without_zero_phases = BoundedFluidQueue(Q,model.S[SDict["bullet"]])
+    model_without_zero_phases = BoundedFluidQueue(Q,model.S[SDict["bullet"]],model.b)
 
     ~, QDict = _model_dicts(model_without_zero_phases)
     

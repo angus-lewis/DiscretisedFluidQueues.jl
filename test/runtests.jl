@@ -11,13 +11,13 @@ C = [0.0; 2.0; -3.0]
 m = -1 .+ 2*Int.(DiscretisedFluidQueues._strictly_pos.(C))
 S = PhaseSet(C)
 
-model = BoundedFluidQueue(T,S)
+model = BoundedFluidQueue(T,S,12.0)
 
 T_aug = [-2.5 0 2 0.5; 0 -2.5 2 0.5; 1 0 -2 1; 0 1 2 -3]
 C_aug = [0.0;-0.0;C[2:3]]
 m_aug = -1 .+ 2*Int.(DiscretisedFluidQueues._strictly_pos.(C_aug))
 S_aug = PhaseSet(C_aug)
-am = BoundedFluidQueue(T_aug,S_aug)
+am = BoundedFluidQueue(T_aug,S_aug,12.0)
 
 nds_vec = Array{Any,1}(undef,2)
 nds_vec[1] = [0.0;3.0;4.0;12.0]

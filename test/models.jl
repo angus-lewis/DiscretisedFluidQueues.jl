@@ -26,10 +26,10 @@
         @test n_phases(model)==length(C)
         @test phases(model)==1:length(C)
 
-        @test_logs (:warn,"row sums of T should be 0") BoundedFluidQueue(T_warn,S)
+        @test_logs (:warn,"row sums of T should be 0") BoundedFluidQueue(T_warn,S,nodes[end])
 
-        @test_throws DomainError BoundedFluidQueue(T_nz[1:2,:],S)
-        @test_throws DomainError BoundedFluidQueue(T,S[1:end-1])
+        @test_throws DomainError BoundedFluidQueue(T_nz[1:2,:],S,nodes[end])
+        @test_throws DomainError BoundedFluidQueue(T,S[1:end-1],nodes[end])
     end
 
     for f in fieldnames(BoundedFluidQueue)

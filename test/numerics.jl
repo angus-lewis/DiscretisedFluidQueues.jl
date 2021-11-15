@@ -4,7 +4,7 @@
     C = [0, 2.0, -6.0]
     S = PhaseSet(C)
 
-    model = BoundedFluidQueue(T,S)
+    model = BoundedFluidQueue(T,S,nodes[end])
     am = augment_model(model)
 
     mtypes = (DGMesh,
