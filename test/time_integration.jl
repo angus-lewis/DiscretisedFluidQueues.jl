@@ -15,7 +15,7 @@
         # using DiscretisedFluidQueues
         one_D_T = [0.0][:,:]
         one_D_c = [1.0]
-        one_D_model = BoundedFluidQueue(one_D_T,one_D_c,nodes[end])
+        one_D_model = BoundedFluidQueue(one_D_T,one_D_c,1.0)
 
         nodes = collect(-1.0:2.0/50.0:1.0)
 
