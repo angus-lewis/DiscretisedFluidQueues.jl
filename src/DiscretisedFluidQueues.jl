@@ -17,8 +17,7 @@ export augment_model, membership, N₋, N₊, n_phases, phases, rates # Model me
 export cell_nodes, Δ, n_bases_per_cell, n_bases_per_phase, n_intervals, total_n_bases # Mesh methods 
 export interior_point_mass, left_point_mass, right_point_mass, integrate_time # SFMDistribution methods
 export simulate, fixed_time, n_jumps, first_exit_x # Simulation methods
-export build_lazy_generator, build_full_generator, @static_generator, static_generator
-export psi_fun_x, xi_x, stationary_distribution_x
+export build_lazy_generator, build_full_generator, static_generator
 export cme_params, pdf, ccdf, cdf, build_me, cell_probs
 export normalised_closing_operator_cdf, normalised_closing_operator_pdf
 export naive_normalised_closing_operator_cdf, naive_normalised_closing_operator_pdf 

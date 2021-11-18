@@ -38,14 +38,12 @@ given the `InitialCondition` on (φ(0),X(0)).
 
     simulate(
         model::Model,
-        lwr::Float64, upr::Float64,
         StoppingTime::Function,
         InitCondition::NamedTuple{(:φ, :X)},
     )
 
 # Arguments
 - `model`: A Model object 
-- `lwr` and `upr` upper an lower regulated boundaries for the fluid level.
 - `StoppingTime`: A function which takes the value of the process at the current
     time and at the time of the last jump of the phase process, as well as the
     `model` object.
@@ -67,15 +65,26 @@ given the `InitialCondition` on (φ(0),X(0)).
 """
 function simulate(
     model::BoundedFluidQueue,
-    lwr::Float64, upr::Float64,
     StoppingTime::Function,
-    InitCondition::NamedTuple{(:φ, :X)},
+    InitCondition::NamedTuple{(:X,:φ)},
     rng::Random.AbstractRNG=Random.default_rng(),
 )
+    for n in 1:length(InitCondition.X)
+        !(0.0<=InitCondition.X[n]<=model.b)&&throw(DomainError("inital X values must be within the model bounds"))
+        !(InitCondition.φ[n]∈(1:n_phases(model)))&&throw(DomainError("inital φ values must be within the model phases"))
+    end
     # the transition matrix of the jump chain
     d = LinearAlgebra.diag(model.T)
     P = (model.T - LinearAlgebra.diagm(0 => d)) ./ -d
     CumP = cumsum(P, dims = 2)
+
+    idx₋ = findall(rates(model).<0.0)
+    CumP_lwr = zeros(size(P))
+    CumP_lwr[idx₋,:] = cumsum(model.P_lwr, dims = 2)
+    CumP_upr = zeros(size(P))
+    idx₊ = findall(rates(model).>0.0)
+    CumP_upr[idx₊,:] = cumsum(model.P_upr, dims = 2)
+
     Λ = LinearAlgebra.diag(model.T)
 
     M = length(InitCondition.φ)
@@ -86,14 +95,12 @@ function simulate(
 
     for m = 1:M
         SFM0 = (t = 0.0, φ = InitCondition.φ[m], X = InitCondition.X[m], n = 0)
-        while 1 == 1
+        while true
             S = log(rand(rng)) / Λ[SFM0.φ] # generate exp random variable
-            t = SFM0.t + S
-            X = UpdateXt(model, SFM0, S, lwr, upr)
-            φ = findfirst(rand(rng) .< CumP[SFM0.φ, :])
+            X, φ, t = Update(model, SFM0, S, CumP, CumP_lwr, CumP_upr, rng)
             n = SFM0.n + 1
             SFM = (t = t, φ = φ, X = X, n = n)
-            τ = StoppingTime(model, SFM, SFM0, lwr, upr)
+            τ = StoppingTime(model, SFM, SFM0)
             if τ.Ind # if the stopping time occurs
                 (tSims[m], φSims[m], XSims[m], nSims[m]) = τ.SFM
                 break
@@ -129,13 +136,14 @@ function cdf(s::Simulation)
 end
 
 function cell_probs(s::Simulation,nodes)
+    n_sims = length(s.t)
     function p(x::Float64,i::Int)
         !(i∈phases(s.model)) && throw(DomainError("phase i must be in the support of the model"))
         _x_in_bounds = (x>nodes[1])&&(x<nodes[end])
         if _x_in_bounds
-            idx = findfirst(nodes.<x)
-            left_edge = nodes[idx]
-            right_edge = nodes[idx+1]
+            idx = findfirst(x.<nodes)
+            left_edge = nodes[idx-1]
+            right_edge = nodes[idx]
             i_idx = s.φ.==i
             return (membership(s.model.S,i)>0.0) ? (sum(left_edge.<=s.X[i_idx].<right_edge)/n_sims) : (sum(left_edge.<s.X[i_idx].<=right_edge)/n_sims)
         else 
@@ -149,12 +157,10 @@ end
 Returns ``X(t+S) = min(max(X(t) + cᵢS,0),U)`` where ``U`` is some upper bound
 on the process.
 
-    UpdateXt(
+    UpdateX(
         model::Model,
         SFM0::NamedTuple,
         S::Real,
-        lwr::Float64,
-        upr::Float64,
     )
 
 # Arguments
@@ -163,20 +169,34 @@ on the process.
     ``X(t)`` at the current time, and `:φ` giving the value of
     ``φ(t)`` at the current time.
 - `S::Real`: an elapsed amount of time to evaluate ``X`` at, i.e. ``X(t+S)``.
-- `lwr::Float64`: lower regulated boundary for the fluid level
-- `upr::Float64`: upper regulated boundary for the fluid level
 """
-function UpdateXt(
-    model::Model,
-    SFM0::NamedTuple,
-    S::Real,
-    lwr::Float64,
-    upr::Float64,
-)
+function UpdateX(model::BoundedFluidQueue,SFM0::NamedTuple,S::Real)
     # given the last position of a SFM, SFM0, a time step of size s, find the
     # position of X at time t
-    X = min( max(SFM0.X+rates(model,SFM0.φ)*S, lwr), upr)
+    
+    # X moves freely unless a boundary is hit
+    X = min( max(SFM0.X+rates(model,SFM0.φ)*S, 0.0), model.b)
     return X
+end
+
+function Update(model::BoundedFluidQueue,SFM0::NamedTuple,S::Real,CumP::Matrix{Float64},
+    CumP_lwr::Matrix{Float64},CumP_upr::Matrix{Float64},rng::Random.AbstractRNG=Random.default_rng())
+
+    # evolve freely until a boundary is hit
+    X =  UpdateX(model,SFM0,S)
+
+    # if boundary is hit, change phase, update time to time when boundary is hit
+    if (X==0.0)&&(SFM0.X!=0.0)#&&(rates(model,SFM0.φ)<0.0)
+        φ = findfirst(rand(rng).<=CumP_lwr[SFM0.φ,:])
+        t = SFM0.t + (X-SFM0.X)/rates(model,SFM0.φ)
+    elseif (X==model.b)&&(SFM0.X!=model.b)#&&(rates(model,SFM0.φ)>0.0)
+        φ = findfirst(rand(rng).<=CumP_upr[SFM0.φ,:])
+        t = SFM0.t + (X-SFM0.X)/rates(model,SFM0.φ)
+    else # update phase
+        φ = findfirst(rand(rng).<=CumP[SFM0.φ, :])
+        t = SFM0.t + S
+    end
+    return X, φ, t
 end
 
 """
@@ -193,8 +213,6 @@ Constructs the `StoppingTime` ``1(t>T)``
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
-        lwr::Float64,
-        upr::Float64,
     )`: a stopping time for a SFM.
 """
 function fixed_time(T::Float64)
@@ -204,13 +222,11 @@ function fixed_time(T::Float64)
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
-        lwr::Float64,
-        upr::Float64,
     )
         Ind = SFM.t > T
         if Ind
             s = T - SFM0.t
-            X = UpdateXt(model, SFM0, s, lwr, upr)
+            X = UpdateX(model, SFM0, s)
             SFM = (t = T, φ = SFM0.φ, X = X, n = SFM0.n)
         end
         return (Ind = Ind, SFM = SFM)
@@ -233,8 +249,6 @@ jumps of ``φ`` by time ``t``.
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
-        lwr::Float64,
-        upr::Float64,
     )`: a stopping time for a SFM.
 """
 function n_jumps( N::Int)
@@ -244,8 +258,6 @@ function n_jumps( N::Int)
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
-        lwr::Float64,
-        upr::Float64,
     )
         Ind = SFM.n >= N
         return (Ind = Ind, SFM = SFM)
@@ -269,8 +281,6 @@ from the interval ``[u,v]``.
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
-        lwr::Float64,
-        upr::Float64,
     )`: a stopping time for a SFM.
 """
 function first_exit_x( u::Real, v::Real)
@@ -279,8 +289,6 @@ function first_exit_x( u::Real, v::Real)
         model::Model,
         SFM::NamedTuple{(:t, :φ, :X, :n)},
         SFM0::NamedTuple{(:t, :φ, :X, :n)},
-        lwr::Float64,
-        upr::Float64,
     )
         Ind = ((SFM.X > v) || (SFM.X < u))
         if Ind

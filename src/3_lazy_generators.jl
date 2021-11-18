@@ -89,38 +89,6 @@ function LazyGenerator(
     return LazyGenerator(dq,blocks,boundary_flux,D)
 end
 
-"""
-    @static_generator(lz)
-
-Convert the block matrices and vectors within `lz` to `StaticArrays`.
-This is not much faster. I think all the conditionals in `*` are the main 
-bottle-neck for speed... 
-"""
-macro static_generator(lz)
-    out = quote 
-        tmp = $(esc(lz))
-        sz = size(tmp.blocks[1], 1)
-        ex_smatrix = StaticArrays.SMatrix{sz, sz, Float64}
-        ex_svector = StaticArrays.SVector{sz, Float64}
-        b1 = ex_smatrix(tmp.blocks[1])
-        b2 = ex_smatrix(tmp.blocks[2])
-        b3 = ex_smatrix(tmp.blocks[3])
-        b4 = ex_smatrix(tmp.blocks[4])
-        uprin = ex_svector(tmp.boundary_flux.upper.in)
-        uprout = ex_svector(tmp.boundary_flux.upper.out)
-        lwrin = ex_svector(tmp.boundary_flux.lower.in)
-        lwrout = ex_svector(tmp.boundary_flux.lower.out)
-        D = ex_smatrix(tmp.D)
-        dq = tmp.dq
-
-        # return 
-        LazyGenerator(dq,(b1,b2,b3,b4), 
-            BoundaryFlux(OneBoundaryFlux(uprin,uprout),OneBoundaryFlux(lwrin,lwrout)),
-            D)
-    end
-    return out
-end
-
 function static_generator(lz) 
     sz = size(lz.blocks[1], 1)
     ex_smatrix = StaticArrays.SMatrix{sz, sz, Float64}
