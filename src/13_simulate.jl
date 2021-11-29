@@ -126,7 +126,7 @@ Output is a function of two variables (x,i) and gives the empirical distribution
 """
 function cdf(s::Simulation)
     n_sims = length(s.t)
-    function F(x::Float64,i::Int)
+    function F(x::Real,i::Int)
         !(i∈phases(s.model)) && throw(DomainError("phase i must be in the support of the model"))
         i_idx = s.φ.==i
         Fxi = sum(s.X[i_idx].<=x)/n_sims
@@ -137,7 +137,7 @@ end
 
 function cell_probs(s::Simulation,nodes)
     n_sims = length(s.t)
-    function p(x::Float64,i::Int)
+    function p(x::Real,i::Int)
         !(i∈phases(s.model)) && throw(DomainError("phase i must be in the support of the model"))
         _x_in_bounds = (x>nodes[1])&&(x<nodes[end])
         if _x_in_bounds

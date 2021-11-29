@@ -70,7 +70,7 @@ function pdf(d::SFMDistribution)
 end
 
 function pdf(d::SFMDistribution{DGMesh{T}}) where T
-    function f(x::Float64,i::Int) # the PDF
+    function f(x::Real,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq)) && throw(DomainError("phase i must be in the support of the model"))
         # if x is not in the support return 0.0
@@ -109,9 +109,8 @@ end
 Evaluate pdf(d::SFMDistribution) at (x,i).
 """
 pdf(d::SFMDistribution,x,i) = 
-    throw(DomainError("x must be Float64/Int/Array{Float64/Int,1}, i must be Int/Array{Int,1}"))
-pdf(d::SFMDistribution,x::Float64,i::Int) = pdf(d)(x,i)
-pdf(d::SFMDistribution,x::Int,i::Int) = pdf(d)(convert(Float64,x),i)
+    throw(DomainError("x must be Real, i must be Int/Array{Int,1}"))
+pdf(d::SFMDistribution,x::Real,i::Int) = pdf(d)(x,i)
 
 # abstract type ClosingOperator end
 
@@ -164,9 +163,9 @@ function normalised_closing_operator_cdf(a::AbstractArray{Float64,2},
 end
 
 function pdf(d::SFMDistribution{FRAPMesh{T}}, 
-    closing_operator::Function=normalised_closing_operator_pdf) where T
+    closing_operator::F=normalised_closing_operator_pdf) where {F<:Function, T}
 
-    function f(x::Float64,i::Int) # the PDF
+    function f(x::Real,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq)) && throw(DomainError("phase i must be in the support of the model"))
         # if x is not in the support return 0.0
@@ -193,7 +192,7 @@ function pdf(d::SFMDistribution{FRAPMesh{T}},
 end
 
 function pdf(d::SFMDistribution{FVMesh{T}}) where T
-    function f(x::Float64,i::Int) # the PDF
+    function f(x::Real,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq)) && throw(DomainError("phase i must be in the support of the model"))
         # if x is not in the support return 0.0
@@ -232,7 +231,7 @@ end
 """
     cdf(d::SFMDistribution)
 
-Return a function of two variables (x::Float64,i::Int) which is the 
+Return a function of two variables (x::Real,i::Int) which is the 
 cumulative distribution distribution function defined by `d`. Approximates the distribution function of 
 a fluid queue.
 """
@@ -315,7 +314,7 @@ function cdf(d::SFMDistribution{DGMesh{T}}) where T
         # is actually part of the integral operator G^-1. i.e. we should have Δ(d.dq,cell)G^-1 
         # for each cell. 
     end
-    function F(x::Float64,i::Int) # the PDF
+    function F(x::Real,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq.model)) && throw(DomainError("phase i must be in the support of the model"))
         mesh = d.dq.mesh
@@ -363,13 +362,13 @@ Evaluate cdf(d::SFMDistribution) at (x,i).
 """
 cdf(d::SFMDistribution,x,i) = 
     throw(DomainError("x must be Float64/Int/Array{Float64/Int,1}, i must be Int/Array{Int,1}"))
-cdf(d::SFMDistribution,x::Float64,i::Int) = cdf(d)(x,i)
+cdf(d::SFMDistribution,x::Real,i::Int) = cdf(d)(x,i)
 cdf(d::SFMDistribution,x::Int,i::Int) = cdf(d)(convert(Float64,x),i)
 
 function cdf(d::SFMDistribution{FRAPMesh{T}}, 
     closing_operator::Function=normalised_closing_operator_cdf) where T
 
-    function F(x::Float64,i::Int) # the PDF
+    function F(x::Real,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq)) && throw(DomainError("phase i must be in the support of the model"))
         # if x is not in the support return 0.0
@@ -437,7 +436,7 @@ function _sum_cells_left(d::SFMDistribution{FVMesh{T}}, i::Int, cell_idx::Int) w
 end
 
 function cdf(d::SFMDistribution{FVMesh{T}}) where T
-    function F(x::Float64,i::Int) # the PDF
+    function F(x::Real,i::Int) # the PDF
         # check phase is in support 
         !(i∈phases(d.dq)) && throw(DomainError("phase i must be in the support of the model"))
         # if x is not in the support return 0.0
@@ -478,7 +477,7 @@ function cdf(d::SFMDistribution{FVMesh{T}}) where T
 end
 
 function cell_probs(d::SFMDistribution)
-    function p(x::Float64,i::Int)
+    function p(x::Real,i::Int)
         _x_in_bounds = (x>d.dq.mesh.nodes[1])&&(x<d.dq.mesh.nodes[end])
         if _x_in_bounds
             ~, ~, coeff_idx = _get_coeff_index_pos(x,i,d.dq)
@@ -491,7 +490,7 @@ function cell_probs(d::SFMDistribution)
 end
 
 function cell_probs(d::SFMDistribution{FVMesh{T}}) where T
-    function p(x::Float64,i::Int)
+    function p(x::Real,i::Int)
         _x_in_bounds = (x>d.dq.mesh.nodes[1])&&(x<d.dq.mesh.nodes[end])
         if _x_in_bounds
             cell_idx, ~, coeff_idx = _get_coeff_index_pos(x,i,d.dq)
