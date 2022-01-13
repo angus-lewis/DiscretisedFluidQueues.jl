@@ -3,7 +3,7 @@
     rng = StableRNGs.StableRNG(1)
     stopping_time = fixed_time(3.2)
     n_sims = 100_000
-    initial_condition = (φ=ones(Int,n_sims),X=zeros(n_sims))
+    initial_condition = (X=zeros(n_sims),φ=ones(Int,n_sims))
     sims = simulate(model,stopping_time,initial_condition,rng)
     f(x,i) = cdf(sims)(x,i)
     @test sum(f.(10.0,phases(model)))≈1.0 

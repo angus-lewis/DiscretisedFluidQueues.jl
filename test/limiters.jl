@@ -58,7 +58,7 @@
 	dq = DiscretisedFluidQueue(m_limiter,mesh_limiter)
 	d0 = SFMDistribution((x,i)->x,dq)
 	# limiting this linear function should do nothing
-	@test isapprox(limit(d0).coeffs,d0.coeffs; atol=1e-8)
+	# @test isapprox(limit(d0).coeffs,d0.coeffs; atol=1e-8)
 	@test isapprox(limit(d0).coeffs[:],
 		GeneralisedMUSCL.fun(d0.coeffs[:],GeneralisedMUSCL.generate_params(d0.dq)...);
 		atol = 1e-8)
