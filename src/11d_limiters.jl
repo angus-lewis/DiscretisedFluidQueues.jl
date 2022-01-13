@@ -66,10 +66,10 @@ function limit(coeffs::Vector{Float64}, V::Matrix{Float64}, Vinv::Matrix{Float64
 
     
     for phase in 1:num_phases
-        for cell in 2:length(Δvec)-1
+        for cell in 1:length(Δvec)
             a = cell_averages[phase,cell] - poly_reconstruct_left[phase,cell]
-            b = cell_averages[phase,cell] - cell_averages[phase,cell-1]
-            c = cell_averages[phase,cell+1] - cell_averages[phase,cell]
+            b = cell_averages[phase,cell] - cell_averages[phase,max(1,cell-1)]
+            c = cell_averages[phase,min(length(Δvec),cell+1)] - cell_averages[phase,cell]
 
             left_limited_flux = cell_averages[phase,cell] - minmod(a,b,c)
 

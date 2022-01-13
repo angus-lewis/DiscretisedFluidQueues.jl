@@ -154,7 +154,7 @@ function cell_probs(s::Simulation,nodes)
 end
 
 """
-Returns ``X(t+S) = min(max(X(t) + cᵢS,0),U)`` where ``U`` is some upper bound
+Returns ``X(t+S) = min(max(X(t) + cᵢS,0),model.b)`` where ``model.b`` is the upper boundary of the model
 on the process.
 
     UpdateX(
