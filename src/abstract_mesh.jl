@@ -3,6 +3,7 @@
     Mesh 
 
 Abstract type representing a discretisation mesh for a numerical scheme. 
+Possible subtypes are DGMesh, FRAPMesh, FVMesh
 """
 abstract type Mesh{T<:AbstractVector{Float64}} end 
 

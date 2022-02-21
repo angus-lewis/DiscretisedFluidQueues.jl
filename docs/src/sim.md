@@ -1,6 +1,6 @@
 # Simulate 
 
-Tools to simulate a FluidQueue. 
+Tools to simulate a BoundedFluidQueue. 
 
 ### Simulate and evaluate simulations
 ```@docs

@@ -4,7 +4,7 @@ struct Quadrature end
 struct TrapezoidRule end
 
 """
-    SFMDistribution(pdf::Function, dq::DiscretisedFluidQueue{<:Mesh}, fun_evals::Int = 6)
+    SFMDistribution(pdf::Function, dq::DiscretisedFluidQueue{<:Mesh})
 
 Return a discretised version of the `pdf`. The method of discretisation depends on the discretisation method 
 of `dq`.
@@ -13,7 +13,6 @@ of `dq`.
 - `pdf::Function`: a function `f(x::Float64,i::Int)` where `f(x,i)dx=P(X(0)∈dx,φ(0)=i)` is the initial 
     distribution of a fluid queue.
 - `dq::DiscretisedFluidQueue{<:Mesh}`: 
-- `fun_evals`: the number of function evaluations used to approximate `f(x,i)`
 """
 function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{<:Mesh},method::Type{AbstractIntegrationMethod})
     throw(DomainError("No such integration method"))
@@ -22,7 +21,7 @@ end
 """
     SFMDistribution(pdf::Function, dq::DiscretisedFluidQueue{DGMesh{T}})
 
-Approximates `pdf` via polynomials using interpolation. 
+Approximates `pdf` as a projection on to polynomials. 
 """
 function SFMDistribution(pdf::Function,dq::DiscretisedFluidQueue{DGMesh{T}},method::Type{AutoQuadrature}=AutoQuadrature) where T
     cellnodes = cell_nodes(dq)
@@ -251,13 +250,7 @@ Return the appropriate initial condition to approximate the initial distribution
 is a point mass at (x,i) for the numerical discretisation scheme defined by the 
 `dq` DiscretisedFluidQueue.
 
-i.e. Compute the orbit position 
-``a(x) = a exp(S(x-yₖ))`` 
-if the membership of `i` is `-1` and 
-``a(x) = a exp(S(yₖ₊₁-x))`` 
-if the membership of `i` is `1` where 
-`yₖ` and `yₖ₊₁` are the left and right cell edges and `x∈[yₖ,yₖ₊₁]`, respectively, and 
-`a` and `S` are defined by `dq.mesh.me` are parameters of a MatrixExponential.
+[See here for more](https://github.com/angus-lewis/PhDThesis)
 """
 function interior_point_mass(x::Float64,i::Int,dq::DiscretisedFluidQueue{FRAPMesh{T}}) where T
     if _has_right_boundary(dq.model.S,i) 

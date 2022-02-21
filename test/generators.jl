@@ -22,7 +22,6 @@ rand_model = BoundedFluidQueue(am.T,am.S,P_lwr_rand,P_upr_rand,nodes[end])
                 msh = @eval $i
                 (i==:dgmesh) && include("test_data/"*string(typeof(msh.nodes))[1:4]*"/"*string(tmp_model)*"/test_DG_B_data.jl")
                 (i==:frapmesh) && include("test_data/"*string(typeof(msh.nodes))[1:4]*"/"*string(tmp_model)*"/test_FRAP_B_data.jl")
-                println((tmp_model,i))
                 dq = @eval DiscretisedFluidQueue($tmp_model,$i)
                 B = build_lazy_generator(dq)
                 Matrix(B)
@@ -63,7 +62,6 @@ rand_model = BoundedFluidQueue(am.T,am.S,P_lwr_rand,P_upr_rand,nodes[end])
         
         @testset "Full" begin
             for i in (:dgmesh,:frapmesh,:fvmesh), tmp_model in (:am,:refl_model,:rand_model)
-                println((tmp_model,i))
                 msh = @eval $i
                 (i==:dgmesh) && include("test_data/"*string(typeof(msh.nodes))[1:4]*"/"*string(tmp_model)*"/test_DG_B_data.jl")
                 (i==:frapmesh) && include("test_data/"*string(typeof(msh.nodes))[1:4]*"/"*string(tmp_model)*"/test_FRAP_B_data.jl")
@@ -104,7 +102,6 @@ rand_model = BoundedFluidQueue(am.T,am.S,P_lwr_rand,P_upr_rand,nodes[end])
     @testset "normal model" begin
         @testset "Lazy" begin 
             for i in (:dgmesh,:frapmesh) 
-                println(i)
                 msh = @eval $i
                 dq = @eval DiscretisedFluidQueue(model,$i)
                 B = build_lazy_generator(dq)
@@ -142,7 +139,6 @@ rand_model = BoundedFluidQueue(am.T,am.S,P_lwr_rand,P_upr_rand,nodes[end])
         
         @testset "Full" begin
             for i in (:dgmesh,:frapmesh,:fvmesh)
-                println(i)
                 msh = @eval $i
                 @eval begin 
                     dq = DiscretisedFluidQueue(model,$i)

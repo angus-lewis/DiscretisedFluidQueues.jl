@@ -4,22 +4,21 @@
 A structure representing a discretisation scheme to be used for a DiscretisedFluidQueue. 
 
 # Arguments:
-- `nodes::Array{Float64, 1}`: The edges of the cells.
+- `nodes::AbstractArray{Float64, 1}`: The edges of the cells.
 - `n_bases::Int`: The number of basis functions used to represent the solution on each cell
 """
 struct DGMesh{T} <: Mesh{T}
     nodes::T
     n_bases::Int
-    basis::String
+    function DGMesh{T}(nodes::T,n_bases::Int) where T
+        (n_bases<=0)&&throw(DomainError("n_bases must be positive"))
+        (nodes[1]!=0.0)&&throw(DomainError("first node must be 0"))
+        return new{T}(nodes,n_bases)
+    end
 end 
 # Convenience constructors
-function DGMesh{T}(nodes::T,n_bases::Int) where T
-    basis = "lagrange"
-    mesh = DGMesh(nodes,n_bases,basis)
-    return mesh
-end
 DGMesh(nodes::T,n_bases::Int) where T = DGMesh{T}(nodes::T,n_bases::Int) 
-DGMesh() = DGMesh([0.0],0,"")
+DGMesh() = DGMesh([0.0],0)
 
 """
 
@@ -55,14 +54,6 @@ function cell_nodes(mesh::DGMesh)
 end
 
 """
-
-    basis(mesh::DGMesh)
-
-Returns mesh.basis; either "lagrange" or "legendre"
-"""
-basis(mesh::DGMesh) = mesh.basis
-
-"""
     local_dg_operators(mesh::DGMesh; v::Bool = false)
 
 Construct the block matrices and vectors which define the discretised
@@ -74,28 +65,17 @@ function local_dg_operators(
 )
     ## Construct local blocks
     V = vandermonde(n_bases_per_cell(mesh))
-    if basis(mesh) == "legendre"
-        Dw = (
-            DwInv = LinearAlgebra.diagm(0 => ones(Float64, n_bases_per_cell(mesh))),
-            Dw = LinearAlgebra.diagm(0 => ones(Float64, n_bases_per_cell(mesh))),
-        ) # function weights are not available for legendre basis as this is
-        # in density land
-        MLocal = Matrix{Float64}(LinearAlgebra.I(n_bases_per_cell(mesh)))
-        GLocal = V.inv * V.D
-        MInvLocal = Matrix{Float64}(LinearAlgebra.I(n_bases_per_cell(mesh)))
-        Phi = V.V[[1; end], :]
-    elseif basis(mesh) == "lagrange"
-        Dw = (
-            DwInv = LinearAlgebra.diagm(0 => 1.0 ./ V.w),
-            Dw = LinearAlgebra.diagm(0 => V.w),
-        )# function weights so that we can work in probability land as
-        # opposed to density land
 
-        MLocal = Dw.DwInv * V.inv' * V.inv * Dw.Dw
-        GLocal = Dw.DwInv * V.inv' * V.inv * (V.D * V.inv) * Dw.Dw
-        MInvLocal = Dw.DwInv * V.V * V.V' * Dw.Dw
-        Phi = (V.inv*V.V)[[1; end], :]
-    end
+    Dw = (
+        DwInv = LinearAlgebra.diagm(0 => 1.0 ./ V.w),
+        Dw = LinearAlgebra.diagm(0 => V.w),
+    )# function weights so that we can work in probability land as
+    # opposed to density land
+
+    MLocal = Dw.DwInv * V.inv' * V.inv * Dw.Dw
+    GLocal = Dw.DwInv * V.inv' * V.inv * (V.D * V.inv) * Dw.Dw
+    MInvLocal = Dw.DwInv * V.V * V.V' * Dw.Dw
+    Phi = (V.inv*V.V)[[1; end], :]
 
     PosDiagBlock = -Dw.DwInv * Phi[end, :] * Phi[end, :]' * Dw.Dw
     NegDiagBlock = Dw.DwInv * Phi[1, :] * Phi[1, :]' * Dw.Dw

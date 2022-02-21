@@ -6,14 +6,17 @@ makedocs(
     authors = "angus-lewis",
     sitename = "DiscretisedFluidQueues.jl",
     pages = Any["index.md", 
-        "API" => ["Models and Discretisations" => "m_and_d.md", 
+        "API" => [
+        "Examples" => "examples.md", 
+        "Models" => "models.md", 
+        "Mesh (Discretisations)" => "mesh.md", 
         "Distributions" => "dist.md",
+        "Time Integration" => "time_integration.md",
         "Generators" => "generators.md",
         "Simulate" => "sim.md",
         "Tools" => [
         "ME Tools" => "me_tools.md",
-        "Polynomial tools" => "poly.md",
-        "Matrix-analytic methods tools" => "sfm.md"]]],
+        "Polynomial tools" => "poly.md"]]],
 )
     # strict = true,
     # clean = true,

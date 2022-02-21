@@ -83,12 +83,8 @@ function pdf(d::SFMDistribution{DGMesh{T}}) where T
             coeffs = d.coeffs[coeff_idx]
             # if not a point mass, then reconstruct solution
             # if !(cell_idx=="point mass")
-                if basis(mesh) == "legendre"
-                    coeffs = legendre_to_lagrange(coeffs)
-                else
-                    V = vandermonde(n_bases_per_cell(mesh))
-                    coeffs = coeffs
-                end
+                V = vandermonde(n_bases_per_cell(mesh))
+                coeffs = coeffs
                 lp = lagrange_polynomials(cellnodes, x) # interpolating basis
                 # transform to lagrange basis where each basis function integrates to 1,
                 # i.e. divide the basis functions by their integrals.
@@ -247,17 +243,9 @@ Add up all the probability mass in phase `i` in the cells to the left of `cell_i
 """
 function _sum_cells_left(d::SFMDistribution, i::Int, cell_idx::Int) 
     c = 0.0
-    if basis(d.dq.mesh) == "legendre"
-        for cell in 1:(cell_idx-1)
-            # first legendre basis function =1 & has all the mass
-            idx = (N₋(d.dq) + (i-1)*n_bases_per_cell(d.dq) + (cell-1)*n_bases_per_level(d.dq)) .+ 1 
-            c += d.coeffs[idx]
-        end
-    else
-        for cell in 1:(cell_idx-1)
-            idx = (N₋(d.dq) + (i-1)*n_bases_per_cell(d.dq) + (cell-1)*n_bases_per_level(d.dq)) .+ (1:n_bases_per_cell(d.dq))
-            c += sum(d.coeffs[idx])
-        end
+    for cell in 1:(cell_idx-1)
+        idx = (N₋(d.dq) + (i-1)*n_bases_per_cell(d.dq) + (cell-1)*n_bases_per_level(d.dq)) .+ (1:n_bases_per_cell(d.dq))
+        c += sum(d.coeffs[idx])
     end
     return c
 end

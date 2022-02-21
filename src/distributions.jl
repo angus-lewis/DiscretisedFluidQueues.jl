@@ -43,5 +43,5 @@ fast_mul(B::AbstractMatrix{Float64},u::SFMDistribution) =
 fast_mul(u::SFMDistribution,x::Real) = SFMDistribution(u.coeffs*x,u.dq)
 fast_mul(x::Real,u::SFMDistribution) = fast_mul(u,x)
 
-include("11a_approximation.jl")
-include("11b_reconstruction.jl")
+include("approximation.jl")
+include("reconstruction.jl")

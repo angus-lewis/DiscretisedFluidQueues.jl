@@ -13,10 +13,3 @@ pdf(d::SFMDistribution, x, i)
 cdf(d::SFMDistribution)
 cdf(d::SFMDistribution, x, i) 
 ```
-### Integrate time
-```@docs
-TimeIntegrationScheme
-Euler
-RungeKutta4
-integrate_time
-```

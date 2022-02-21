@@ -25,29 +25,27 @@ export unnormalised_closing_operator_cdf, unnormalised_closing_operator_pdf
 export limit, Limiter, NoLimiter, GeneralisedMUSCL
 
 # model
-include("1_SFM.jl")
+include("SFM.jl")
 
-include("2_abstract_mesh.jl") # things which apply to all meshes
-include("2a_discretised_fluid_queue.jl")
-include("3_lazy_generators.jl")
-include("4_full_generators.jl")
+include("abstract_mesh.jl") # things which apply to all meshes
+include("discretised_fluid_queue.jl")
+include("lazy_generators.jl")
+include("full_generators.jl")
 
 # auxillary functions
-include("6_ME_tools.jl") # used in FRAPApproximation.jl
-include("7_polynomials.jl") # used in discontinuous_Galerkin.jl
+include("ME_tools.jl") # used in FRAPApproximation.jl
+include("polynomials.jl") # used in discontinuous_Galerkin.jl
 
-include("8_discontinuous_Galerkin.jl")
-include("9_finite_volume_method.jl")
-include("10_FRAP_approximation.jl")
+include("discontinuous_Galerkin.jl")
+include("finite_volume_method.jl")
+include("FRAP_approximation.jl")
 
-include("11_distributions.jl")
-include("11c_extend_Base_operations.jl")
-include("11d_limiters.jl")
+include("distributions.jl")
+include("extend_Base_operations.jl")
+include("limiters.jl")
 
-include("12_time_integration.jl")
+include("time_integration.jl")
 
-include("13_simulate.jl")
-
-include("14_error_metrics.jl")
+include("simulate.jl")
 
 end

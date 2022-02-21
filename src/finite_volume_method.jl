@@ -12,13 +12,20 @@ A finite volume discretisation scheme for a DiscretisedFluidQueue.
 struct FVMesh{T} <: Mesh{T}
     nodes::T
     order::Int
+    function FVMesh{T}(nodes::T,order::Int) where T
+        (order<=0)&&throw(DomainError("order must be positive"))
+        (nodes[1]!=0.0)&&throw(DomainError("first node must be 0"))
+        return new{T}(nodes,order)
+    end
 end 
+# Convenience constructors
+FVMesh(nodes::T,order::Int) where T = FVMesh{T}(nodes,order)
 
 """
 
     n_bases_per_cell(mesh::FVMesh)
 
-Constant 1
+Constant=1
 """
 n_bases_per_cell(mesh::FVMesh) = 1
 _order(mesh::FVMesh) = mesh.order
@@ -30,14 +37,6 @@ _order(mesh::FVMesh) = mesh.order
 The cell centres
 """
 cell_nodes(mesh::FVMesh) = Array(((mesh.nodes[1:end-1] + mesh.nodes[2:end]) / 2 )')
-
-"""
-
-    basis(mesh::FVMesh)
-
-Constant ""
-"""
-basis(mesh::FVMesh) = ""
 
 n_bases_per_phase(mesh::FVMesh) = n_intervals(mesh)
 
@@ -66,7 +65,6 @@ function MakeFVFlux(mesh::Mesh)
     F[end-order+1:end,end] += -lagrange_polynomials(cell_nodes(mesh)[end-order+1:end],mesh.nodes[end])./Δ(mesh)[end]
     return F
 end
-
 
 
 function build_full_generator(dq::DiscretisedFluidQueue{FVMesh{T}}; v::Bool=false) where T

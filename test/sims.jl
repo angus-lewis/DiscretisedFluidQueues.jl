@@ -8,5 +8,5 @@
     f(x,i) = cdf(sims)(x,i)
     @test sum(f.(10.0,phases(model)))≈1.0 
     p_3_2 = ([1.0 0 0] * exp(model.T*3))[:]
-    @test f.(10.0,phases(model))≈p_3_2 rtol=2e-3
+    @test f.(10.0,phases(model))≈p_3_2 rtol=5e-3
 end

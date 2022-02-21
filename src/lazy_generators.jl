@@ -89,6 +89,9 @@ function LazyGenerator(
     return LazyGenerator(dq,blocks,boundary_flux,D)
 end
 
+"""
+(Experimantal) convert the block matrices of the lazy generator to static arrays
+"""
 function static_generator(lz) 
     sz = size(lz.blocks[1], 1)
     ex_smatrix = StaticArrays.SMatrix{sz, sz, Float64}

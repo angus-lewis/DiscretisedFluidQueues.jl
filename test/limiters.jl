@@ -52,8 +52,8 @@
 	
 	T_limiter = [0.0][:,:]
 	c_limiter = [0.0]
-	m_limiter = BoundedFluidQueue(T_limiter,c_limiter,1.0)
-	nodes = collect(-1.0:0.1:1.0)
+	m_limiter = BoundedFluidQueue(T_limiter,c_limiter,2.0)
+	nodes = collect(0.0:0.1:2.0)
 	mesh_limiter = DGMesh(nodes,3)
 	dq = DiscretisedFluidQueue(m_limiter,mesh_limiter)
 	d0 = SFMDistribution((x,i)->x,dq)

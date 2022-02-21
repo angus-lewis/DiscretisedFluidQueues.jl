@@ -134,6 +134,7 @@ Constructor for a fluid queue model.
     A |S₋| by |S| array.
 - `P_upr::Array{Float64,2}`: Probabilities of phase change upon hitting the upper boundary. 
     A |S₊| by |S| array.
+- `b::Float64`: the upper boundary of the fluid level (the lower boundary is 0 by default).
 """
 struct BoundedFluidQueue <: Model
     T::Array{Float64,2}
@@ -153,13 +154,14 @@ struct BoundedFluidQueue <: Model
     end
 end
 """
-    BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet)
+    BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet, b::Float64)
 
 Constructor for a fluid queue model with regulated boundaries by default 
 
 # Arguments:
 - `T::Array{Float64, 2}`: Generator of the phase process
-- `S::PhaseSet`: An array of phases describing the evolution of the fluid level in each phase.
+- `S::PhaseSet`: An array of phases describing the evolution of the fluid level in each phase
+- `b::Float64`: the upper boundary of the fluid level (lower boundary is 0 by default).
 """
 function BoundedFluidQueue(T::Array{Float64,2}, S::PhaseSet, b::Float64)
     _fluid_queue_checks(T,S)
@@ -182,7 +184,7 @@ end
 """
     BoundedFluidQueue(T::Array{Float64,2},c::Array{Float64,1},b::Float64)
 
-Alias to `BoundedFluidQueue(T,PhaseSet(c))`.
+Alias to `BoundedFluidQueue(T,PhaseSet(c),b)`.
 """
 BoundedFluidQueue(T::Array{Float64,2},c::Array{Float64,1},b::Float64) = BoundedFluidQueue(T,PhaseSet(c),b)
 BoundedFluidQueue(T::Array{Float64,2}, c::Array{Float64,1}, P_lwr::Matrix{Float64}, P_upr::Matrix{Float64}, b::Float64) = 

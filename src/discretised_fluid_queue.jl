@@ -11,7 +11,13 @@ Parametric type depending on the type of discretisation scheme (<:Mesh)
 struct DiscretisedFluidQueue{T<:Mesh}
     model::Model
     mesh::T
+    function DiscretisedFluidQueue{T}(model::Model,mesh::T) where T
+        (model.b!=mesh.nodes[end])&&throw(DomainError("mesh.nodes[end] must equal model.b"))
+        return new{T}(model::Model,mesh::T)
+    end
 end
+DiscretisedFluidQueue(model::Model,mesh::T) where T = 
+    DiscretisedFluidQueue{T}(model,mesh)
 
 n_phases(dq::DiscretisedFluidQueue) = n_phases(dq.model)
 rates(dq::DiscretisedFluidQueue,i::Int) = rates(dq.model,i)
